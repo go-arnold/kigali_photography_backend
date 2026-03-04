@@ -1,0 +1,1153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kigali Photography — Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;1,500&family=IBM+Plex+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f5f1eb;
+  --surface:#ffffff;
+  --surface2:#faf7f3;
+  --ink:#1a1612;
+  --ink2:#4a4540;
+  --ink3:#7a756f;
+  --border:#e2ddd6;
+  --border2:#cdc8c0;
+  --accent:#bf4b1e;
+  --accent-bg:#fdf0ea;
+  --gold:#9a7c2e;
+  --gold-bg:#fdf8ea;
+  --green:#276b4e;
+  --green-bg:#eaf4ef;
+  --red:#c0392b;
+  --red-bg:#fdecea;
+  --blue:#1d5ea8;
+  --blue-bg:#eaf1fd;
+  --sidebar:#1a1612;
+  --r:5px;
+  --font-serif:'Playfair Display',Georgia,serif;
+  --font-sans:'DM Sans',system-ui,sans-serif;
+  --font-mono:'IBM Plex Mono',monospace;
+}
+html,body{height:100%;background:var(--bg);color:var(--ink);font-family:var(--font-sans);font-size:14px;line-height:1.5}
+a{color:inherit;text-decoration:none}
+button{font-family:var(--font-sans);cursor:pointer}
+input,textarea,select{font-family:var(--font-sans);font-size:13px}
+
+/* ── Layout ── */
+#app{display:flex;height:100vh;overflow:hidden}
+
+/* ── Sidebar ── */
+.sidebar{
+  width:216px;flex-shrink:0;background:var(--sidebar);
+  display:flex;flex-direction:column;overflow:hidden
+}
+.sb-brand{padding:22px 20px 18px;border-bottom:1px solid rgba(255,255,255,.07)}
+.sb-brand-name{
+  font-family:var(--font-serif);font-size:16px;
+  color:#f5f1eb;font-style:italic;line-height:1.2
+}
+.sb-brand-tag{
+  font-size:10px;letter-spacing:.15em;text-transform:uppercase;
+  color:rgba(255,255,255,.35);margin-top:3px;font-family:var(--font-mono)
+}
+.sb-nav{flex:1;padding:10px 0;overflow-y:auto}
+.sb-section{
+  font-size:9px;letter-spacing:.18em;text-transform:uppercase;
+  color:rgba(255,255,255,.25);padding:14px 20px 6px;
+  font-family:var(--font-mono)
+}
+.sb-item{
+  display:flex;align-items:center;gap:10px;
+  padding:9px 20px;color:rgba(255,255,255,.5);
+  font-size:13px;font-weight:400;cursor:pointer;
+  border-left:2px solid transparent;
+  transition:all .15s;user-select:none
+}
+.sb-item:hover{color:rgba(255,255,255,.85);background:rgba(255,255,255,.05)}
+.sb-item.active{
+  color:#f5f1eb;border-left-color:var(--accent);
+  background:rgba(191,75,30,.15)
+}
+.sb-item-icon{width:15px;text-align:center;font-size:13px;flex-shrink:0}
+.sb-badge{
+  margin-left:auto;background:var(--accent);color:white;
+  font-size:10px;font-weight:600;padding:1px 7px;
+  border-radius:10px;font-family:var(--font-mono)
+}
+.sb-footer{
+  padding:14px 20px;border-top:1px solid rgba(255,255,255,.07);
+  font-size:11px;color:rgba(255,255,255,.3)
+}
+.sb-user{color:rgba(255,255,255,.6);font-weight:500;margin-bottom:8px}
+.sb-signout{
+  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);
+  color:rgba(255,255,255,.4);padding:5px 10px;border-radius:var(--r);
+  font-size:11px;transition:all .15s;width:100%;text-align:center
+}
+.sb-signout:hover{background:rgba(255,255,255,.1);color:rgba(255,255,255,.7)}
+
+/* ── Main ── */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.topbar{
+  height:52px;flex-shrink:0;background:var(--surface);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 24px;gap:16px
+}
+.topbar-title{
+  font-family:var(--font-serif);font-size:19px;
+  font-style:italic;color:var(--ink);flex:1
+}
+.topbar-meta{
+  font-family:var(--font-mono);font-size:11px;color:var(--ink3);
+  display:flex;align-items:center;gap:12px
+}
+.topbar-dot{width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block}
+.content{flex:1;overflow-y:auto;padding:24px}
+
+/* ── Stat cards ── */
+.stats-row{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:22px}
+.stat{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r);padding:14px 16px;position:relative;overflow:hidden
+}
+.stat::after{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:var(--accent)
+}
+.stat.g::after{background:var(--green)}
+.stat.b::after{background:var(--gold)}
+.stat-label{
+  font-size:10px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--ink3);margin-bottom:6px;font-family:var(--font-mono)
+}
+.stat-val{font-family:var(--font-mono);font-size:26px;font-weight:500;line-height:1;color:var(--ink)}
+.stat-sub{font-size:11px;color:var(--ink3);margin-top:4px;font-family:var(--font-mono)}
+.stat-alert .stat-val{color:var(--accent)}
+
+/* ── Panel ── */
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:18px}
+.panel-head{
+  padding:12px 18px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;background:var(--surface2)
+}
+.panel-head h2{font-size:12px;font-weight:600;letter-spacing:.04em;color:var(--ink2)}
+.panel-head .count{
+  font-family:var(--font-mono);font-size:10px;
+  background:var(--border);color:var(--ink3);
+  padding:1px 7px;border-radius:10px
+}
+.panel-actions{margin-left:auto;display:flex;gap:6px;align-items:center}
+
+/* ── Tables ── */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead th{
+  padding:8px 14px;text-align:left;
+  font-size:10px;font-weight:600;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--ink3);
+  border-bottom:1px solid var(--border);
+  background:var(--surface2);white-space:nowrap
+}
+tbody tr{border-bottom:1px solid var(--border);transition:background .1s}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:var(--surface2)}
+tbody td{padding:9px 14px;vertical-align:middle}
+
+/* ── Badges ── */
+.badge{
+  display:inline-flex;align-items:center;gap:3px;
+  padding:2px 7px;border-radius:3px;
+  font-size:10px;font-weight:700;font-family:var(--font-mono);
+  letter-spacing:.04em;white-space:nowrap
+}
+.ba{background:var(--accent-bg);color:var(--accent)}     /* accent/pending */
+.bg{background:var(--green-bg);color:var(--green)}         /* green/approved */
+.bb{background:var(--blue-bg);color:var(--blue)}           /* blue/booked */
+.bd{background:var(--gold-bg);color:var(--gold)}           /* gold/medium */
+.br{background:var(--red-bg);color:var(--red)}             /* red/rejected */
+.bn{background:var(--border);color:var(--ink3)}            /* neutral */
+
+/* ── Heat bar ── */
+.heat-wrap{display:flex;align-items:center;gap:7px;min-width:100px}
+.heat-track{flex:1;height:3px;background:var(--border);border-radius:2px}
+.heat-fill{height:100%;border-radius:2px;transition:width .3s}
+.hf-high{background:var(--accent)}
+.hf-medium{background:var(--gold)}
+.hf-low{background:var(--green)}
+.heat-num{font-family:var(--font-mono);font-size:10px;color:var(--ink3);width:24px;text-align:right}
+
+/* ── Buttons ── */
+.btn{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:6px 13px;border-radius:var(--r);
+  font-size:12px;font-weight:500;border:1px solid transparent;
+  transition:all .15s;white-space:nowrap;cursor:pointer;
+  font-family:var(--font-sans)
+}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-dark{background:var(--ink);color:#f5f1eb;border-color:var(--ink)}
+.btn-dark:hover:not(:disabled){background:#2a2520}
+.btn-accent{background:var(--accent);color:white;border-color:var(--accent)}
+.btn-accent:hover:not(:disabled){background:#a83e14}
+.btn-ghost{background:transparent;border-color:var(--border);color:var(--ink2)}
+.btn-ghost:hover:not(:disabled){background:var(--surface2)}
+.btn-red{background:transparent;border-color:#fca5a5;color:var(--red)}
+.btn-red:hover:not(:disabled){background:var(--red-bg)}
+.btn-green{background:transparent;border-color:#6ee7b7;color:var(--green)}
+.btn-green:hover:not(:disabled){background:var(--green-bg)}
+.btn-sm{padding:3px 9px;font-size:11px}
+.btn-xs{padding:2px 7px;font-size:10px}
+.btn-icon{padding:5px 7px}
+.refresh{
+  background:transparent;border:1px solid var(--border);
+  color:var(--ink3);padding:5px 9px;border-radius:var(--r);
+  font-size:11px;cursor:pointer;transition:all .15s
+}
+.refresh:hover{background:var(--surface2);color:var(--ink)}
+
+/* ── Form ── */
+.f-label{
+  font-size:10px;font-weight:600;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--ink3);
+  margin-bottom:5px;display:block;font-family:var(--font-mono)
+}
+.f-input{
+  width:100%;border:1px solid var(--border);border-radius:var(--r);
+  padding:8px 11px;background:white;color:var(--ink);
+  transition:border-color .15s;font-size:13px
+}
+.f-input:focus{outline:none;border-color:var(--ink)}
+.f-group{margin-bottom:14px}
+.f-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+/* ── Modal ── */
+.overlay{
+  position:fixed;inset:0;background:rgba(26,22,18,.55);
+  display:flex;align-items:center;justify-content:center;
+  z-index:900;padding:20px;animation:fadeIn .15s
+}
+.modal{
+  background:white;border-radius:8px;width:100%;
+  max-width:540px;max-height:92vh;overflow-y:auto;
+  animation:slideUp .2s;box-shadow:0 20px 60px rgba(26,22,18,.25)
+}
+.modal-lg{max-width:700px}
+.modal-head{
+  padding:18px 22px 14px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;background:white;z-index:1
+}
+.modal-head h3{font-family:var(--font-serif);font-size:20px;font-style:italic}
+.modal-body{padding:22px}
+.modal-foot{
+  padding:14px 22px;border-top:1px solid var(--border);
+  display:flex;gap:8px;justify-content:flex-end
+}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes slideUp{from{transform:translateY(10px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+/* ── AI suggestion ── */
+.ai-box{
+  background:var(--surface2);border:1px solid var(--border);
+  border-left:3px solid var(--accent);border-radius:var(--r);
+  padding:12px 14px;margin-bottom:14px
+}
+.ai-box-label{
+  font-size:9px;font-weight:700;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--ink3);
+  font-family:var(--font-mono);margin-bottom:7px
+}
+.ai-box-text{font-size:13px;line-height:1.55;color:var(--ink)}
+.ai-box-reason{
+  margin-top:9px;padding-top:9px;border-top:1px solid var(--border);
+  font-size:11px;color:var(--ink3);font-style:italic
+}
+
+/* ── Messages ── */
+.msg-list{display:flex;flex-direction:column;gap:8px;max-height:340px;overflow-y:auto;padding:4px}
+.msg-row-in{display:flex;justify-content:flex-start}
+.msg-row-out{display:flex;justify-content:flex-end}
+.msg-bubble{
+  max-width:72%;padding:8px 12px;font-size:13px;line-height:1.45;
+  border-radius:10px;word-break:break-word
+}
+.msg-bubble-in{background:var(--surface2);border:1px solid var(--border);border-bottom-left-radius:3px}
+.msg-bubble-out{background:var(--ink);color:#f5f1eb;border-bottom-right-radius:3px}
+.msg-meta{font-size:10px;color:var(--ink3);margin-top:3px;font-family:var(--font-mono)}
+.msg-meta-out{text-align:right}
+
+/* ── Tabs ── */
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:18px}
+.tab{
+  padding:7px 16px;font-size:12px;font-weight:500;
+  cursor:pointer;border-bottom:2px solid transparent;
+  color:var(--ink3);transition:all .15s;margin-bottom:-1px
+}
+.tab:hover{color:var(--ink)}
+.tab.active{color:var(--ink);border-bottom-color:var(--ink)}
+
+/* ── Toast ── */
+.toasts{position:fixed;bottom:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:7px}
+.toast{
+  background:var(--ink);color:#f5f1eb;padding:9px 15px;
+  border-radius:var(--r);font-size:13px;
+  display:flex;align-items:center;gap:8px;
+  animation:toastIn .2s;max-width:300px;
+  box-shadow:0 8px 24px rgba(26,22,18,.2)
+}
+.toast.ok{background:var(--green)}
+.toast.err{background:var(--red)}
+@keyframes toastIn{from{transform:translateX(16px);opacity:0}to{transform:translateX(0);opacity:1}}
+
+/* ── Loading / Empty ── */
+.loading{text-align:center;padding:48px;color:var(--ink3)}
+.spin{
+  width:18px;height:18px;border:2px solid var(--border);
+  border-top-color:var(--ink);border-radius:50%;
+  animation:spin .6s linear infinite;display:inline-block;
+  margin-right:8px;vertical-align:middle
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty{text-align:center;padding:52px 24px;color:var(--ink3)}
+.empty-icon{font-size:28px;margin-bottom:12px;opacity:.5}
+.empty h3{font-family:var(--font-serif);font-style:italic;font-size:18px;color:var(--ink2);margin-bottom:5px}
+.empty p{font-size:13px}
+
+/* ── Login ── */
+.login-page{
+  min-height:100vh;display:flex;align-items:center;justify-content:center;
+  background:var(--sidebar);
+}
+.login-card{
+  background:white;border-radius:10px;padding:40px;
+  width:100%;max-width:360px;
+  box-shadow:0 20px 60px rgba(0,0,0,.3)
+}
+.login-logo{font-family:var(--font-serif);font-size:26px;font-style:italic;margin-bottom:4px}
+.login-sub{font-size:12px;color:var(--ink3);margin-bottom:28px}
+.login-err{
+  background:var(--red-bg);color:var(--red);
+  padding:9px 13px;border-radius:var(--r);font-size:13px;
+  margin-bottom:14px;display:none
+}
+
+/* ── Detail grid ── */
+.d-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 20px;margin-bottom:16px}
+.d-item .d-label{
+  font-size:10px;font-weight:600;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--ink3);
+  margin-bottom:3px;font-family:var(--font-mono)
+}
+.d-item .d-val{font-size:13px;color:var(--ink);font-weight:500}
+
+/* ── Misc ── */
+.mono{font-family:var(--font-mono)}
+.muted{color:var(--ink3)}
+.name{font-weight:500}
+.phone{font-family:var(--font-mono);font-size:12px;color:var(--ink3)}
+.trunc{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px}
+.flex{display:flex}.aic{align-items:center}.gap1{gap:4px}.gap2{gap:8px}.mla{margin-left:auto}
+.w100{width:100%}.mb2{margin-bottom:8px}.mb3{margin-bottom:12px}.mb4{margin-bottom:16px}
+hr.div{border:none;border-top:1px solid var(--border);margin:16px 0}
+.section-hd{
+  font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--ink3);margin-bottom:10px;font-family:var(--font-mono)
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div class="toasts" id="toasts"></div>
+
+<script>
+'use strict';
+// ─────────────────────────────────────────────────────────────────────────────
+// Config
+// ─────────────────────────────────────────────────────────────────────────────
+const API_BASE = '/api/dashboard';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Utilities
+// ─────────────────────────────────────────────────────────────────────────────
+function getCsrf() {
+  return document.cookie.split(';').map(c => c.trim())
+    .find(c => c.startsWith('csrftoken='))?.split('=')[1] || '';
+}
+
+async function req(method, path, body) {
+  const opts = {
+    method,
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() }
+  };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(API_BASE + path, opts);
+  if (r.status === 401 || r.status === 403) { doLogout(); return null; }
+  if (r.status === 204) return {};
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.detail || data.error || Object.values(data).flat().join(', ') || `HTTP ${r.status}`);
+  return data;
+}
+
+function toast(msg, type = '') {
+  const c = document.getElementById('toasts');
+  const el = document.createElement('div');
+  el.className = `toast ${type === 'ok' ? 'ok' : type === 'err' ? 'err' : ''}`;
+  el.innerHTML = `<span>${type === 'ok' ? '✓' : type === 'err' ? '✕' : 'i'}</span>${msg}`;
+  c.appendChild(el);
+  setTimeout(() => el.remove(), 3400);
+}
+
+function ago(dt) {
+  if (!dt) return '—';
+  const s = Math.floor((Date.now() - new Date(dt)) / 1000);
+  if (s < 60) return 'just now';
+  if (s < 3600) return `${Math.floor(s/60)}m ago`;
+  if (s < 86400) return `${Math.floor(s/3600)}h ago`;
+  return `${Math.floor(s/86400)}d ago`;
+}
+
+function fmtDate(dt) {
+  if (!dt) return '—';
+  return new Date(dt).toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'});
+}
+
+function fmtDateTime(dt) {
+  if (!dt) return '—';
+  const d = new Date(dt);
+  return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) + ' ' +
+         d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+}
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// State
+// ─────────────────────────────────────────────────────────────────────────────
+let S = {
+  page: 'overview',
+  user: '',
+  stats: null, statsLoading: true,
+  approvals: [], approvalsLoading: true,
+  clients: [], clientsLoading: true,
+  scheduled: [], scheduledLoading: true,
+  clientSearch: '',
+  clientFilter: 'all',
+  modal: null,
+  detail: null, detailLoading: false, detailTab: 'info',
+};
+
+function set(patch) { Object.assign(S, patch); render(); }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Data
+// ─────────────────────────────────────────────────────────────────────────────
+async function fetchStats() {
+  set({ statsLoading: true });
+  try { set({ stats: await req('GET','/stats/'), statsLoading: false }); }
+  catch { set({ statsLoading: false }); }
+}
+
+async function fetchApprovals() {
+  set({ approvalsLoading: true });
+  try { set({ approvals: await req('GET','/approvals/') || [], approvalsLoading: false }); }
+  catch { set({ approvalsLoading: false }); }
+}
+
+async function fetchClients() {
+  set({ clientsLoading: true });
+  try { set({ clients: await req('GET','/clients/') || [], clientsLoading: false }); }
+  catch { set({ clientsLoading: false }); }
+}
+
+async function fetchScheduled() {
+  set({ scheduledLoading: true });
+  try { set({ scheduled: await req('GET','/scheduled/') || [], scheduledLoading: false }); }
+  catch { set({ scheduledLoading: false }); }
+}
+
+async function fetchDetail(pk) {
+  set({ detailLoading: true, detail: null });
+  try { set({ detail: await req('GET',`/clients/${pk}/`), detailLoading: false }); }
+  catch(e) { set({ detailLoading: false }); toast(e.message, 'err'); }
+}
+
+function nav(page) {
+  set({ page });
+  if (page === 'overview') { fetchStats(); fetchApprovals(); }
+  if (page === 'approvals') fetchApprovals();
+  if (page === 'clients') fetchClients();
+  if (page === 'scheduled') fetchScheduled();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Actions
+// ─────────────────────────────────────────────────────────────────────────────
+async function approveItem(id, sendNow) {
+  try {
+    await req('POST', `/approvals/${id}/approve/`, { send_immediately: sendNow });
+    toast(sendNow ? 'Approved & sent via WhatsApp' : 'Approved', 'ok');
+    fetchApprovals(); fetchStats(); closeModal();
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+async function rejectItem(id, notes) {
+  try {
+    await req('POST', `/approvals/${id}/reject/`, { notes: notes || '' });
+    toast('Rejected', 'ok');
+    fetchApprovals(); fetchStats(); closeModal();
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+async function sendManual(pk, message) {
+  if (!message?.trim()) { toast('Message cannot be empty', 'err'); return; }
+  try {
+    await req('POST', `/clients/${pk}/message/`, { to: String(pk), message: message.trim() });
+    toast('Message sent', 'ok'); closeModal();
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+async function takeover(pk, enable) {
+  try {
+    await req('POST', `/clients/${pk}/takeover/`, { enable });
+    toast(enable ? 'Human takeover active — AI silenced' : 'Released back to AI', 'ok');
+    fetchClients(); fetchStats();
+    if (S.detail && S.detail.id === pk) fetchDetail(pk);
+    closeModal();
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+async function overrideJourney(pk, data) {
+  try {
+    await req('POST', `/clients/${pk}/journey/`, data);
+    toast('Journey updated', 'ok');
+    fetchClients();
+    if (S.detail && S.detail.id === pk) fetchDetail(pk);
+    closeModal();
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+async function cancelScheduled(id) {
+  try {
+    await req('DELETE', `/scheduled/${id}/cancel/`);
+    toast('Scheduled message cancelled', 'ok');
+    fetchScheduled();
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+function closeModal() { set({ modal: null }); }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Component helpers
+// ─────────────────────────────────────────────────────────────────────────────
+function heatBadge(label) {
+  const map = { HIGH: 'ba', MEDIUM: 'bd', LOW: 'bg' };
+  return `<span class="badge ${map[label]||'bn'}">${label||'—'}</span>`;
+}
+
+function heatBar(score, label) {
+  const cls = { HIGH:'hf-high', MEDIUM:'hf-medium', LOW:'hf-low' }[label] || 'hf-low';
+  return `<div class="heat-wrap">
+    <div class="heat-track"><div class="heat-fill ${cls}" style="width:${score||0}%"></div></div>
+    <span class="heat-num">${score||0}</span>
+  </div>`;
+}
+
+function statusBadge(s) {
+  const map = { booked:'bb', new:'bn', contacted:'bn', quoted:'bd' };
+  return s ? `<span class="badge ${map[s]||'bn'}">${s}</span>` : '—';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Pages
+// ─────────────────────────────────────────────────────────────────────────────
+function pageOverview() {
+  const s = S.stats || {};
+  const L = S.statsLoading;
+  const v = x => L ? '<span class="spin"></span>' : x;
+  const pending = S.approvals.filter(a => a.status === 'pending');
+
+  return `
+<div class="stats-row">
+  <div class="stat ${(s.pending_approvals||0)>0?'stat-alert':''}">
+    <div class="stat-label">Pending</div>
+    <div class="stat-val">${v(s.pending_approvals??0)}</div>
+    <div class="stat-sub">approvals</div>
+  </div>
+  <div class="stat ${(s.active_human_takeovers||0)>0?'stat-alert':''}">
+    <div class="stat-label">Takeovers</div>
+    <div class="stat-val">${v(s.active_human_takeovers??0)}</div>
+    <div class="stat-sub">AI silenced</div>
+  </div>
+  <div class="stat g">
+    <div class="stat-label">Conversations</div>
+    <div class="stat-val">${v(s.total_conversations??0)}</div>
+    <div class="stat-sub">all time</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">Over Budget</div>
+    <div class="stat-val">${v(s.conversations_over_budget??0)}</div>
+    <div class="stat-sub">conversations</div>
+  </div>
+  <div class="stat b">
+    <div class="stat-label">API Cost</div>
+    <div class="stat-val" style="font-size:20px">$${v((s.estimated_cost_usd||0).toFixed(4))}</div>
+    <div class="stat-sub">${(s.total_tokens_used||0).toLocaleString()} tokens</div>
+  </div>
+  <div class="stat g">
+    <div class="stat-label">Cost / Conv</div>
+    <div class="stat-val" style="font-size:20px">$${v(s.total_conversations ? ((s.estimated_cost_usd||0)/s.total_conversations).toFixed(4) : '0.0000')}</div>
+    <div class="stat-sub">average</div>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-head">
+    <span style="font-size:15px">🔔</span>
+    <h2>Pending Approvals</h2>
+    <span class="count">${pending.length}</span>
+    <div class="panel-actions">
+      <button class="refresh" onclick="fetchApprovals();fetchStats()">↻ Refresh</button>
+    </div>
+  </div>
+  ${S.approvalsLoading
+    ? '<div class="loading"><span class="spin"></span>Loading…</div>'
+    : pending.length === 0
+      ? `<div class="empty"><div class="empty-icon">✓</div><h3>Queue is clear</h3><p>No messages waiting for review</p></div>`
+      : `<div class="table-wrap"><table>
+          <thead><tr><th>Client</th><th>Action</th><th>AI Suggestion</th><th>Heat</th><th>Age</th><th>Actions</th></tr></thead>
+          <tbody>${pending.map(a => `<tr>
+            <td><div class="name">${esc(a.client_name||'Unknown')}</div><div class="phone">${esc(a.client_phone||'')}</div></td>
+            <td><span class="badge ba">${esc(a.action)}</span></td>
+            <td><div class="trunc muted">${esc(a.ai_suggestion||'—')}</div></td>
+            <td>${heatBadge(a.heat_label)}</td>
+            <td class="mono muted" style="font-size:11px">${ago(a.created_at)}</td>
+            <td>
+              <div class="flex aic gap1">
+                <button class="btn btn-green btn-sm" onclick="openApproval(${a.id})">Review</button>
+                <button class="btn btn-red btn-sm" onclick="quickReject(${a.id})">✕</button>
+              </div>
+            </td>
+          </tr>`).join('')}</tbody>
+        </table></div>`
+  }
+</div>`;
+}
+
+function pageApprovals() {
+  const all = S.approvals;
+  return `
+<div class="panel">
+  <div class="panel-head">
+    <h2>Approval Queue</h2>
+    <span class="count">${all.length}</span>
+    <div class="panel-actions">
+      <button class="refresh" onclick="fetchApprovals()">↻ Refresh</button>
+    </div>
+  </div>
+  ${S.approvalsLoading
+    ? '<div class="loading"><span class="spin"></span>Loading…</div>'
+    : all.length === 0
+      ? `<div class="empty"><div class="empty-icon">📭</div><h3>Nothing here yet</h3><p>Messages flagged for review will appear here</p></div>`
+      : `<div class="table-wrap"><table>
+          <thead><tr><th>Client</th><th>Action</th><th>Status</th><th>AI Suggestion</th><th>Heat</th><th>Created</th><th>Actions</th></tr></thead>
+          <tbody>${all.map(a => `<tr>
+            <td><div class="name">${esc(a.client_name||'Unknown')}</div><div class="phone">${esc(a.client_phone||'')}</div></td>
+            <td><span class="badge bn">${esc(a.action)}</span></td>
+            <td><span class="badge ${a.status==='pending'?'ba':a.status==='approved'?'bg':'br'}">${a.status}</span></td>
+            <td><div class="trunc muted">${esc(a.ai_suggestion||'—')}</div></td>
+            <td>${heatBadge(a.heat_label)}</td>
+            <td class="mono muted" style="font-size:11px">${fmtDate(a.created_at)}</td>
+            <td>${a.status==='pending' ? `
+              <div class="flex aic gap1">
+                <button class="btn btn-green btn-sm" onclick="openApproval(${a.id})">Review</button>
+                <button class="btn btn-red btn-sm" onclick="quickReject(${a.id})">✕</button>
+              </div>` : `<span class="muted" style="font-size:11px">${a.reviewed_at ? ago(a.reviewed_at) : '—'}</span>`}
+            </td>
+          </tr>`).join('')}</tbody>
+        </table></div>`
+  }
+</div>`;
+}
+
+function pageClients() {
+  let list = S.clients;
+  if (S.clientSearch) {
+    const q = S.clientSearch.toLowerCase();
+    list = list.filter(c => (c.name||'').toLowerCase().includes(q) || (c.wa_number||'').includes(q));
+  }
+  if (S.clientFilter === 'takeover') list = list.filter(c => c.human_takeover);
+  if (S.clientFilter === 'pending')  list = list.filter(c => c.pending_approvals > 0);
+  if (S.clientFilter === 'booked')   list = list.filter(c => c.status === 'booked');
+  if (S.clientFilter === 'high')     list = list.filter(c => c.heat_label === 'HIGH');
+  if (S.clientFilter === 'optout')   list = list.filter(c => c.is_opted_out);
+
+  return `
+<div class="flex aic gap2 mb4">
+  <div class="flex aic gap2" style="margin-left:auto">
+    <input class="f-input" style="width:210px;padding:5px 10px"
+      type="text" placeholder="Search name or phone…"
+      value="${esc(S.clientSearch)}"
+      oninput="set({clientSearch:this.value})">
+    <select class="f-input" style="width:150px;padding:5px 10px"
+      onchange="set({clientFilter:this.value})">
+      <option value="all" ${S.clientFilter==='all'?'selected':''}>All clients</option>
+      <option value="high" ${S.clientFilter==='high'?'selected':''}>High heat</option>
+      <option value="takeover" ${S.clientFilter==='takeover'?'selected':''}>Human takeover</option>
+      <option value="pending" ${S.clientFilter==='pending'?'selected':''}>Pending approval</option>
+      <option value="booked" ${S.clientFilter==='booked'?'selected':''}>Booked</option>
+      <option value="optout" ${S.clientFilter==='optout'?'selected':''}>Opted out</option>
+    </select>
+    <button class="refresh" onclick="fetchClients()">↻</button>
+  </div>
+</div>
+<div class="panel">
+  <div class="panel-head">
+    <h2>Clients</h2>
+    <span class="count">${list.length} of ${S.clients.length}</span>
+  </div>
+  ${S.clientsLoading
+    ? '<div class="loading"><span class="spin"></span>Loading…</div>'
+    : list.length === 0
+      ? `<div class="empty"><div class="empty-icon">👥</div><h3>No clients found</h3><p>They appear once they message the bot</p></div>`
+      : `<div class="table-wrap"><table>
+          <thead><tr><th>Name</th><th>Phone</th><th>Status</th><th>Heat</th><th>Phase</th><th>Lang</th><th>Last Seen</th><th>Actions</th></tr></thead>
+          <tbody>${list.map(c => `<tr>
+            <td>
+              <div class="flex aic gap1">
+                ${c.human_takeover ? '<span title="Takeover active" style="font-size:12px">👤</span>' : ''}
+                ${c.pending_approvals > 0 ? `<span title="${c.pending_approvals} pending" style="font-size:12px">🔔</span>` : ''}
+                ${c.is_opted_out ? '<span title="Opted out" style="font-size:12px">🔕</span>' : ''}
+                <span class="name">${esc(c.name||'Unknown')}</span>
+              </div>
+            </td>
+            <td class="phone">${esc(c.wa_number||'—')}</td>
+            <td>${statusBadge(c.status)}</td>
+            <td>${heatBar(c.heat_score, c.heat_label)}</td>
+            <td class="muted" style="font-size:12px">${esc(c.phase||'—')}/${esc(c.step||'—')}</td>
+            <td class="mono" style="font-size:11px">${(c.language||'en').toUpperCase()}</td>
+            <td class="mono muted" style="font-size:11px">${ago(c.last_contact)}</td>
+            <td>
+              <div class="flex aic gap1">
+                <button class="btn btn-ghost btn-xs" onclick="openDetail(${c.id})">View</button>
+                <button class="btn btn-ghost btn-xs" onclick="openMessage(${c.id},'${esc(c.name||'Client')}','${esc(c.wa_number||'')}')">✉</button>
+                <button class="btn ${c.human_takeover?'btn-green':'btn-red'} btn-xs"
+                  onclick="takeover(${c.id},${!c.human_takeover})">
+                  ${c.human_takeover?'Release':'Takeover'}
+                </button>
+              </div>
+            </td>
+          </tr>`).join('')}</tbody>
+        </table></div>`
+  }
+</div>`;
+}
+
+function pageScheduled() {
+  const list = S.scheduled;
+  return `
+<div class="panel">
+  <div class="panel-head">
+    <h2>Scheduled Messages</h2>
+    <span class="count">${list.length}</span>
+    <div class="panel-actions">
+      <button class="refresh" onclick="fetchScheduled()">↻ Refresh</button>
+    </div>
+  </div>
+  ${S.scheduledLoading
+    ? '<div class="loading"><span class="spin"></span>Loading…</div>'
+    : list.length === 0
+      ? `<div class="empty"><div class="empty-icon">📅</div><h3>Nothing scheduled</h3><p>Birthday wishes and follow-ups appear here</p></div>`
+      : `<div class="table-wrap"><table>
+          <thead><tr><th>Client</th><th>Type</th><th>Send At</th><th>Status</th><th>Preview</th><th>Lang</th><th>Actions</th></tr></thead>
+          <tbody>${list.map(m => `<tr>
+            <td><div class="name">${esc(m.client_name||'Unknown')}</div><div class="phone">${esc(m.client_phone||'')}</div></td>
+            <td><span class="badge bn">${esc(m.message_type)}</span></td>
+            <td class="mono" style="font-size:12px">${fmtDateTime(m.send_at)}</td>
+            <td><span class="badge ${m.status==='pending'?'ba':m.status==='sent'?'bg':'br'}">${m.status}</span></td>
+            <td><div class="trunc muted">${esc(m.content||'—')}</div></td>
+            <td class="mono" style="font-size:11px">${(m.language||'en').toUpperCase()}</td>
+            <td>${m.status==='pending'
+              ? `<button class="btn btn-red btn-xs" onclick="cancelScheduled(${m.id})">Cancel</button>`
+              : `<span class="muted" style="font-size:11px">${m.sent_at?ago(m.sent_at):'—'}</span>`}
+            </td>
+          </tr>`).join('')}</tbody>
+        </table></div>`
+  }
+</div>`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Modals
+// ─────────────────────────────────────────────────────────────────────────────
+function openApproval(id) {
+  const a = S.approvals.find(x => x.id === id);
+  if (!a) return;
+  set({ modal: { type: 'approval', data: a } });
+}
+
+function quickReject(id) {
+  if (confirm('Reject this approval?')) rejectItem(id, '');
+}
+
+function openMessage(pk, name, phone) {
+  set({ modal: { type: 'message', pk, name, phone } });
+}
+
+function openDetail(pk) {
+  set({ modal: { type: 'detail', pk }, detailTab: 'info' });
+  fetchDetail(pk);
+}
+
+function openJourneyEdit(c) {
+  set({ modal: { type: 'journey', client: c } });
+}
+
+function renderModal() {
+  const m = S.modal;
+  if (!m) return '';
+
+  let inner = '';
+
+  if (m.type === 'approval') {
+    const a = m.data;
+    inner = `
+    <div class="modal">
+      <div class="modal-head">
+        <h3>Review Approval</h3>
+        <button class="btn btn-ghost btn-icon btn-sm" onclick="closeModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="d-grid mb4">
+          <div class="d-item"><div class="d-label">Client</div><div class="d-val">${esc(a.client_name)}</div></div>
+          <div class="d-item"><div class="d-label">Phone</div><div class="d-val phone">${esc(a.client_phone)}</div></div>
+          <div class="d-item"><div class="d-label">Action</div><div class="d-val"><span class="badge ba">${esc(a.action)}</span></div></div>
+          <div class="d-item"><div class="d-label">Heat</div><div class="d-val">${heatBadge(a.heat_label)} ${a.heat_score_at_suggestion}</div></div>
+          <div class="d-item"><div class="d-label">Created</div><div class="d-val mono" style="font-size:12px">${fmtDateTime(a.created_at)}</div></div>
+          <div class="d-item"><div class="d-label">Expires</div><div class="d-val mono" style="font-size:12px">${fmtDateTime(a.expires_at)}</div></div>
+        </div>
+        <div class="ai-box">
+          <div class="ai-box-label">AI Suggestion</div>
+          <div class="ai-box-text">${esc(a.ai_suggestion||'No suggestion')}</div>
+          ${a.ai_reasoning ? `<div class="ai-box-reason">${esc(a.ai_reasoning)}</div>` : ''}
+        </div>
+        <div class="f-group">
+          <label class="f-label">Notes (optional)</label>
+          <textarea class="f-input" id="ap-notes" rows="2" placeholder="Add context for the team…"></textarea>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-red" onclick="rejectItem(${a.id}, document.getElementById('ap-notes').value)">✕ Reject</button>
+        <button class="btn btn-green" onclick="approveItem(${a.id}, false)">✓ Approve</button>
+        <button class="btn btn-accent" onclick="approveItem(${a.id}, true)">⚡ Approve & Send</button>
+      </div>
+    </div>`;
+  }
+
+  if (m.type === 'message') {
+    inner = `
+    <div class="modal">
+      <div class="modal-head">
+        <h3>Message ${esc(m.name)}</h3>
+        <button class="btn btn-ghost btn-icon btn-sm" onclick="closeModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="muted mb3" style="font-size:13px">Sends directly from the studio WhatsApp number, bypassing AI.</p>
+        <div class="d-grid mb4">
+          <div class="d-item"><div class="d-label">To</div><div class="d-val phone">${esc(m.phone)}</div></div>
+        </div>
+        <div class="f-group">
+          <label class="f-label">Message</label>
+          <textarea class="f-input" id="msg-body" rows="5" placeholder="Type your message here…"></textarea>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-accent" onclick="sendManual(${m.pk}, document.getElementById('msg-body').value)">Send via WhatsApp</button>
+      </div>
+    </div>`;
+  }
+
+  if (m.type === 'detail') {
+    const c = S.detail;
+    const loading = S.detailLoading;
+    const tab = S.detailTab;
+    inner = `
+    <div class="modal modal-lg">
+      <div class="modal-head">
+        <h3>${c ? esc(c.name||'Client') : 'Loading…'}</h3>
+        <button class="btn btn-ghost btn-icon btn-sm" onclick="closeModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        ${loading ? '<div class="loading"><span class="spin"></span></div>' : !c ? '<div class="loading muted">Not found</div>' : `
+        <div class="tabs">
+          <div class="tab ${tab==='info'?'active':''}" onclick="set({detailTab:'info'})">Info</div>
+          <div class="tab ${tab==='messages'?'active':''}" onclick="set({detailTab:'messages'})">Messages</div>
+        </div>
+
+        ${tab === 'info' ? `
+        <div class="section-hd">Contact & Journey</div>
+        <div class="d-grid mb4">
+          <div class="d-item"><div class="d-label">Phone</div><div class="d-val phone">${esc(c.wa_number)}</div></div>
+          <div class="d-item"><div class="d-label">Language</div><div class="d-val">${(c.language||'en').toUpperCase()}</div></div>
+          <div class="d-item"><div class="d-label">Status</div><div class="d-val">${statusBadge(c.status)}</div></div>
+          <div class="d-item"><div class="d-label">Referral</div><div class="d-val">${esc(c.referral_source||'—')}</div></div>
+          <div class="d-item"><div class="d-label">Phase / Step</div><div class="d-val">${esc(c.phase||'—')} / ${esc(c.step||'—')}</div></div>
+          <div class="d-item"><div class="d-label">Heat</div><div class="d-val">${heatBadge(c.heat_label)} ${c.heat_score}</div></div>
+          <div class="d-item"><div class="d-label">Token Budget</div><div class="d-val mono">${c.token_budget_pct||0}% used</div></div>
+          <div class="d-item"><div class="d-label">Lifetime Tokens</div><div class="d-val mono">${(c.lifetime_tokens_used||0).toLocaleString()}</div></div>
+          <div class="d-item"><div class="d-label">Sessions</div><div class="d-val mono">${c.total_sessions||0}</div></div>
+          <div class="d-item"><div class="d-label">Spent (RWF)</div><div class="d-val mono">${(c.total_spent_rwf||0).toLocaleString()}</div></div>
+          <div class="d-item"><div class="d-label">Human Takeover</div><div class="d-val">${c.human_takeover?'<span class="badge ba">ACTIVE</span>':'<span class="muted">Off</span>'}</div></div>
+          <div class="d-item"><div class="d-label">Opted Out</div><div class="d-val">${c.is_opted_out?'<span class="badge br">YES</span>':'<span class="muted">No</span>'}</div></div>
+        </div>
+        ${c.children && c.children.length > 0 ? `
+        <div class="section-hd">Children</div>
+        <div class="mb4">
+          ${c.children.map(ch => `<div class="flex aic gap2 mb2">
+            <span>👶</span>
+            <span class="name">${esc(ch.name||'Unknown')}</span>
+            ${ch.birthday ? `<span class="mono muted" style="font-size:11px">${esc(ch.birthday)}</span>` : ''}
+            ${ch.age_years ? `<span class="badge bn">${ch.age_years}y</span>` : ''}
+          </div>`).join('')}
+        </div>` : ''}
+        <hr class="div">
+        <div class="flex aic gap2">
+          <button class="btn btn-ghost btn-sm" onclick="openMessage(${c.id},'${esc(c.name||'Client')}','${esc(c.wa_number||'')}');closeModal()">✉ Send Message</button>
+          <button class="btn ${c.human_takeover?'btn-green':'btn-red'} btn-sm" onclick="takeover(${c.id},${!c.human_takeover})">
+            ${c.human_takeover ? 'Release to AI' : 'Enable Takeover'}
+          </button>
+          <button class="btn btn-ghost btn-sm" onclick="openJourneyEdit(${JSON.stringify(c).replace(/</g,'\\u003c').replace(/>/g,'\\u003e').replace(/&/g,'\\u0026')})">Edit Journey</button>
+        </div>
+        ` : `
+        <div class="msg-list">
+          ${!(c.recent_messages && c.recent_messages.length) ? `<div class="empty"><p>No messages yet</p></div>` :
+            [...c.recent_messages].reverse().map(msg =>
+              msg.direction === 'inbound'
+                ? `<div class="msg-row-in"><div>
+                    <div class="msg-bubble msg-bubble-in">${esc(msg.content)}</div>
+                    <div class="msg-meta">${ago(msg.timestamp)}</div>
+                  </div></div>`
+                : `<div class="msg-row-out"><div>
+                    <div class="msg-bubble msg-bubble-out">${esc(msg.content)}</div>
+                    <div class="msg-meta msg-meta-out">${msg.generated_by_ai?'🤖 AI':'👤 Staff'} · ${ago(msg.timestamp)}</div>
+                  </div></div>`
+            ).join('')
+          }
+        </div>
+        `}
+        `}
+      </div>
+    </div>`;
+  }
+
+  if (m.type === 'journey') {
+    const c = m.client;
+    inner = `
+    <div class="modal">
+      <div class="modal-head">
+        <h3>Edit Journey</h3>
+        <button class="btn btn-ghost btn-icon btn-sm" onclick="closeModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="muted mb3" style="font-size:13px">Manually override this client's journey state and heat score.</p>
+        <div class="f-row">
+          <div class="f-group">
+            <label class="f-label">Phase</label>
+            <select class="f-input" id="j-phase">
+              ${['entry','package','booking','prep','delivery','feedback'].map(p =>
+                `<option value="${p}" ${c.phase===p?'selected':''}>${p}</option>`).join('')}
+            </select>
+          </div>
+          <div class="f-group">
+            <label class="f-label">Heat Score (0–100)</label>
+            <input class="f-input" type="number" id="j-heat" min="0" max="100" value="${c.heat_score||50}">
+          </div>
+        </div>
+        <div class="f-group">
+          <label class="f-label">
+            <input type="checkbox" id="j-release" ${c.human_takeover?'':'disabled'}>
+            Release human takeover
+          </label>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-accent" onclick="overrideJourney(${c.id},{
+          phase: document.getElementById('j-phase').value,
+          heat_score: parseInt(document.getElementById('j-heat').value),
+          release_takeover: document.getElementById('j-release').checked
+        })">Save Changes</button>
+      </div>
+    </div>`;
+  }
+
+  return `<div class="overlay" onclick="if(event.target===this)closeModal()">${inner}</div>`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Login
+// ─────────────────────────────────────────────────────────────────────────────
+function renderLogin() {
+  return `
+  <div class="login-page">
+    <div class="login-card">
+      <div class="login-logo">Kigali Photography</div>
+      <div class="login-sub">Studio dashboard — staff access only</div>
+      <div class="login-err" id="lerr"></div>
+      <div class="f-group">
+        <label class="f-label">Username</label>
+        <input class="f-input" id="lu" type="text" autocomplete="username" placeholder="username">
+      </div>
+      <div class="f-group">
+        <label class="f-label">Password</label>
+        <input class="f-input" id="lp" type="password" autocomplete="current-password" placeholder="••••••••"
+          onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+      <button class="btn btn-dark w100" style="width:100%;justify-content:center;padding:10px;font-size:14px" id="lbtn" onclick="doLogin()">
+        Sign in →
+      </button>
+    </div>
+  </div>`;
+}
+
+async function doLogin() {
+  const u = document.getElementById('lu')?.value?.trim();
+  const p = document.getElementById('lp')?.value;
+  if (!u || !p) return;
+  const btn = document.getElementById('lbtn');
+  btn.disabled = true; btn.textContent = 'Signing in…';
+
+  try {
+    // Get CSRF first
+    await fetch('/admin/login/', { credentials: 'include' }).catch(() => {});
+    const r = await fetch('/admin/login/', {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': getCsrf() },
+      body: `username=${encodeURIComponent(u)}&password=${encodeURIComponent(p)}&next=/`,
+      redirect: 'manual'
+    });
+    // If we can now hit the API we're in
+    const check = await fetch(API_BASE + '/stats/', { credentials: 'include' });
+    if (check.ok || check.status !== 401) {
+      S.user = u;
+      startDashboard();
+    } else {
+      throw new Error('Invalid username or password');
+    }
+  } catch(e) {
+    const err = document.getElementById('lerr');
+    if (err) { err.style.display = 'block'; err.textContent = e.message; }
+    btn.disabled = false; btn.textContent = 'Sign in →';
+  }
+}
+
+function doLogout() {
+  fetch('/admin/logout/', { method: 'POST', credentials: 'include', headers: { 'X-CSRFToken': getCsrf() } });
+  S.user = '';
+  document.getElementById('root').innerHTML = renderLogin();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main render
+// ─────────────────────────────────────────────────────────────────────────────
+function render() {
+  const root = document.getElementById('root');
+  const { page, stats } = S;
+  const pendingCount = S.approvals.filter(a => a.status === 'pending').length;
+
+  const navItems = [
+    { id:'overview',  icon:'◈', label:'Overview' },
+    { id:'approvals', icon:'🔔', label:'Approvals', badge: pendingCount || '' },
+    { id:'clients',   icon:'👥', label:'Clients' },
+    { id:'scheduled', icon:'📅', label:'Scheduled' },
+  ];
+
+  const pageContent = {
+    overview: pageOverview,
+    approvals: pageApprovals,
+    clients: pageClients,
+    scheduled: pageScheduled,
+  }[page]?.() || '';
+
+  const titles = { overview:'Overview', approvals:'Approval Queue', clients:'Clients', scheduled:'Scheduled Messages' };
+
+  root.innerHTML = `
+  <div id="app">
+    <nav class="sidebar">
+      <div class="sb-brand">
+        <div class="sb-brand-name">Kigali<br>Photography</div>
+        <div class="sb-brand-tag">Studio Dashboard</div>
+      </div>
+      <div class="sb-nav">
+        <div class="sb-section">Navigation</div>
+        ${navItems.map(n => `
+          <div class="sb-item ${page===n.id?'active':''}" onclick="nav('${n.id}')">
+            <span class="sb-item-icon">${n.icon}</span>
+            <span>${n.label}</span>
+            ${n.badge ? `<span class="sb-badge">${n.badge}</span>` : ''}
+          </div>`).join('')}
+      </div>
+      <div class="sb-footer">
+        <div class="sb-user">@${esc(S.user)}</div>
+        <button class="sb-signout" onclick="doLogout()">Sign out</button>
+      </div>
+    </nav>
+
+    <div class="main">
+      <div class="topbar">
+        <span class="topbar-title">${titles[page]||''}</span>
+        <div class="topbar-meta">
+          <span class="topbar-dot"></span>
+          <span>Live</span>
+          ${stats ? `· $${(stats.estimated_cost_usd||0).toFixed(4)} spent` : ''}
+          ${stats ? `· ${(stats.total_tokens_used||0).toLocaleString()} tokens` : ''}
+        </div>
+      </div>
+      <div class="content">${pageContent}</div>
+    </div>
+  </div>
+  ${renderModal()}`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Boot
+// ─────────────────────────────────────────────────────────────────────────────
+function startDashboard() {
+  nav('overview');
+  // Auto-refresh every 30s
+  setInterval(() => {
+    if (S.page === 'overview') { fetchStats(); fetchApprovals(); }
+  }, 30000);
+}
+
+(async () => {
+  // Prime the CSRF cookie
+  await fetch('/admin/login/', { credentials: 'include' }).catch(() => {});
+
+  // Check if already authenticated
+  const r = await fetch(API_BASE + '/stats/', { credentials: 'include' });
+  if (r.ok) {
+    // Already logged in — try to get username
+    try {
+      const info = await fetch('/admin/', { credentials: 'include' });
+      const html = await info.text();
+      const match = html.match(/class="user-name">([^<]+)</);
+      if (match) S.user = match[1].trim();
+    } catch {}
+    startDashboard();
+  } else {
+    document.getElementById('root').innerHTML = renderLogin();
+  }
+})();
+</script>
+</body>
+</html>

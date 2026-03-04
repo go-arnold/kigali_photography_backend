@@ -1,0 +1,10 @@
+helt text when I do indexing
+
+# Load seed data + index everything
+python manage.py index_knowledge_base --seed
+
+# Reindex after editing documents in admin
+python manage.py index_knowledge_base --force
+
+# Check what's indexed
+python manage.py shell -c "from apps.rag.models import KnowledgeChunk; print(KnowledgeChunk.objects.count(), 'chunks')"
