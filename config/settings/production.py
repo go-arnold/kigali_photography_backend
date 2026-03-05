@@ -8,7 +8,8 @@ CSRF_COOKIE_SECURE = True
 SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 
-CORS_ALLOWED_ORIGINS = []
+CORS_ALLOWED_ORIGINS = ["https://senior-madeleine-matabar-93648cd5.koyeb.app/"]
+
 
 LOGGING = {
     "version": 1,

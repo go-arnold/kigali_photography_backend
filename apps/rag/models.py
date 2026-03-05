@@ -57,7 +57,7 @@ class KnowledgeChunk(models.Model):
 
     Note: pgvector extension must be enabled in Postgres.
     Embedding is stored as a simple JSON list of floats for portability.
-    Swap to pgvector VectorField when ready for production scale.
+    I will wwap to pgvector VectorField when ready for production scale.
     """
 
     document = models.ForeignKey(

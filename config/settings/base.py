@@ -9,7 +9,8 @@ env = environ.Env()
 environ.Env.read_env(BASE_DIR / ".env")
 
 SECRET_KEY = env("SECRET_KEY")
-DEBUG = env.bool("DEBUG", default=False)
+# DEBUG = env.bool("DEBUG", default=False)
+DEBUG = False
 ALLOWED_HOSTS = ["*"]
 
 DJANGO_APPS = [
@@ -179,13 +180,15 @@ CELERY_BEAT_SCHEDULE = {
 }
 
 
-CORS_ALLOWED_ORIGINS = env.list(
-    "CORS_ALLOWED_ORIGINS",
-    default=["https://senior-madeleine-matabar-93648cd5.koyeb.app/"],
-)
-CSRF_TRUSTED_ORIGINS = env.list(
-    "CSRF_TRUSTED_ORIGINS",
-    default=[
-        "https://senior-madeleine-matabar-93648cd5.koyeb.app/",
-    ],
-)
+# CORS_ALLOWED_ORIGINS = env.list(
+#     "CORS_ALLOWED_ORIGINS",
+#     default=["https://senior-madeleine-matabar-93648cd5.koyeb.app/"],
+# )
+CORS_ALLOWED_ORIGINS = ["https://senior-madeleine-matabar-93648cd5.koyeb.app"]
+# CSRF_TRUSTED_ORIGINS = env.list(
+#     "CSRF_TRUSTED_ORIGINS",
+#     default=[
+#         "https://senior-madeleine-matabar-93648cd5.koyeb.app/",
+#     ],
+# )
+CSRF_TRUSTED_ORIGINS = ["https://senior-madeleine-matabar-93648cd5.koyeb.app"]
