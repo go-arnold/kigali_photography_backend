@@ -68,10 +68,10 @@ TEMPLATES = [
     },
 ]
 
-# DATABASES = {
-#     "default": env.db("DATABASE_URL"),
-# }
-# DATABASES["default"]["OPTIONS"] = {"options": "-c search_path=public"}
+DATABASES = {
+    "default": env.db("DATABASE_URL"),
+}
+DATABASES["default"]["OPTIONS"] = {"options": "-c search_path=public"}
 
 # DATABASES = {
 #     "default": {
@@ -80,16 +80,8 @@ TEMPLATES = [
 #     }
 # }
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'kigali_photo',
-        'USER': 'kigali',
-        'PASSWORD': 'armand243',
-        'HOST': 'localhost',
-        'PORT': '5432',
-    }
-}
+
+
 
 
 
@@ -154,14 +146,6 @@ WHATSAPP = {
     "BASE_URL": "https://graph.facebook.com/v20.0",
 }
 
-# CLAUDE = {
-#     "API_KEY": "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",
-#     "DEFAULT_MODEL": env("CLAUDE_DEFAULT_MODEL", default="claude-haiku-3-5-20251001"),
-#     "ESCALATION_MODEL": env("CLAUDE_ESCALATION_MODEL", default="claude-sonnet-4-6"),
-#     "MAX_INPUT_TOKENS": env.int("CLAUDE_MAX_INPUT_TOKENS", default=2000),
-#     "MAX_OUTPUT_TOKENS": env.int("CLAUDE_MAX_OUTPUT_TOKENS", default=500),
-#     "CONVERSATION_BUDGET": env.int("CLAUDE_CONVERSATION_BUDGET", default=20000),
-# }
 
 OPENAI = {
     "API_KEY": env("OPENAI_API_KEY"),
