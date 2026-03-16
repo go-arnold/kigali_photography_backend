@@ -189,14 +189,14 @@ CELERY_BEAT_SCHEDULE = {
 #     "CORS_ALLOWED_ORIGINS",
 #     default=["https://senior-madeleine-matabar-93648cd5.koyeb.app/"],
 # )
-CORS_ALLOWED_ORIGINS ="https://senior-madeleine-matabar-93648cd5.koyeb.app/"
+CORS_ALLOWED_ORIGINS =["https://senior-madeleine-matabar-93648cd5.koyeb.app"]
 # CSRF_TRUSTED_ORIGINS = env.list(
 #     "CSRF_TRUSTED_ORIGINS", 
 #     default=[
 #         "https://senior-madeleine-matabar-93648cd5.koyeb.app/",
 #     ],
 # )
-CSRF_TRUSTED_ORIGINS ="https://senior-madeleine-matabar-93648cd5.koyeb.app/"
+CSRF_TRUSTED_ORIGINS =["https://senior-madeleine-matabar-93648cd5.koyeb.app"]
 
     
 # APPEND_SLASH = False
