@@ -8,23 +8,3 @@ python manage.py index_knowledge_base --force
 
 # Check what's indexed
 python manage.py shell -c "from apps.rag.models import KnowledgeChunk; print(KnowledgeChunk.objects.count(), 'chunks')"
-
-
-_________
-Access token meta: 
-definitif: 
------->  EAAZBdIY0ZAcnQBQZBo0XlrnvTS0pQ2B9ZAeGEcmB2NTG2HvwfFhbhdfw8ErlhSZCBvwjk8jOxk0H4jentjGGplwhH5L7eJZC3ZCeUKMARV5DK19zmDVZAYkBHogbRHPu7f2HMB6RyIhftQEEcg94ocPolAaSmYizV5RZAFiZA2dFywkkpwZBhJCsNqMObZBBLMMSaAZDZD
------>Avant:  EAAZBdIY0ZAcnQBQ1uZBEQ8sJ1Izo70uDvGAs7xJSErKNODAPlUyCDN1dcCt7DtfqZA5RsonZAXJUjmZBd1OJFzW41QdeBLZA0ONMcWOv2ZCxIYTBYPXlqyLqMO6hhoJzzAgdTpXZA3OurkpaXZBtCZAtOIDnLGVVEUkgFgJOds7CZA4QFJeZAKaQ4ZCNeKA8pEwm83iv5SbIEsxaqbaJXVsJ7OID2al4Sc4aZB2qTpmScDBsF5YCveCwJxbrJOKRb1KNlYVjPumZCVK1ZAFGGHVREUUDJJTZBRWU3c
-
-___________
-id phone number: 1036545472880162
-id business account wp: 1036545472880162
-test number: +1 555 146 6362
-___________________________________________________
-
-claude:
-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
-
-
-ngrok:
-ngrok config add-authtoken 3AvrUsjn6RcHjVBkQfW542VhYlM_6x2gwV2hVgzy2kfdbyZYy
