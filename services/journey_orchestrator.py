@@ -154,7 +154,9 @@ def handle_inbound_message(
         )
 
         # Step 10: Build system prompt
-        from services.claude import build_system_prompt, build_messages_context
+        
+        # from services.claude import build_system_prompt, build_messages_context
+        from services.openai_service import build_system_prompt, build_messages_context
 
         children_info = _format_children(client)
         system_prompt = build_system_prompt(
@@ -178,12 +180,18 @@ def handle_inbound_message(
 
         # Step 12: Call Claude
         escalate = journey.phase == "sales_resistance" and journey.heat_score >= 40
-        from services.claude import call_claude
+        # from services.claude import call_claude
 
-        claude_response = call_claude(
-            system_prompt=system_prompt,
-            messages=messages,
-            escalate=escalate,
+        # claude_response = call_claude(
+        #     system_prompt=system_prompt,
+        #     messages=messages,
+        #     escalate=escalate,
+        # )
+        from services.openai_service import call_openai
+        claude_response = call_openai(
+                system_prompt=system_prompt,
+                messages=messages,
+                escalate=escalate,
         )
 
         # Step 13: Record tokens
@@ -364,7 +372,8 @@ def _analyze_intent(text: str, journey, conversation) -> dict:
         last_msgs = conversation.messages.order_by("-timestamp")[:2]
         history = " | ".join(m.content[:100] for m in reversed(last_msgs))
 
-        from services.claude import analyze_intent_and_heat
+        #from services.claude import analyze_intent_and_heat
+        from services.openai_service import analyze_intent_and_heat
 
         result = analyze_intent_and_heat(text, history)
 

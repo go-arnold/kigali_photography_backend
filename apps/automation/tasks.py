@@ -70,7 +70,7 @@ def process_inbound_message(
       9. RAG context retrieval
      10. Build system prompt
      11. Build messages context (sliding window + summary)
-     12. Call Claude (Haiku default, Sonnet for escalated sales resistance)
+     12. Call Openai
      13. Record tokens at conversation + client level
      14. Save outbound message with full token accounting
      15. Human approval gate (payment, escalation, bonuses)
@@ -296,7 +296,8 @@ def summarize_long_conversations():
 def _summarize_conversation(conversation):
     """Compress conversation messages into a ConversationSummary."""
     from apps.rag.models import ConversationSummary
-    from services.claude import summarize_conversation
+    # from services.claude import summarize_conversation
+    from services.openai_service import summarize_conversation
     from utils.tokens import estimate_tokens
 
     # Get all but last 5 messages (keep recent ones fresh)
