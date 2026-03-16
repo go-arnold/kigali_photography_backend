@@ -1,0 +1,12 @@
+.env
+venv/
+env/
+__pycache__/
+__pycache__
+.pytest_cache
+.pytest_cache/
+kigali.sqlite3
+
+staticfiles/
+**/migrations/*
+!**/migrations/__init__.py

@@ -1,0 +1,17 @@
+{% extends "dashboard/_base.html" %}
+
+{% block body %}
+
+{# Root mount point — JS renders either the login page or the full    #}
+{# dashboard shell (sidebar + topbar + page content) into this div.   #}
+<div id="root"></div>
+
+{# ── Static HTML partials used as reference by JS ──────────────────  #}
+{# These are hidden; JS reads/clones them or mirrors their structure.  #}
+{# Remove the include tags below if you prefer pure JS rendering.     #}
+
+{# {% include "dashboard/_sidebar.html" %} #}
+{# {% include "dashboard/_topbar.html" %}  #}
+{# {% include "dashboard/_login.html" %}   #}
+
+{% endblock %}

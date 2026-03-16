@@ -1,0 +1,23 @@
+<div class="login-page">
+  <div class="login-card">
+    <div class="login-logo">Kigali Photography</div>
+    <div class="login-sub">Studio dashboard — staff access only</div>
+    <div class="login-err" id="lerr"></div>
+    <div class="f-group">
+      <label class="f-label">Username</label>
+      <input class="f-input" id="lu" type="text"
+             autocomplete="username" placeholder="username">
+    </div>
+    <div class="f-group">
+      <label class="f-label">Password</label>
+      <input class="f-input" id="lp" type="password"
+             autocomplete="current-password" placeholder="••••••••"
+             onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button class="btn btn-dark w100"
+            style="width:100%;justify-content:center;padding:10px;font-size:14px"
+            id="lbtn" onclick="doLogin()">
+      Sign in →
+    </button>
+  </div>
+</div>
