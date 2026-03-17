@@ -766,6 +766,96 @@ A: Absolutely. We accommodate clients coming from all areas of Kigali.
 Suggest a time slot that avoids peak traffic when possible.
 """,
 ),
+(
+    "script",
+    "both",
+    "New Prospect Playbook — Discovery & Conversion",
+    """
+NEW PROSPECT SYSTEM — KP KIDS STUDIO
+
+GOLDEN RULE:
+We don't sell packages. We diagnose what the family wants
+and recommend the right option.
+People pay premium prices when they feel safe, understood,
+and guided by experts.
+
+TONE: calm, warm, confident. Short messages. Slow pace.
+DO: use their name and child's name, ask permission before questions,
+confirm what they said in 1 line.
+AVOID: dumping price lists immediately, long paragraphs,
+sounding defensive about pricing.
+
+FIRST MESSAGE RULES:
+- If they ask "How much?": acknowledge + ask permission for 2 questions first
+  "Hi! Thank you for reaching out to KP Kids Studio.
+  Before I send prices, may I ask you a few quick questions
+  so I can recommend the right option for you?
+  Also — what's your name please?"
+
+- If they ask "Where are you located?": answer quickly + move to discovery
+  "Hi! We're at [Location].
+  To guide you properly, may I ask a few quick questions?
+  Also — what's your name please?"
+
+- If they say "I want a birthday shoot": match energy + lead
+  "Amazing! We'd love to host you.
+  So I guide you properly — what's your name please?
+  And your child's name?"
+
+QUICK RESET (when they insist on price):
+"Of course — pricing depends on what you want included
+(photos only, frames, cake, highlight video, etc.).
+Answer a few quick questions and I'll give you the exact
+options that fit — you won't pay for anything you don't want."
+
+THE 5-QUESTION DISCOVERY (ask ONE at a time):
+Q0: Confirm parent + child names (required)
+Q1: Occasion + date ("Is this for a birthday or regular shoot? When?")
+Q2: Frames ("Would you like 2 A5 frames, or photos only?")
+Q3: Cake ("Would you like us to prepare a birthday cake?")
+Q4: Highlight video ("Would you like a short highlight video?")
+Q5: Home coverage ("Would you like us to also come to your home/event?")
+
+SUMMARIZE BEFORE PRESENTING:
+"Perfect [Name]. Here's what I understood:
+- Session for: [Child]
+- Date: [date]
+- You want: [list of selected extras]
+Based on that, here are the 2 best options for you."
+
+ALWAYS PRESENT EXACTLY 2 OPTIONS — never more, never one.
+Add: "Most parents choose option X because [one simple reason]."
+
+PACKAGE PRICING MAP:
+- Photos only → Starter 50k (8 edited) or Silver 70k (12 edited)
+- One extra (frames OR video) → Silver or Gold
+- Cake included → add ~9-10k to base price
+- Two extras → Gold or Platinum
+- Home coverage → add 150,000 RWF to any package
+
+OBJECTION: "It's expensive"
+"I understand completely [Name].
+What we focus on is the full experience: kids-designed studio,
+guided posing, high-quality edits, fast delivery.
+I can recommend the option that fits your priorities
+so you don't pay for extras you don't want."
+
+OBJECTION: "Let me think"
+"Of course. Take your time.
+Just to help — is it about the date, the budget,
+or choosing between the two options?"
+
+BOOKING CLOSE (polite, not pushy):
+"Would you like me to help you reserve a slot for [Child]?
+What day works best?"
+
+CONFIRMATION AFTER BOOKING:
+"Perfect [Name]. [Child]'s session is booked for [date] at [time].
+If you can, please send a photo of the outfits in advance
+so we can prepare the set and save you time.
+We're excited to welcome you."
+""",
+),
 
 ]
 
