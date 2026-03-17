@@ -74,7 +74,7 @@ def get_or_create_conversation(client: Client) -> tuple[Conversation, bool]:
 
     conv = Conversation.objects.create(
         client=client,
-        token_budget=settings.CLAUDE["CONVERSATION_BUDGET"],
+        token_budget=settings.OPENAI["CONVERSATION_BUDGET"],
         window_expires_at=now + timezone.timedelta(hours=24),
         entry_phase=journey.phase if journey else JourneyPhase.ENTRY,
         entry_heat=journey.heat_score if journey else 50,
@@ -127,7 +127,7 @@ def is_budget_exceeded(client: Client, conversation: Conversation) -> bool:
 
     # Also check lifetime budget (soft ceiling — log but don't hard-block returning clients)
     lifetime_limit = (
-        settings.CLAUDE["CONVERSATION_BUDGET"] * 50
+        settings.OPENAI["CONVERSATION_BUDGET"] * 50
     )  # configurable sentinel
     if client.lifetime_tokens_used > lifetime_limit:
         logger.warning(

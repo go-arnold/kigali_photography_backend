@@ -1,6 +1,6 @@
 """
 Token estimation utilities.
-Used to enforce conversation budgets before calling Claude.
+Used to enforce conversation budgets before calling Openai.
 """
 
 import logging

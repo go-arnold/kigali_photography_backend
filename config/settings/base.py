@@ -71,7 +71,7 @@ TEMPLATES = [
 DATABASES = {
     "default": env.db("DATABASE_URL"),
 }
-# DATABASES["default"]["OPTIONS"] = {"options": "-c search_path=public"}
+DATABASES["default"]["OPTIONS"] = {"options": "-c search_path=public"}
 
 # DATABASES = {
 #     "default": {
@@ -79,6 +79,10 @@ DATABASES = {
 #         "NAME": BASE_DIR / "kigali.sqlite3",
 #     }
 # }
+
+
+
+
 
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
@@ -142,13 +146,14 @@ WHATSAPP = {
     "BASE_URL": "https://graph.facebook.com/v20.0",
 }
 
-CLAUDE = {
-    "API_KEY": "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",
-    "DEFAULT_MODEL": env("CLAUDE_DEFAULT_MODEL", default="claude-haiku-3-5-20251001"),
-    "ESCALATION_MODEL": env("CLAUDE_ESCALATION_MODEL", default="claude-sonnet-4-6"),
-    "MAX_INPUT_TOKENS": env.int("CLAUDE_MAX_INPUT_TOKENS", default=2000),
-    "MAX_OUTPUT_TOKENS": env.int("CLAUDE_MAX_OUTPUT_TOKENS", default=500),
-    "CONVERSATION_BUDGET": env.int("CLAUDE_CONVERSATION_BUDGET", default=20000),
+
+OPENAI = {
+    "API_KEY": env("OPENAI_API_KEY"),
+    "DEFAULT_MODEL": "gpt-4o-mini",       # cheap, fast — was Haiku
+    "ESCALATION_MODEL": "gpt-4o",         # powerful — was Sonnet
+    "MAX_INPUT_TOKENS":  env.int("OPENAI_MAX_INPUT_TOKENS", default=2000),
+    "MAX_OUTPUT_TOKENS": env.int("OPENAI_MAX_OUTPUT_TOKENS", default=500),
+    "CONVERSATION_BUDGET": env.int("OPENAI_CONVERSATION_BUDGET", default=20000),
 }
 
 STUDIO = {
@@ -184,11 +189,14 @@ CELERY_BEAT_SCHEDULE = {
 #     "CORS_ALLOWED_ORIGINS",
 #     default=["https://senior-madeleine-matabar-93648cd5.koyeb.app/"],
 # )
-CORS_ALLOWED_ORIGINS = ["https://senior-madeleine-matabar-93648cd5.koyeb.app"]
+CORS_ALLOWED_ORIGINS =["https://senior-madeleine-matabar-93648cd5.koyeb.app"]
 # CSRF_TRUSTED_ORIGINS = env.list(
-#     "CSRF_TRUSTED_ORIGINS",
+#     "CSRF_TRUSTED_ORIGINS", 
 #     default=[
 #         "https://senior-madeleine-matabar-93648cd5.koyeb.app/",
 #     ],
 # )
-CSRF_TRUSTED_ORIGINS = ["https://senior-madeleine-matabar-93648cd5.koyeb.app"]
+CSRF_TRUSTED_ORIGINS =["https://senior-madeleine-matabar-93648cd5.koyeb.app"]
+
+    
+# APPEND_SLASH = False
