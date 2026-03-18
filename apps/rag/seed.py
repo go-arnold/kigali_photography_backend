@@ -33,45 +33,71 @@ SEED_DOCUMENTS = [
     # ─── PACKAGES ────────────────────────────────────────────────────────────
 
     (
-        "package",
-        "both",
-        "Session Packages Overview",
-        """
-KIGALI PHOTOGRAPHY — SESSION PACKAGES
+    "package",
+    "both",
+    "Session Packages Overview",
+    """
+KP KIDS STUDIO — SESSION PACKAGES
 
-ESSENTIAL PACKAGE — 100,000 RWF
-- 45-minute studio session
+STARTER PACKAGE — 50,000 RWF
+- Studio session
+- 8 professionally edited photos
+- All other unedited photos from session
+Best for: Simple sessions, budget-conscious families
+
+SILVER PACKAGE — 70,000 RWF
+- Studio session
+- 12 professionally edited photos
+- All other unedited photos from session
+Best for: Families wanting more edited coverage
+
+SILVER + FRAMES — 79,000 RWF
+- Studio session
 - 10 professionally edited photos
-- Standard frame included
-- Digital downloads (high resolution)
-- 24-hour delivery guarantee
-Best for: First-time families, toddler milestones
+- All other unedited photos from session
+- 2 A5 photo frames
 
-PREMIUM PACKAGE — 150,000 RWF
-- 60-minute studio session
+SILVER + VIDEO — 79,000 RWF
+- Studio session
+- 10 professionally edited photos
+- All other unedited photos from session
+- Short highlight video
+
+GOLD PACKAGE — 89,000 RWF
+- Studio session
 - 15 professionally edited photos
-- Premium frame included
-- Digital downloads (high resolution)
-- 24-hour delivery guarantee
-- Multiple backdrop options
-Best for: Growing families, special occasions
+- All other unedited photos from session
+- Choice of: 2 A5 frames OR highlight video
 
-SIGNATURE PACKAGE — 200,000 RWF
-- 90-minute studio session
-- 25 professionally edited photos
-- Premium frame + digital album
-- Digital downloads (high resolution)
-- 24-hour delivery guarantee
-- Multiple backdrop options
-- Professional styling guidance
-- Priority editing queue
-Best for: Annual family portraits, milestone celebrations
+GOLD + CAKE — 109,000 RWF
+- Studio session
+- 15 professionally edited photos
+- All other unedited photos from session
+- Birthday cake in studio
+- Choice of: 2 A5 frames OR highlight video
+
+PLATINUM PACKAGE — 119,000 RWF
+- Studio session
+- 15 professionally edited photos per child
+- All other unedited photos from session
+- 2 A5 photo frames
+- Short highlight video
+
+HOME/EVENT COVERAGE — add 150,000 RWF to any package
+Photographer comes to your home or event to capture the real birthday party.
 
 BOOKING FEE: 20,000 RWF (deducted from final payment)
-All packages include: professional lighting, child-friendly environment, props
-Extra edited photo: 5,000 RWF each (client can add after seeing the gallery)
+Payment: MTN MOMO-CODE 798741 Kigali Photography Ltd
+
+PACKAGE SELECTION RULES (follow strictly):
+- Client wants photos only → offer Starter + Silver
+- Client wants one extra (frames OR video) → offer Silver+extra or Gold
+- Client wants cake → add ~9-10k to base price
+- Client wants two extras → offer Gold or Platinum
+- Client wants home coverage → add 150,000 RWF to chosen package
+- Always present EXACTLY 2 options — never more, never one
 """,
-    ),
+),
 
     (
         "package",
@@ -766,96 +792,7 @@ A: Absolutely. We accommodate clients coming from all areas of Kigali.
 Suggest a time slot that avoids peak traffic when possible.
 """,
 ),
-(
-    "script",
-    "both",
-    "New Prospect Playbook — Discovery & Conversion",
-    """
-NEW PROSPECT SYSTEM — KP KIDS STUDIO
 
-GOLDEN RULE:
-We don't sell packages. We diagnose what the family wants
-and recommend the right option.
-People pay premium prices when they feel safe, understood,
-and guided by experts.
-
-TONE: calm, warm, confident. Short messages. Slow pace.
-DO: use their name and child's name, ask permission before questions,
-confirm what they said in 1 line.
-AVOID: dumping price lists immediately, long paragraphs,
-sounding defensive about pricing.
-
-FIRST MESSAGE RULES:
-- If they ask "How much?": acknowledge + ask permission for 2 questions first
-  "Hi! Thank you for reaching out to KP Kids Studio.
-  Before I send prices, may I ask you a few quick questions
-  so I can recommend the right option for you?
-  Also — what's your name please?"
-
-- If they ask "Where are you located?": answer quickly + move to discovery
-  "Hi! We're at [Location].
-  To guide you properly, may I ask a few quick questions?
-  Also — what's your name please?"
-
-- If they say "I want a birthday shoot": match energy + lead
-  "Amazing! We'd love to host you.
-  So I guide you properly — what's your name please?
-  And your child's name?"
-
-QUICK RESET (when they insist on price):
-"Of course — pricing depends on what you want included
-(photos only, frames, cake, highlight video, etc.).
-Answer a few quick questions and I'll give you the exact
-options that fit — you won't pay for anything you don't want."
-
-THE 5-QUESTION DISCOVERY (ask ONE at a time):
-Q0: Confirm parent + child names (required)
-Q1: Occasion + date ("Is this for a birthday or regular shoot? When?")
-Q2: Frames ("Would you like 2 A5 frames, or photos only?")
-Q3: Cake ("Would you like us to prepare a birthday cake?")
-Q4: Highlight video ("Would you like a short highlight video?")
-Q5: Home coverage ("Would you like us to also come to your home/event?")
-
-SUMMARIZE BEFORE PRESENTING:
-"Perfect [Name]. Here's what I understood:
-- Session for: [Child]
-- Date: [date]
-- You want: [list of selected extras]
-Based on that, here are the 2 best options for you."
-
-ALWAYS PRESENT EXACTLY 2 OPTIONS — never more, never one.
-Add: "Most parents choose option X because [one simple reason]."
-
-PACKAGE PRICING MAP:
-- Photos only → Starter 50k (8 edited) or Silver 70k (12 edited)
-- One extra (frames OR video) → Silver or Gold
-- Cake included → add ~9-10k to base price
-- Two extras → Gold or Platinum
-- Home coverage → add 150,000 RWF to any package
-
-OBJECTION: "It's expensive"
-"I understand completely [Name].
-What we focus on is the full experience: kids-designed studio,
-guided posing, high-quality edits, fast delivery.
-I can recommend the option that fits your priorities
-so you don't pay for extras you don't want."
-
-OBJECTION: "Let me think"
-"Of course. Take your time.
-Just to help — is it about the date, the budget,
-or choosing between the two options?"
-
-BOOKING CLOSE (polite, not pushy):
-"Would you like me to help you reserve a slot for [Child]?
-What day works best?"
-
-CONFIRMATION AFTER BOOKING:
-"Perfect [Name]. [Child]'s session is booked for [date] at [time].
-If you can, please send a photo of the outfits in advance
-so we can prepare the set and save you time.
-We're excited to welcome you."
-""",
-),
 
 ]
 
