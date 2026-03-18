@@ -100,44 +100,55 @@ PACKAGE SELECTION RULES (follow strictly):
 ),
 
     (
-        "package",
-        "both",
-        "Approved Bonus Options",
-        """
-APPROVED BONUS OPTIONS (Human approval required before offering)
+    "package",
+    "both",
+    "Session Packages Overview",
+    """
+KP KIDS STUDIO — SESSION PACKAGES
 
-1. +2 EDITED IMAGES
-Add 2 extra professionally edited photos to any package.
-No price change — value addition only.
-Best for: Clients who love the photos but want more.
-When to offer: HIGH heat clients with mild price hesitation.
-How agents say it: "Ntakibazo, turazongera 2 nk'impano yacu."
+BASE PACKAGES (no extras):
+Starter — 50,000 RWF: 1h session, 8 edited + all unedited
+Silver  — 70,000 RWF: 1.5h session, 12 edited + all unedited
+Gold    — 100,000 RWF: 1.5h session, 15 edited + all unedited
 
-2. FREE HIGHLIGHT REEL
-30-second video compilation with music from session photos.
-Delivered within 48 hours of photo delivery.
-Best for: Social media-active parents, modern families.
-When to offer: MEDIUM/HIGH heat clients who seem social-media oriented.
-Real example: "Video yo yabonetse" — shared alongside photos naturally.
+EXTRAS PRICING:
+- 2 A5 photo frames: 20,000 RWF
+- Highlight video: 29,000 RWF
+- Birthday cake: 30,000 RWF
+- Cake + highlight video together: 50,000 RWF (not 59k — bundle discount)
 
-3. FRAME UPGRADE
-Upgrade from standard to premium wood frame at no extra cost.
-Best for: Clients who value physical products, gift-givers.
-When to offer: When client mentions frames, printing, or gifts.
+PACKAGE BUILDING RULES:
+Base price + extras = final package price.
+Always present 3 options with same extras but increasing number of edited photos.
+The base (session, unedited photos, extras) stays the same across all 3 options.
+Only the number of edited photos and session duration increases.
 
-4. PRIORITY EDITING
-Jump to front of editing queue.
-Best for: Time-sensitive needs, events happening soon.
-When to offer: Clients with upcoming events or tight timelines.
+EXAMPLE — Client selects cake + highlight video (studio):
+Gold     — 99,000 RWF:  1h,   10 edited + all unedited + cake + video
+Platinum — 120,000 RWF: 1h,   15 edited + all unedited + cake + video
+Premium  — 149,000 RWF: 1.5h, 20 edited + all unedited + cake + video
 
-RULE: Never offer more than one bonus per conversation.
-RULE: Always flag for human approval — never auto-send.
-RULE: Never offer bonuses to LOW heat clients.
-REAL PATTERN: Client often asks "munyongeze naka" (add just one more).
-  - If HIGH heat: "Ntakibazo, turazongera" (No problem, we'll add it)
-  - If budget was already discussed: add gracefully without making it a big deal
+EXAMPLE — Client selects no extras (studio):
+Starter — 50,000 RWF:  1h,   8 edited + all unedited
+Silver  — 70,000 RWF:  1.5h, 12 edited + all unedited
+Gold    — 100,000 RWF: 1.5h, 15 edited + all unedited
+
+EXAMPLE — Client selects frames only (studio):
+Starter + frames — 70,000 RWF:  1h,   8 edited + all unedited + 2 frames
+Silver + frames  — 90,000 RWF:  1.5h, 12 edited + all unedited + 2 frames
+Gold + frames    — 120,000 RWF: 1.5h, 15 edited + all unedited + 2 frames
+
+EXAMPLE — Client selects video only (studio):
+Starter + video — 79,000 RWF:  1h,   8 edited + all unedited + video
+Silver + video  — 99,000 RWF:  1.5h, 12 edited + all unedited + video
+Gold + video    — 129,000 RWF: 1.5h, 15 edited + all unedited + video
+
+HOME SESSION: add 50,000 RWF to any package above.
+
+BOOKING FEE: 20,000 RWF (deducted from final payment)
+Payment: MTN MOMO 798741 Kigali Photography Ltd
 """,
-    ),
+),
 
     # ─── POLICIES ────────────────────────────────────────────────────────────
 
