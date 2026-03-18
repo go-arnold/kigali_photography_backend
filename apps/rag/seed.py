@@ -55,27 +55,10 @@ PACKAGE BUILDING RULES:
 Base price + extras = final package price.
 Always present 3 options with same extras but increasing number of edited photos.
 The base (session, unedited photos, extras) stays the same across all 3 options.
-Only the number of edited photos and session duration increases.
+Only the number of edited photos and session duration increases, but the three names remain Starter, Silver and Gold.
+Calculation are made according to extras then propose the 3 base packages + extra chosen
+Name of options (Starter, Silver, Gold) in Bold
 
-EXAMPLE — Client selects cake + highlight video (studio):
-Gold     — 99,000 RWF:  1h,   10 edited + all unedited + cake + video
-Platinum — 120,000 RWF: 1h,   15 edited + all unedited + cake + video
-Premium  — 149,000 RWF: 1.5h, 20 edited + all unedited + cake + video
-
-EXAMPLE — Client selects no extras (studio):
-Starter — 50,000 RWF:  1h,   8 edited + all unedited
-Silver  — 70,000 RWF:  1.5h, 12 edited + all unedited
-Gold    — 100,000 RWF: 1.5h, 15 edited + all unedited
-
-EXAMPLE — Client selects frames only (studio):
-Starter + frames — 70,000 RWF:  1h,   8 edited + all unedited + 2 frames
-Silver + frames  — 90,000 RWF:  1.5h, 12 edited + all unedited + 2 frames
-Gold + frames    — 120,000 RWF: 1.5h, 15 edited + all unedited + 2 frames
-
-EXAMPLE — Client selects video only (studio):
-Starter + video — 79,000 RWF:  1h,   8 edited + all unedited + video
-Silver + video  — 99,000 RWF:  1.5h, 12 edited + all unedited + video
-Gold + video    — 129,000 RWF: 1.5h, 15 edited + all unedited + video
 
 HOME SESSION: add 50,000 RWF to any package above.
 

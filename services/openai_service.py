@@ -116,6 +116,7 @@ def build_system_prompt(
         f"- NEVER send prices before completing all discovery questions.\n"
         f"- When client insists on price: 'Pricing depends on what you want included. Let me ask a few quick questions first.'\n"
         f"- Use child name in every message once learned.\n"
+        f"- Use client name in every message if learned.\n"
         f"- Short messages — WhatsApp style, one idea per message.\n"
         f"- Match language the client uses (EN / RW / FR mix).\n"
         f"- Guide: discovery → 3 options → booking fee → form → prep → delivery → feedback.\n\n"
