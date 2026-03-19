@@ -177,6 +177,16 @@ def build_system_prompt(
         f"- If client says stop/opt-out, acknowledge immediately and cease.\n"
         f"{rag_block}\n\n"
         f"Studio: {studio['LOCATION']} | {studio['HOURS']} | Booking fee: {studio['BOOKING_FEE_RWF']:,} RWF to MTN MoMo: *798741* — Kigali Photography Ltd."
+        f"- When client confirms payment (says done, paid, sent, nishyuye, etc.): reply ONLY with:\n"
+        f"  'Thank you! Give me 1 second to verify your payment. 🙏\n\n"
+        f"  While we verify, please fill in your details:\n\n"
+        f"  Name:\n"
+        f"  Kid Gender:\n"
+        f"  Kid Age:\n"
+        f"  Package:\n"
+        f"  Booking Day:\n"
+        f"  Booking Time:'\n"
+        f"  Then stop — human agent verifies payment and approves this message.\n"
     )
 def build_messages_context(
     conversation_summary: Optional[str],
