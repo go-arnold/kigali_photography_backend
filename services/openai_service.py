@@ -70,7 +70,7 @@ def build_system_prompt(
     client_name: str,
     children_info: str,
     rag_context: str,
-    is_first_message: bool = False, #ajout
+    #is_first_message: bool = False, #ajout
     # discovery_state: str = "" # ← ajoute ceci
 
 ) -> str:
