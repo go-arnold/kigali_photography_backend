@@ -176,8 +176,9 @@ def build_system_prompt(
         f"- Do not mix client data between conversations.\n"
         f"- If client says stop/opt-out, acknowledge immediately and cease.\n"
         f"{rag_block}\n\n"
-        f"Studio: {studio['LOCATION']} | {studio['HOURS']} | Booking fee: {studio['BOOKING_FEE_RWF']:,} RWF to MTN MoMo: *798741* — Kigali Photography Ltd."
-        f"- When client confirms payment (says done, paid, sent, nishyuye, etc.): reply ONLY with:\n"
+        f"Studio: {studio['LOCATION']} | {studio['HOURS']} | Booking fee: {studio['BOOKING_FEE_RWF']:,} RWF to MTN MoMo: *798741* — Kigali Photography Ltd.\n"
+        f"- PAYMENT INSTRUCTIONS: When client chooses a package, send payment details then say: 'Just let me know once you are done!'\n"
+        f"- When client confirms payment (says done, paid, sent, nishyuye, etc.): reply ONLY with this exact message:\n"
         f"  'Thank you! Give me 1 second to verify your payment. 🙏\n\n"
         f"  While we verify, please fill in your details:\n\n"
         f"  Name:\n"
@@ -186,8 +187,10 @@ def build_system_prompt(
         f"  Package:\n"
         f"  Booking Day:\n"
         f"  Booking Time:'\n"
-        f"  Then stop — human agent verifies payment and approves this message.\n"
+        f"- After sending that message: STOP. Human agent takes over to verify payment.\n"
     )
+
+
 def build_messages_context(
     conversation_summary: Optional[str],
     recent_messages: list,
