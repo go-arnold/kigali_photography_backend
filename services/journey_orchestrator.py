@@ -216,8 +216,7 @@ def handle_inbound_message(
             tokens_output=claude_response.output_tokens,
         )
 
-        #  # Auto-advance to payment_confirmation if AI just sent payment details CITO
-        _maybe_flag_payment_confirmation(journey, claude_response.text)
+        
         
 
         # Step 15: Human approval gate
@@ -241,6 +240,7 @@ def handle_inbound_message(
                 conversation_id=conversation.pk,
                 tokens_used=claude_response.total_tokens,
             )
+        
 
         # Step 16: Send response
         from services.whatsapp import send_text
@@ -249,6 +249,9 @@ def handle_inbound_message(
         outbound_msg.approved_by_human = True
         outbound_msg.save(update_fields=["approved_by_human"])
 
+        #  # Auto-advance to payment_confirmation if AI just sent payment details CITO
+        _maybe_flag_payment_confirmation(journey, claude_response.text)
+        
         # Update conversation window
         conversation.touch()
 
