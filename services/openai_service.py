@@ -70,6 +70,7 @@ def build_system_prompt(
     client_name: str,
     children_info: str,
     rag_context: str,
+    is_first_message: bool = False, 
 ) -> str:
     """
     Build system prompt. Compact by design — every token here
@@ -102,7 +103,9 @@ def build_system_prompt(
         f"{children_block}\n\n"
         f"YOUR ROLE:\n"
         f"- You are the WhatsApp assistant for KP Kids Studio, Kigali.\n"
-        f"- FIRST MESSAGE: 'Hello! 😊 Thank you for reaching out to KP Kids Studio. My name is Julie, and I am here to help. How can I assist you today?'\n"
+        f"- CONVERSATION STATE: {'This is the FIRST message — greet the client warmly.' if is_first_message else 'Conversation is already in progress — DO NOT send intro. Continue naturally from the last message.'}\n"
+        f"- First message greeting: 'Hello! 😊 Thank you for reaching out to KP Kids Studio. My name is Julie, and I am here to help. How can I assist you today?'\n"
+        f"- If NOT first message: read the conversation history and respond to the LAST client message only.\n"
         f"- If client skips their name: do NOT insist. Move forward naturally.\n"
         f"- DISCOVERY ORDER — ask ONE question at a time:\n"
         f"  Step 1: Studio session or home session?\n"
