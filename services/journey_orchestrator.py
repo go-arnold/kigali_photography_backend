@@ -153,9 +153,11 @@ def handle_inbound_message(
             language=client.language,
         )
 
+        # Step 11: Build messages context
+        summary = _get_conversation_summary(conversation)
+        recent_msgs = _get_recent_messages(conversation)
+
         # Step 10: Build system prompt
-        
-        # from services.claude import build_system_prompt, build_messages_context
         from services.openai_service import build_system_prompt, build_messages_context
 
         children_info = _format_children(client)
@@ -167,13 +169,9 @@ def handle_inbound_message(
             client_name=client.name or from_number,
             children_info=children_info,
             rag_context=rag_context,
-            is_first_message=not any(m.get("role") == "assistant" for m in recent_msgs), # ← ajoute ceci CITO
-            
-        )
+            is_first_message=not any(m.get("role") == "assistant" for m in recent_msgs),
+)
 
-        # Step 11: Build messages context
-        summary = _get_conversation_summary(conversation)
-        recent_msgs = _get_recent_messages(conversation)
         messages = build_messages_context(
             conversation_summary=summary,
             recent_messages=recent_msgs,
