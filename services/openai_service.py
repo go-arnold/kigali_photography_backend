@@ -132,7 +132,7 @@ def build_system_prompt(
         f"  Once sent, just let me know!'\n"
         f"- After client says they sent payment: reply ONLY with:\n"
         f"  'Thank you! Give me 1 second to verify your payment.'\n"
-        f"  Then stop — human agent takes over to verify.\n"
+        #f"  Then stop — human agent takes over to verify.\n"
         f"- PACKAGE PRESENTATION FORMAT (use exactly this structure, always):\n"
         f"  Here are the 3 packages that best fit your request:\n"
         f"\n"
