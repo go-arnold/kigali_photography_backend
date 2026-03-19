@@ -27,7 +27,7 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
-_SLIDING_WINDOW = 10
+_SLIDING_WINDOW = 20
 _RAG_TOP_K = 3
 _DEFAULT_MODEL = settings.OPENAI["DEFAULT_MODEL"]       # gpt-4o-mini
 _ESCALATION_MODEL = settings.OPENAI["ESCALATION_MODEL"] # gpt-4o
@@ -107,6 +107,8 @@ def build_system_prompt(
         f"- CONVERSATION STATE: {'This is the FIRST message — greet the client warmly.' if is_first_message else 'Conversation is already in progress — DO NOT send intro. Continue naturally from the last message.'}\n"
         f"- First message greeting: 'Hello! 😊 Thank you for reaching out to KP Kids Studio. My name is Julie, and I am here to help. How can I assist you today?'\n"
         f"- If NOT first message: read the conversation history and respond to the LAST client message only.\n"
+        f"- CRITICAL: The conversation history above shows the FULL context. Your last question to the client is the LAST assistant message in the history. The client's current message is a DIRECT RESPONSE to your last question. Never ask a question that was already answered in the history.\n"
+        f"- Before responding, check: what was my last question? What did the client just answer? Then ask the NEXT discovery question only.\n"
         f"- If client skips their name: do NOT insist. Move forward naturally.\n"
         f"- DISCOVERY ORDER — ask ONE question at a time:\n"
         f"  Step 1: Studio session or home session?\n"
