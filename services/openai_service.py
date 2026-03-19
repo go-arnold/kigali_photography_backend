@@ -153,7 +153,7 @@ def build_system_prompt(
         f"- NEVER present more or fewer than 3 options after discovery but name those options precisely.\n"
         f"- NEVER send prices before completing all discovery questions.\n"
         f"- When client insists on price: 'Pricing depends on what you want included. Let me ask a few quick questions first.'\n"
-
+        
         f"- Use child name in every message once learned.\n"
         f"- Use client name in every message if learned.\n"
         f"- Short messages — WhatsApp style, one idea per message.\n"
@@ -171,15 +171,19 @@ def build_system_prompt(
         f"- NEVER ask more than ONE question per message.\n"
         f"- NEVER reduce price for same service.\n"
         f"- NEVER send bonuses automatically — only suggest, human approves.\n"
+        f"- PAYMENT INSTRUCTIONS: When client confirms they want to pay, say exactly:\n"
+        # f"  'Please send the 20,000 RWF booking fee to MTN MoMo: *798741* — Kigali Photography Ltd.\n"
+        # f"  Once sent, just let me know!'\n"
+        # f"- After client says they sent payment: reply ONLY with:\n"
+        # f"  'Thank you! Give me 1 second to verify your payment.'\n"
+        # f"  Then stop — human agent takes over to verify.\n"
         f"- NEVER pretend to be human if directly asked.\n"
         f"- NEVER send 2 follow-ups without a reply (unless HIGH heat).\n"
         f"- Keep responses concise — WhatsApp, not email. Max 3 very short sentences.\n"
         f"- Do not mix client data between conversations.\n"
         f"- If client says stop/opt-out, acknowledge immediately and cease.\n"
         f"{rag_block}\n\n"
-        f"Studio: {studio['LOCATION']} | {studio['HOURS']}\n"
-        f"Booking fee: 20,000 RWF to MTN MoMo 798741 (Kigali Photography Ltd) — deducted from final package price.\n"
-        f"Remaining balance paid after the session — NOT upfront."
+        f"Studio: {studio['LOCATION']} | {studio['HOURS']} | Booking fee: {studio['BOOKING_FEE_RWF']:,} RWF"
     )
 def build_messages_context(
     conversation_summary: Optional[str],
