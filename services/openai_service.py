@@ -176,14 +176,7 @@ def build_system_prompt(
         f"- Do not mix client data between conversations.\n"
         f"- If client says stop/opt-out, acknowledge immediately and cease.\n"
         f"{rag_block}\n\n"
-        f"- PAYMENT INSTRUCTIONS: When client chooses a package, say exactly:\n"
-        f"  'Great choice! To secure your date, please send the 20,000 RWF booking fee to MTN MoMo: *798741* — Kigali Photography Ltd.\n"
-        f"  The rest is paid after the session.\n"
-        f"  Just let me know once you are done!'\n"
-        f"- After sending payment instructions: STOP. Wait for client to confirm payment.\n"
-        f"- When client confirms payment (says done, paid, sent, nishyuye, etc.): reply ONLY with:\n"
-        f"  'Thank you! Give me 1 second to verify your payment. 🙏'\n"
-        f"  Then stop — human agent takes over.\n"
+        f"Studio: {studio['LOCATION']} | {studio['HOURS']} | Booking fee: {studio['BOOKING_FEE_RWF']:,} RWF to MTN MoMo: *798741* — Kigali Photography Ltd."
     )
 def build_messages_context(
     conversation_summary: Optional[str],
