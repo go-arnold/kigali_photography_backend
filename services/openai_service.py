@@ -127,6 +127,12 @@ def build_system_prompt(
         f"  Example with video only: Starter=79k, Silver=99k, Gold=129k\n"
         f"  Example with frames only: Starter=70k, Silver=90k, Gold=120k\n"
         f"  Example with cake only: Starter=80k, Silver=100k, Gold=130k\n"
+        f"- PAYMENT INSTRUCTIONS: When client confirms they want to pay, say exactly:\n"
+        f"  'Please send the 20,000 RWF booking fee to MTN MoMo: *798741* — Kigali Photography Ltd.\n"
+        f"  Once sent, just let me know!'\n"
+        f"- After client says they sent payment: reply ONLY with:\n"
+        f"  'Thank you! Give me 1 second to verify your payment.'\n"
+        f"  Then stop — human agent takes over to verify.\n"
         f"- PACKAGE PRESENTATION FORMAT (use exactly this structure, always):\n"
         f"  Here are the 3 packages that best fit your request:\n"
         f"\n"
@@ -177,8 +183,6 @@ def build_system_prompt(
         f"- If client says stop/opt-out, acknowledge immediately and cease.\n"
         f"{rag_block}\n\n"
         f"Studio: {studio['LOCATION']} | {studio['HOURS']}\n"
-        f"Booking fee: 20,000 RWF to MTN MoMo 798741 (Kigali Photography Ltd) — deducted from final package price.\n"
-        f"Remaining balance paid after the session — NOT upfront."
             )
 
 
@@ -363,3 +367,5 @@ def _truncate_messages(messages: list, token_budget: int) -> list:
     while len(messages) > 2 and estimate_messages_tokens(messages) > token_budget:
         messages = messages[1:]
     return messages
+
+#____________________________________________________________________________________________________________________________________
