@@ -160,7 +160,7 @@ def handle_inbound_message(
         # Step 10: Build system prompt
         from services.openai_service import build_system_prompt, build_messages_context
 
-        discovery_state = _get_discovery_state(journey, recent_msgs) #CITO CITO
+        # discovery_state = _get_discovery_state(journey, recent_msgs) #CITO CITO
         children_info = _format_children(client)
         system_prompt = build_system_prompt(
             journey_phase=journey.phase,
@@ -171,7 +171,7 @@ def handle_inbound_message(
             children_info=children_info,
             rag_context=rag_context,
             is_first_message=not any(m.get("role") == "assistant" for m in recent_msgs),
-            discovery_state=discovery_state,
+            # discovery_state=discovery_state,
 )
 
         messages = build_messages_context(
@@ -216,8 +216,8 @@ def handle_inbound_message(
             tokens_output=claude_response.output_tokens,
         )
 
-         # Auto-advance to payment_confirmation if AI just sent payment details CITO
-        _maybe_flag_payment_confirmation(journey, claude_response.text)
+        #  # Auto-advance to payment_confirmation if AI just sent payment details CITO
+        # _maybe_flag_payment_confirmation(journey, claude_response.text)
         
 
         # Step 15: Human approval gate
@@ -584,32 +584,32 @@ def _map_heat_signal(signal_name: str) -> str:
 
 #CITO CITO
 
-def _maybe_flag_payment_confirmation(journey, ai_response_text: str):
-    """
-    If AI just sent payment instructions (MTN number),
-    advance journey to payment_confirmation.
-    Next client message will trigger human approval automatically.
-    """
-    if not ai_response_text:
-        return
-    PAYMENT_SENT_SIGNALS = [
-        "798741", "momo", "booking fee", "20,000",
-        "20k", "payment number", "send the booking",
-    ]
-    text_lower = ai_response_text.lower()
-    if any(signal in text_lower for signal in PAYMENT_SENT_SIGNALS):
-        from apps.clients.models import JourneyPhase, JourneyStep
-        try:
-            if journey.step != JourneyStep.PAYMENT_CONFIRMATION:
-                journey.phase = JourneyPhase.BOOKING
-                journey.step = JourneyStep.PAYMENT_CONFIRMATION
-                journey.save(update_fields=["phase", "step", "updated_at"])
-                logger.info(
-                    "Auto-advanced to payment_confirmation | client=%s",
-                    journey.client.wa_number,
-                )
-        except Exception as exc:
-            logger.warning("Could not advance to payment_confirmation: %s", exc)
+# def _maybe_flag_payment_confirmation(journey, ai_response_text: str):
+#     """
+#     If AI just sent payment instructions (MTN number),
+#     advance journey to payment_confirmation.
+#     Next client message will trigger human approval automatically.
+#     """
+#     if not ai_response_text:
+#         return
+#     PAYMENT_SENT_SIGNALS = [
+#         "798741", "momo", "booking fee", "20,000",
+#         "20k", "payment number", "send the booking",
+#     ]
+#     text_lower = ai_response_text.lower()
+#     if any(signal in text_lower for signal in PAYMENT_SENT_SIGNALS):
+#         from apps.clients.models import JourneyPhase, JourneyStep
+#         try:
+#             if journey.step != JourneyStep.PAYMENT_CONFIRMATION:
+#                 journey.phase = JourneyPhase.BOOKING
+#                 journey.step = JourneyStep.PAYMENT_CONFIRMATION
+#                 journey.save(update_fields=["phase", "step", "updated_at"])
+#                 logger.info(
+#                     "Auto-advanced to payment_confirmation | client=%s",
+#                     journey.client.wa_number,
+#                 )
+#         except Exception as exc:
+#             logger.warning("Could not advance to payment_confirmation: %s", exc)
 
 
 
@@ -638,47 +638,3 @@ def _notify_human_takeover(client, conversation, reason: str):
     )
        
 
-def _get_discovery_state(journey, recent_msgs: list) -> str:
-    """
-    Determine which discovery step we are on based on conversation history.
-    Returns a clear state string passed to the AI.
-    """
-    answered = []
-    for msg in recent_msgs:
-        if msg.get("role") == "assistant":
-            content = msg.get("content", "").lower()
-            if any(q in content for q in [
-                "studio session or home", "home session or studio",
-                "studio or home", "home or studio",
-                "studio session", "home session",
-                "prefer a studio", "prefer a home",
-            ]):
-                answered.append("session_type")
-            if any(q in content for q in [
-                "photo frame", "a5 frame", "2 a5", "photo frames",
-                "add frames", "include frames", "add 2", "include 2 a5",
-            ]):
-                answered.append("frames")
-            if any(q in content for q in [
-                "birthday cake", "cake for", "a cake", "like a cake",
-                "include a cake", "add a cake", "would you like a cake",
-                "birthday cake for", "cake during",
-            ]):
-                answered.append("cake")
-            if any(q in content for q in [
-                "highlight video", "a video", "short video",
-                "include a video", "add a video", "like a video",
-            ]):
-                answered.append("video")
-
-    answered = list(dict.fromkeys(answered))
-
-    if "session_type" not in answered:
-        return "ASK_NOW: Q1 — studio session or home session?"
-    if "frames" not in answered:
-        return "ASK_NOW: Q2 — would you like 2 A5 photo frames?"
-    if "cake" not in answered:
-        return "ASK_NOW: Q3 — would you like a birthday cake?"
-    if "video" not in answered:
-        return "ASK_NOW: Q4 — would you like a highlight video?"
-    return "ALL_QUESTIONS_ANSWERED — present 3 packages now"
