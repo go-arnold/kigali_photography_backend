@@ -27,7 +27,7 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
-_SLIDING_WINDOW = 10
+_SLIDING_WINDOW = 20
 _RAG_TOP_K = 3
 _DEFAULT_MODEL = settings.OPENAI["DEFAULT_MODEL"]       # gpt-4o-mini
 _ESCALATION_MODEL = settings.OPENAI["ESCALATION_MODEL"] # gpt-4o
