@@ -643,28 +643,36 @@ def _get_discovery_state(journey, recent_msgs: list) -> str:
     Determine which discovery step we are on based on conversation history.
     Returns a clear state string passed to the AI.
     """
-    questions = {
-        "session_type": ["studio", "home", "studio session", "home session"],
-        "frames": ["frame", "frames", "photo frame"],
-        "cake": ["cake", "birthday cake"],
-        "video": ["highlight video", "video"],
-    }
-    
     answered = []
     for msg in recent_msgs:
         if msg.get("role") == "assistant":
             content = msg.get("content", "").lower()
-            if any(q in content for q in ["studio session or home", "home session or studio"]):
+            if any(q in content for q in [
+                "studio session or home", "home session or studio",
+                "studio or home", "home or studio",
+                "studio session", "home session",
+                "prefer a studio", "prefer a home",
+            ]):
                 answered.append("session_type")
-            if "photo frame" in content or "a5 frame" in content:
+            if any(q in content for q in [
+                "photo frame", "a5 frame", "2 a5", "photo frames",
+                "add frames", "include frames", "add 2", "include 2 a5",
+            ]):
                 answered.append("frames")
-            if "birthday cake" in content or "cake for" in content:
+            if any(q in content for q in [
+                "birthday cake", "cake for", "a cake", "like a cake",
+                "include a cake", "add a cake", "would you like a cake",
+                "birthday cake for", "cake during",
+            ]):
                 answered.append("cake")
-            if "highlight video" in content:
+            if any(q in content for q in [
+                "highlight video", "a video", "short video",
+                "include a video", "add a video", "like a video",
+            ]):
                 answered.append("video")
-    
-    answered = list(dict.fromkeys(answered))  # deduplicate preserving order
-    
+
+    answered = list(dict.fromkeys(answered))
+
     if "session_type" not in answered:
         return "ASK_NOW: Q1 — studio session or home session?"
     if "frames" not in answered:
