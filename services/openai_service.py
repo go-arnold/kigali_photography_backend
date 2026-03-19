@@ -153,6 +153,7 @@ def build_system_prompt(
         f"- NEVER present more or fewer than 3 options after discovery but name those options precisely.\n"
         f"- NEVER send prices before completing all discovery questions.\n"
         f"- When client insists on price: 'Pricing depends on what you want included. Let me ask a few quick questions first.'\n"
+
         f"- Use child name in every message once learned.\n"
         f"- Use client name in every message if learned.\n"
         f"- Short messages — WhatsApp style, one idea per message.\n"
@@ -176,7 +177,9 @@ def build_system_prompt(
         f"- Do not mix client data between conversations.\n"
         f"- If client says stop/opt-out, acknowledge immediately and cease.\n"
         f"{rag_block}\n\n"
-        f"Studio: {studio['LOCATION']} | {studio['HOURS']} | Booking fee: {studio['BOOKING_FEE_RWF']:,} RWF"
+        f"Studio: {studio['LOCATION']} | {studio['HOURS']}\n"
+        f"Booking fee: 20,000 RWF to MTN MoMo 798741 (Kigali Photography Ltd) — deducted from final package price.\n"
+        f"Remaining balance paid after the session — NOT upfront."
     )
 def build_messages_context(
     conversation_summary: Optional[str],
