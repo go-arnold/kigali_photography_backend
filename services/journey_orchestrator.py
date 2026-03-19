@@ -13,11 +13,11 @@ Pipeline (in order):
   4. Budget check          → hard stop + human takeover if exceeded
   5. Human takeover check  → hard stop if human already handling
   6. Language detection    → update client preference
-  7. Intent analysis       → classify message, detect objections (Haiku, cheap)
+  7. Intent analysis       → classify message, detect objections (gtp 4 mini, cheap)
   8. Heat update           → update score from signals
   9. RAG retrieval         → fetch top-K relevant knowledge chunks
  10. Build prompt          → compact system prompt with context
- 11. Call Claude           → get response (Haiku or Sonnet)
+ 11. Call Openai           → get response (4o mini or 4o)
  12. Save outbound message → record with full token accounting
  13. Human approval gate   → queue or send directly based on phase/action
  14. Send / queue          → WhatsApp send or approval queue
