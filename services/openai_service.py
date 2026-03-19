@@ -177,7 +177,6 @@ def build_system_prompt(
         f"- If client says stop/opt-out, acknowledge immediately and cease.\n"
         f"{rag_block}\n\n"
         f"Studio: {studio['LOCATION']} | {studio['HOURS']} | Booking fee: {studio['BOOKING_FEE_RWF']:,} RWF to MTN MoMo: *798741* — Kigali Photography Ltd.\n"
-        f"Studio: {studio['LOCATION']} | {studio['HOURS']} | Booking fee: {studio['BOOKING_FEE_RWF']:,} RWF to MTN MoMo: *798741* — Kigali Photography Ltd.\n"
         f"- PAYMENT INSTRUCTIONS: When client chooses a package, send payment details then end with: Just let me know once you are done!\n"
         f"- When client confirms payment: reply ONLY with this exact message then STOP:\n"
         f"  Thank you! Give me 1 second to verify your payment.\n"
