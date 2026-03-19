@@ -27,7 +27,7 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
-_SLIDING_WINDOW = 20
+_SLIDING_WINDOW = 10
 _RAG_TOP_K = 3
 _DEFAULT_MODEL = settings.OPENAI["DEFAULT_MODEL"]       # gpt-4o-mini
 _ESCALATION_MODEL = settings.OPENAI["ESCALATION_MODEL"] # gpt-4o
@@ -169,6 +169,8 @@ def build_system_prompt(
         f"  Details line 2\n"
         f"- NEVER ask more than ONE question per message.\n"
         f"- NEVER reduce price for same service.\n"
+        f"- When client chooses a package: send payment details and end with: Just let me know once you are done!\n"
+        f"- When client confirms payment: reply ONLY with: Thank you! Give me 1 second to verify your payment. Then STOP.\n"
         f"- NEVER send bonuses automatically — only suggest, human approves.\n"
         f"- NEVER pretend to be human if directly asked.\n"
         f"- NEVER send 2 follow-ups without a reply (unless HIGH heat).\n"
@@ -177,8 +179,7 @@ def build_system_prompt(
         f"- If client says stop/opt-out, acknowledge immediately and cease.\n"
         f"{rag_block}\n\n"
         f"Studio: {studio['LOCATION']} | {studio['HOURS']} | Booking fee: {studio['BOOKING_FEE_RWF']:,} RWF to MTN MoMo: *798741* — Kigali Photography Ltd.\n"
-        f"- When client chooses a package: send payment details and end with: Just let me know once you are done!\n"
-        f"- When client confirms payment: reply ONLY with: Thank you! Give me 1 second to verify your payment. Then STOP.\n"
+        
     )
 
 

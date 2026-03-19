@@ -478,7 +478,7 @@ def _get_recent_messages(conversation) -> list:
     """
     from apps.conversations.models import Message
 
-    msgs = conversation.messages.order_by("-timestamp")[:0]
+    msgs = conversation.messages.order_by("-timestamp")[:10]
 
     # If current conversation has no messages yet, get from client's recent history
     if not msgs.exists():
