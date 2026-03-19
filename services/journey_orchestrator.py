@@ -582,37 +582,6 @@ def _map_heat_signal(signal_name: str) -> str:
     }
     return mapping.get(signal_name, HeatEvent.SignalType.ENGAGEMENT_PATTERN)
 
-#CITO CITO
-
-# def _maybe_flag_payment_confirmation(journey, ai_response_text: str):
-#     """
-#     If AI just sent payment instructions (MTN number),
-#     advance journey to payment_confirmation.
-#     Next client message will trigger human approval automatically.
-#     """
-#     if not ai_response_text:
-#         return
-#     PAYMENT_SENT_SIGNALS = [
-#         "798741", "momo", "booking fee", "20,000",
-#         "20k", "payment number", "send the booking",
-#     ]
-#     text_lower = ai_response_text.lower()
-#     if any(signal in text_lower for signal in PAYMENT_SENT_SIGNALS):
-#         from apps.clients.models import JourneyPhase, JourneyStep
-#         try:
-#             if journey.step != JourneyStep.PAYMENT_CONFIRMATION:
-#                 journey.phase = JourneyPhase.BOOKING
-#                 journey.step = JourneyStep.PAYMENT_CONFIRMATION
-#                 journey.save(update_fields=["phase", "step", "updated_at"])
-#                 logger.info(
-#                     "Auto-advanced to payment_confirmation | client=%s",
-#                     journey.client.wa_number,
-#                 )
-#         except Exception as exc:
-#             logger.warning("Could not advance to payment_confirmation: %s", exc)
-
-
-
 
 
 def _notify_human_takeover(client, conversation, reason: str):
