@@ -466,10 +466,20 @@ def _get_conversation_summary(conversation) -> Optional[str]:
 
 def _get_recent_messages(conversation) -> list:
     """
-    Return last N messages as {role, content} dicts for Claude.
-    Inbound = user, Outbound = assistant.
+    Return last N messages as {role, content} dicts.
+    Includes messages from current conversation only,
+    but falls back to recent conversations if current is empty.
     """
+    from apps.conversations.models import Message
+
     msgs = conversation.messages.order_by("-timestamp")[:10]
+
+    # If current conversation has no messages yet, get from client's recent history
+    if not msgs.exists():
+        msgs = Message.objects.filter(
+            client=conversation.client,
+        ).order_by("-timestamp")[:10]
+
     result = []
     for m in reversed(msgs):
         role = "user" if m.direction == "inbound" else "assistant"
