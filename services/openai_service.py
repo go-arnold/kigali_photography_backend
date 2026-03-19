@@ -70,7 +70,8 @@ def build_system_prompt(
     client_name: str,
     children_info: str,
     rag_context: str,
-    is_first_message: bool = False,  # ← ajoute ceci
+    is_first_message: bool = False, #ajout
+    discovery_state: str = "" # ← ajoute ceci
 
 ) -> str:
     """
@@ -109,31 +110,10 @@ def build_system_prompt(
         f"- If NOT first message: read the conversation history and respond to the LAST client message only.\n"
         f"- CRITICAL: The conversation history above shows the FULL context. Your last question to the client is the LAST assistant message in the history. The client's current message is a DIRECT RESPONSE to your last question. Never ask a question that was already answered in the history.\n"
         f"- Before responding, check: what was my last question? What did the client just answer? Then ask the NEXT discovery question only.\n"
-        f"- DISCOVERY FLOW — FOLLOW EXACTLY THIS SEQUENCE:\n"
-        f"  STEP 1 — Ask: 'Studio session or home session?'\n"
-        f"  STEP 2 — Ask: 'Would you like to add 2 A5 photo frames?'\n"
-        f"  STEP 3 — Ask: 'Would you like a birthday cake for the session?'\n"
-        f"  STEP 4 — Ask: 'Would you like a highlight video?'\n"
-        f"  STEP 5 — Present 3 packages based on answers. DONE.\n\n"
-        f"- AFTER EACH ANSWER:\n"
-        f"  After STEP 1 answer → go to STEP 2 immediately\n"
-        f"  After STEP 2 answer → go to STEP 3 immediately\n"
-        f"  After STEP 3 answer → go to STEP 4 immediately\n"
-        f"  After STEP 4 answer → go to STEP 5 immediately\n\n"
-        f"- TO KNOW WHICH STEP YOU ARE ON: count the discovery questions already asked in the conversation history.\n"
-        f"  0 asked → ask STEP 1\n"
-        f"  1 asked → ask STEP 2\n"
-        f"  2 asked → ask STEP 3\n"
-        f"  3 asked → ask STEP 4\n"
-        f"  4 asked → present packages\n\n"
-        f"- HOME SESSION RULE: If client chose 'home session' at Q1 → add 50,000 RWF to every package price.\n"
-        f"  Example client chose home + no extras: Starter=100k, Silver=120k, Gold=150k\n"
-        f"  Example client chose home + cake: Starter=130k, Silver=150k, Gold=180k\n"
-        f"  Example client chose home + cake+video: Starter=150k, Silver=170k, Gold=200k\n"
-        f"  The home session fee covers photographer travel to client's home or event.\n"
-        f"- STUDIO SESSION RULE: If client chose 'studio session' at Q1 → use base prices only, no addition.\n"
-        f"- NEVER repeat a step. NEVER skip a step. NEVER stay on the same step twice.\n"
-        f"- ANY answer (Yes/No/Nope/not really/sure) moves to the NEXT step — no exceptions.\n"
+        f"- CURRENT DISCOVERY STATE: {discovery_state}\n"
+        f"- If state starts with 'ASK_NOW': ask EXACTLY that question and nothing else.\n"
+        f"- If state is 'ALL_QUESTIONS_ANSWERED': present the 3 packages immediately.\n"
+        f"- Do NOT deviate from the discovery state — it is computed from conversation history.\n"
         f"- Always present EXACTLY 3 options — same extras, increasing edited photos.\n"
         f"- PACKAGE PRICES ARE FIXED — memorize these exactly:\n"
         f"  Starter: 50,000 RWF = 1h session, 8 edited + all unedited\n"
