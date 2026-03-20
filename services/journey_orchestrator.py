@@ -249,9 +249,8 @@ def handle_inbound_message(
         outbound_msg.approved_by_human = True
         outbound_msg.save(update_fields=["approved_by_human"])
 
-
-        #CITO CITO
-        _maybe_flag_payment_confirmation(journey, claude_response.text, client, conversation)
+        #  # Auto-advance to payment_confirmation if AI just sent payment details CITO
+        _maybe_flag_payment_confirmation(journey, claude_response.text)
 
         # Update conversation window
         conversation.touch()
@@ -586,7 +585,12 @@ def _map_heat_signal(signal_name: str) -> str:
     }
     return mapping.get(signal_name, HeatEvent.SignalType.ENGAGEMENT_PATTERN)
 
-def _maybe_flag_payment_confirmation(journey, ai_response_text: str, client, conversation):
+def _maybe_flag_payment_confirmation(journey, ai_response_text: str):
+    """
+    If AI just sent payment instructions (MTN number),
+    advance journey to payment_confirmation.
+    Next client message will trigger human approval automatically.
+    """
     if not ai_response_text:
         return
     PAYMENT_SENT_SIGNALS = [
@@ -597,45 +601,18 @@ def _maybe_flag_payment_confirmation(journey, ai_response_text: str, client, con
     text_lower = ai_response_text.lower()
     if any(signal in text_lower for signal in PAYMENT_SENT_SIGNALS):
         from apps.clients.models import JourneyPhase, JourneyStep
-        from apps.conversations.models import ApprovalQueue, ApprovalAction
         try:
             if journey.step != JourneyStep.PAYMENT_CONFIRMATION:
                 journey.phase = JourneyPhase.BOOKING
                 journey.step = JourneyStep.PAYMENT_CONFIRMATION
-                journey.human_takeover = True
-                journey.takeover_reason = "Waiting for payment confirmation"
-                journey.save(update_fields=[
-                    "phase", "step", "human_takeover",
-                    "takeover_reason", "updated_at"
-                ])
-
-                # Crée directement l'approval queue avec le formulaire
-                booking_form = (
-                    "Well received! Thank you.\n\n"
-                    "Please fill in your details:\n\n"
-                    "Name:\n"
-                    "Kid Gender:\n"
-                    "Kid Age:\n"
-                    "Package:\n"
-                    "Booking Day:\n"
-                    "Booking Time:"
-                )
-
-                ApprovalQueue.objects.create(
-                    client=client,
-                    conversation=conversation,
-                    action=ApprovalAction.SEND_MESSAGE,
-                    ai_suggestion=booking_form,
-                    ai_reasoning="Payment sent by client — verify MoMo then approve to send booking form",
-                    heat_score_at_suggestion=journey.heat_score,
-                    expires_at=timezone.now() + timezone.timedelta(hours=48),
-                )
+                journey.save(update_fields=["phase", "step", "updated_at"])
                 logger.info(
-                    "Payment confirmation queued | client=%s",
+                    "Auto-advanced to payment_confirmation | client=%s",
                     journey.client.wa_number,
                 )
         except Exception as exc:
-            logger.warning("Could not advance to payment_confirmation: %s", exc)
+            logger.warning("Could not advance to payment_confirmation: %s", exc)      
+
 
 
 def _notify_human_takeover(client, conversation, reason: str):
