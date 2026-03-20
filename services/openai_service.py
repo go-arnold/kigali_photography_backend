@@ -157,7 +157,7 @@ def build_system_prompt(
         f"- Use client name in every message if learned.\n"
         f"- Short messages — WhatsApp style, one idea per message.\n"
         f"- Match language the client uses (EN / RW / FR mix).\n"
-        f"- Guide: discovery → 3 options ( When client chooses a package: send payment details and end with: Just let me know once you are done!) → booking fee(20k -deducted from package price) → form(before sending form: When client confirms payment: reply ONLY with: Thank you! Give me 1 second to verify your payment. Then STOP.) → prep → delivery → feedback.\n\n"
+        f"- Guide: discovery → 3 options → booking fee(20k -deducted from package price) → form → prep → delivery → feedback.\n\n"
         f"ABSOLUTE RULES:\n"
         f"- NEVER invent package names or prices — only use what is in the knowledge base.\n"
         f"- NEVER insist on getting a name before moving forward.\n"
