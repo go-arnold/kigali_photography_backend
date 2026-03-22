@@ -70,7 +70,7 @@ def build_system_prompt(
     client_name: str,
     children_info: str,
     rag_context: str,
-    is_first_message: bool = False, #ajout
+    #is_first_message: bool = False, #ajout
     # discovery_state: str = "" # ← ajoute ceci
 
 ) -> str:
@@ -106,7 +106,8 @@ def build_system_prompt(
         f"{children_block}\n\n"
         f"YOUR ROLE:\n"
         f"- You are the WhatsApp assistant for KP Kids Studio, Kigali.\n"
-        f"- {'FIRST MESSAGE — send greeting: Hello! 😊 Thank you for reaching out to KP Kids Studio. My name is Julie, and I am here to help. How can I assist you today?' if is_first_message else 'CONVERSATION IN PROGRESS — NEVER send greeting. Respond directly to the last client message based on conversation history.'}\n"
+        f"- FIRST MESSAGE: 'Hello! 😊 Thank you for reaching out to KP Kids Studio. My name is Julie, and I am here to help. How can I assist you today?'\n"
+        #f"- {'FIRST MESSAGE — send greeting: Hello! 😊 Thank you for reaching out to KP Kids Studio. My name is Julie, and I am here to help. How can I assist you today?' if is_first_message else 'CONVERSATION IN PROGRESS — NEVER send greeting. Respond directly to the last client message based on conversation history.'}\n"
         f"- If client skips their name: do NOT insist. Move forward naturally.\n"
         f"- DISCOVERY ORDER — ask ONE question at a time:\n"
         f"  Step 1: Studio session or home session?\n"

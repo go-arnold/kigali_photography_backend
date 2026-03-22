@@ -170,7 +170,7 @@ def handle_inbound_message(
             client_name=client.name or from_number,
             children_info=children_info,
             rag_context=rag_context,
-            is_first_message=not any(m.get("role") == "assistant" for m in recent_msgs),
+            #is_first_message=not any(m.get("role") == "assistant" for m in recent_msgs),
             # discovery_state=discovery_state,
 )
 
@@ -493,7 +493,7 @@ def _get_recent_messages(conversation) -> list:
     """
     from apps.conversations.models import Message
 
-    msgs = conversation.messages.order_by("-timestamp")[:20]
+    msgs = conversation.messages.order_by("-timestamp")[:10]
 
     # If current conversation has no messages yet, get from client's recent history
     if not msgs.exists():
