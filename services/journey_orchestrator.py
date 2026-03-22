@@ -217,7 +217,7 @@ def handle_inbound_message(
         )
 
         
-        Step 15: Human approval gate
+        #Step 15: Human approval gate
         needs_approval = _requires_approval(journey, intent_data)
 
         if needs_approval:
