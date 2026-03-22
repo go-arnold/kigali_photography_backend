@@ -162,6 +162,9 @@ def handle_inbound_message(
 
         # discovery_state = _get_discovery_state(journey, recent_msgs) #CITO CITO
         children_info = _format_children(client)
+        
+        assistant_count = sum(1 for m in recent_msgs if m.get("role") == "assistant")
+        is_first_message = assistant_count == 0
         system_prompt = build_system_prompt(
             journey_phase=journey.phase,
             journey_step=journey.step,
@@ -170,19 +173,9 @@ def handle_inbound_message(
             client_name=client.name or from_number,
             children_info=children_info,
             rag_context=rag_context,
-            assistant_count = sum(1 for m in recent_msgs if m.get("role") == "assistant")
-            is_first_message = assistant_count == 0
-
-            system_prompt = build_system_prompt(
-            journey_phase=journey.phase,
-            journey_step=journey.step,
-            heat_label=journey.heat_label,
-            language=client.language,
-            client_name=client.name or from_number,
-            children_info=children_info,
-            rag_context=rag_context,
             is_first_message=is_first_message,
-        )
+
+           
             # discovery_state=discovery_state, #cito cito
 )
 
