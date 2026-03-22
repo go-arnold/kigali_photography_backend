@@ -162,7 +162,7 @@ def handle_inbound_message(
 
         # discovery_state = _get_discovery_state(journey, recent_msgs) #CITO CITO
         children_info = _format_children(client)
-        
+
         assistant_count = sum(1 for m in recent_msgs if m.get("role") == "assistant")
         is_first_message = assistant_count == 0
         system_prompt = build_system_prompt(
@@ -562,8 +562,12 @@ def _requires_approval(journey, intent_data: dict) -> bool:
         return True
 
     # Sales resistance: escalation decisions need human
-    if phase == "sales_resistance" and journey.escalation_needed(intent_data):
-        return True
+    if phase == "sales_resistance":
+    # if packages are presented already
+        if step in ("payment_confirmation", "package_presentation", "objection_handling"):
+            return True
+        # AI deals with it alone
+        return False
 
     # Booking phase: moderate oversight
     if phase == "booking" and step in ("package_presentation",):
