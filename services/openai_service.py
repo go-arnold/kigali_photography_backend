@@ -27,7 +27,7 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
-_SLIDING_WINDOW = 10
+_SLIDING_WINDOW = 20
 _RAG_TOP_K = 3
 _DEFAULT_MODEL = settings.OPENAI["DEFAULT_MODEL"]       # gpt-4o-mini
 _ESCALATION_MODEL = settings.OPENAI["ESCALATION_MODEL"] # gpt-4o
@@ -161,6 +161,12 @@ def build_system_prompt(
         f"- Use client name in every message if learned.\n"
         f"- Short messages — WhatsApp style, one idea per message.\n"
         f"- Match language the client uses (EN / RW / FR mix).\n"
+        f"- AFTER PACKAGE PRESENTATION: When client mentions a package name (Starter, Silver, Gold, or any variation), respond ONLY with payment instructions:\n"
+        f"  'Great choice! To secure your date, kindly send the 20,000 RWF booking fee to MTN MoMo: *798741* — Kigali Photography Ltd.\n"
+        f"  The rest is paid after the session.\n"
+        f"  Just let me know once you are done!'\n"
+        f"- NEVER restart discovery after a package is chosen.\n"
+        f"- NEVER send the greeting after packages have been presented.\n"
         f"- Guide: discovery → 3 options → booking fee(20k -deducted from package price) → form → prep → delivery → feedback.\n\n"
         f"ABSOLUTE RULES:\n"
         f"- NEVER invent package names or prices — only use what is in the knowledge base.\n"
