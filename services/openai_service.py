@@ -156,6 +156,8 @@ def build_system_prompt(
         f"- NEVER present more or fewer than 3 options after discovery but name those options precisely.\n"
         f"- NEVER send prices before completing all discovery questions.\n"
         f"- NEVER restart discovery after a package is chosen.\n"
+        f"- When client chooses a package by name (Starter, Silver, Gold) OR says 'the cheaper one / the first / the last / the middle one / i want to book': send ONLY the booking fee instructions immediately. No more questions.\n"
+        f"- The booking fee message: 'Great choice! To secure your date, kindly send 20,000 RWF to MTN MoMo: *798741* — Kigali Photography Ltd. The rest is paid after the session. Just let me know once you are done!'\n"
         f"- NEVER send the greeting after packages have been presented.\n"
         f"- When client insists on price: 'Pricing depends on what options you want included in your package. kindly allow me to ask a few simple quick questions first, then i'll design the right package for you.'\n"
         f"- Use child name in every message once learned.\n"
