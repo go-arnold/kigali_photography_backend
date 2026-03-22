@@ -170,7 +170,7 @@ def handle_inbound_message(
             client_name=client.name or from_number,
             children_info=children_info,
             rag_context=rag_context,
-            #is_first_message=not any(m.get("role") == "assistant" for m in recent_msgs),
+            is_first_message=not any(m.get("role") == "assistant" for m in recent_msgs),
             # discovery_state=discovery_state,
 )
 
