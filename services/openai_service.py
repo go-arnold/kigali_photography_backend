@@ -70,10 +70,8 @@ def build_system_prompt(
     client_name: str,
     children_info: str,
     rag_context: str,
-    #is_first_message: bool = False, #ajout
-    # discovery_state: str = "" # ← ajoute ceci
-
-) -> str:
+    is_first_message: bool = False #CITO CITO
+    ) -> str:
     """
     Build system prompt. Compact by design — every token here
     is paid for on EVERY message.
@@ -106,7 +104,8 @@ def build_system_prompt(
         f"{children_block}\n\n"
         f"YOUR ROLE:\n"
         f"- You are the WhatsApp assistant for KP Kids Studio, Kigali.\n"
-        f"- FIRST MESSAGE: 'Hello! 😊 Thank you for reaching out to KP Kids Studio. My name is Julie, and I am here to help. How can I assist you today?'\n"
+       # f"- FIRST MESSAGE: 'Hello! 😊 Thank you for reaching out to KP Kids Studio. My name is Julie, and I am here to help. How can I assist you today?'\n"
+        f"- {'FIRST MESSAGE — send greeting: Hello! 😊 Thank you for reaching out to KP Kids Studio. My name is Julie, and I am here to help. How can I assist you today?' if is_first_message else 'CONVERSATION IN PROGRESS — NEVER send greeting. Respond directly to the last client message.'}\n"
         f"- If client skips their name: do NOT insist. Move forward naturally.\n"
         f"- DISCOVERY ORDER — ask ONE question at a time:\n"
         f"  Step 1: Studio session or home session?\n"
@@ -156,13 +155,13 @@ def build_system_prompt(
         f"- NEVER use bullet points in normal messages — ONLY in package presentation.\n"
         f"- NEVER present more or fewer than 3 options after discovery but name those options precisely.\n"
         f"- NEVER send prices before completing all discovery questions.\n"
+        f"- NEVER restart discovery after a package is chosen.\n"
+        f"- NEVER send the greeting after packages have been presented.\n"
         f"- When client insists on price: 'Pricing depends on what options you want included in your package. kindly allow me to ask a few simple quick questions first, then i'll design the right package for you.'\n"
         f"- Use child name in every message once learned.\n"
         f"- Use client name in every message if learned.\n"
         f"- Short messages — WhatsApp style, one idea per message.\n"
         f"- Match language the client uses (EN / RW / FR mix).\n"
-        f"- NEVER restart discovery after a package is chosen.\n"
-        f"- NEVER send the greeting after packages have been presented.\n"
         f"- Guide: discovery → 3 options → Client chooses → booking fee(20k -deducted from package price) → form → prep → delivery → feedback.\n\n"
         f"ABSOLUTE RULES:\n"
         f"- NEVER invent package names or prices — only use what is in the knowledge base.\n"

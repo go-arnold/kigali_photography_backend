@@ -170,8 +170,20 @@ def handle_inbound_message(
             client_name=client.name or from_number,
             children_info=children_info,
             rag_context=rag_context,
-            #is_first_message=not any(m.get("role") == "assistant" for m in recent_msgs),
-            # discovery_state=discovery_state,
+            assistant_count = sum(1 for m in recent_msgs if m.get("role") == "assistant")
+            is_first_message = assistant_count == 0
+
+            system_prompt = build_system_prompt(
+            journey_phase=journey.phase,
+            journey_step=journey.step,
+            heat_label=journey.heat_label,
+            language=client.language,
+            client_name=client.name or from_number,
+            children_info=children_info,
+            rag_context=rag_context,
+            is_first_message=is_first_message,
+        )
+            # discovery_state=discovery_state, #cito cito
 )
 
         messages = build_messages_context(
