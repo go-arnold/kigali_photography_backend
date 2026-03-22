@@ -151,7 +151,7 @@ OPENAI = {
     "API_KEY": env("OPENAI_API_KEY"),
     "DEFAULT_MODEL": "gpt-4o-mini",       # cheap, fast — was Haiku
     "ESCALATION_MODEL": "gpt-4o",         # powerful — was Sonnet
-    "MAX_INPUT_TOKENS":  env.int("OPENAI_MAX_INPUT_TOKENS", default=2000),
+    "MAX_INPUT_TOKENS":  env.int("OPENAI_MAX_INPUT_TOKENS", default=3000),
     "MAX_OUTPUT_TOKENS": env.int("OPENAI_MAX_OUTPUT_TOKENS", default=500),
     "CONVERSATION_BUDGET": env.int("OPENAI_CONVERSATION_BUDGET", default=20000),
 }
