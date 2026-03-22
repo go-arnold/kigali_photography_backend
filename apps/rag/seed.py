@@ -43,7 +43,7 @@ KP KIDS STUDIO — SESSION PACKAGES
 BASE PACKAGES (no extras):
 Starter — 50,000 RWF: 1h session, 8 edited + all unedited
 Silver  — 70,000 RWF: 1.5h session, 12 edited + all unedited
-Gold    — 100,000 RWF: 1.5h session, 15 edited + all unedited
+Gold    — 100,000 RWF: 1.5h session, 18 edited + all unedited
 
 EXTRAS PRICING:
 - 2 A5 photo frames: 20,000 RWF
@@ -57,6 +57,7 @@ Always present 3 options with same extras but increasing number of edited photos
 The base (session, unedited photos, extras) stays the same across all 3 options.
 Only the number of edited photos and session duration increases, but the three names remain Starter, Silver and Gold.
 Calculation are made according to extras then propose the 3 base packages + extra chosen
+Do not forget to add all extra prices If the client choose more than one extra, but remember the rule for cake + highlight video.
 Name of options (Starter, Silver, Gold) in Bold
 
 
@@ -84,12 +85,10 @@ BOOKING FEE
 
 PAYMENT METHODS
 - Mobile Money MTN: 798741 (Kigali Photography Ltd)
-- Mobile Money Airtel: 0788 555 115
+- Mobile Money : 0788 555 115
 - Cash at studio
 
 PAYMENT CONFIRMATION
-- Client sends screenshot of payment
-- Agent confirms: "Well received" or "Twayakiriye"
 - Then immediately send the booking details form
 
 BOOKING DETAILS FORM (always send after payment):
@@ -127,21 +126,20 @@ NO DISCOUNT POLICY
 FREQUENTLY ASKED QUESTIONS
 
 Q: How long does a session take?
-A: Essential 45 min, Premium 60 min, Signature 90 min. Arrive 10 minutes early.
+A: Starter Package 60 minutes, Silver Package 90 minutes, Gold Package 1.5 hours. Platimun Package 2 hours.  Premium Package  2 hours. we always advise our customers to arrive at least 15 minutes before time.
 
 Q: What should my child wear?
-A: Solid colors work best — avoid busy patterns. Bring 2-3 outfit options.
+A: Casual outfits work best — avoid busy patterns, and prepare atleast 2-3 outfit options.
 Real workflow: agents ask "mwadu sharing outfits [child] aza kwambara tugategura studio?"
 This saves time at the studio and shows professionalism.
 
 Q: My child is very active / shy — is that okay?
-A: Absolutely! We specialize in children. Toys, props, years of experience.
-We follow the child's pace — no rushing.
+A: Absolutely! We specialize in children. with a variety of toys, props, and years of experience.
+We follow and treat each child with unique attention, and no rushing.
 
 Q: When will I receive my photos?
-A: We guarantee delivery within 24 hours. Usually faster.
-Gallery link shared via pixieset: "https://kigaliphotography.pixieset.com/[childname]/"
-
+A: We guarantee delivery within 24 hours after selection. Usually faster.
+A Gallery link will be shared via pixieset, and from there, you might select which photos to edit.
 Q: Can I buy extra photos after seeing the gallery?
 A: Yes! Extra edited photo is 5,000 RWF each.
 Real example: Client said "nakwishyura kuruhande Nabazaga" (pay separately for extras).
@@ -155,13 +153,13 @@ A: Please reschedule! Health always comes first.
 Contact us ASAP and we'll find a new date.
 
 Q: Do you edit all the photos?
-A: Every delivered photo is professionally retouched: color grading,
-skin smoothing, background cleanup, lighting enhancement.
+A: Every Selected photo is professionally retouched: color grading,
+skin smoothing, background cleanup, lighting enhancement. the number of edited photos depend on the selected packages.
 Client can request adjustments: "Ngirango nago nago mwayimanaguriye" →
 Agent: "Ntakibazo aba editors barayikoraho" (No problem, editors will fix it)
 
 Q: Can I share the photos on social media?
-A: Yes! Please tag us @KigaliPhotography.
+A: Yes! Please tag us @kp kids studio on instagram. Thanks!
 """,
     ),
 
@@ -172,33 +170,27 @@ A: Yes! Please tag us @KigaliPhotography.
         "both",
         "Studio Location & Access",
         """
-KIGALI PHOTOGRAPHY STUDIO
+KP KIDS STUDIO
 
 LOCATION
-KG 123 Street, Kigali
+Kicukiro Opposite IPRC, BRGD Plaza, right next to SAWA CITY supermarket.
 (Pin location shared via WhatsApp upon booking confirmation)
 
 HOURS
-Monday - Saturday: 9:00 AM - 6:00 PM
-Sunday: Closed (private bookings available on request)
-Public holidays: Closed
+Monday - Sunday: 9:00 AM - 8:00 PM (private bookings available on request)
 
 ARRIVAL
-- Please arrive 10 minutes before your session time
+- Please arrive 15 minutes before your session time
 - Late arrival reduces session time
 - Free parking available at the building
 
 WHAT TO BRING
 - Confirmation message
 - 2-3 outfit options for your child
-- Favorite toy or comfort item
-- Snack for young children
 - Any special props you'd like included
 
 CONTACTS
 WhatsApp/MTN: +250 798 973 741
-WhatsApp/Airtel: +250 788 555 115
-Website: kigaliphotography.pixieset.com
 """,
     ),
 
@@ -243,8 +235,10 @@ PACKAGE PRESENTATION — ENGLISH
 STEP 1 — ASK BEFORE PRESENTING (from real conversations):
 "To make sure we give you the right package, could you tell us:
 - Would you prefer a studio session or home session?
+- Would u like 2 A5 photo frames included in your package?
+- What about a birthday cake?
 - Would you like a highlight video included?
-- Any special additions like a cake or frames?"
+
 
 This approach was seen in the real conversation:
 "Kugirango tubashe kubakorera photoshoot nziza, mwatubwira nimba mwifuza..."
@@ -260,75 +254,19 @@ STEP 2 — PRESENT (after understanding needs):
 Just let me know which option feels right for you."
 
 STEP 3 — BOOKING PUSH (after they choose):
-"Great! To secure your date, we just need the 20,000 RWF booking fee:
-798741 Kigali Photography Ltd
-The rest is paid after the session. Shall I get your date set up?"
+"798741 Kigali photography Ltd
+
+Kindly book through this code with a 20,000 fee only
+Just let me know once you are done! The rest is paid after the session."
 
 VALUE REMINDER (if hesitation):
 "These are the photos [child's name] will look back on. Every franc is worth it."
 """,
     ),
 
-    (
-        "script",
-        "en",
-        "Outfit & Preparation Script (English)",
-        """
-OUTFIT REQUEST — ENGLISH
+    
 
-ASKING FOR OUTFITS (2-3 days before session):
-"Hello [Name]!
-Could you share the outfits [child's name] will be wearing?
-This helps us prepare the studio and save you valuable time on the day!"
-
-DAY-BEFORE REMINDER:
-"Hello [Name]! Just a quick reminder — [child's name]'s session is tomorrow at [TIME].
-We're all set and excited to meet you!
-Please arrive 10 minutes early so [child's name] can settle in.
-Any questions? We're here!"
-
-DAY-OF:
-"Good morning [Name]! Today is the day!
-See you at [TIME]. We're ready for [child's name]!"
-""",
-    ),
-
-    (
-        "script",
-        "en",
-        "Gallery Delivery & Feedback Script (English)",
-        """
-GALLERY DELIVERY — ENGLISH
-
-SENDING GALLERY LINK:
-"Hello [Name]!
-[Child's name]'s photos are ready!
-Here is your gallery: https://kigaliphotography.pixieset.com/[childname]/
-
-Please have a look and let us know which ones you'd like edited.
-We can't wait to hear what you think!"
-
-IF CLIENT DELAYED IN RESPONDING:
-"Hello [Name]! Just checking — did you get a chance to look at the gallery?
-No rush, just wanted to make sure the link is working for you!"
-
-AFTER SELECTION RECEIVED:
-"Murakoze! We're working on your selections now.
-We'll have them ready for you very soon."
-
-PHOTO DELIVERY (final edited photos):
-"The wait is over! [Child's name]'s edited photos are ready.
-[Share link or files]
-Please review and let us know if any adjustments are needed — we're happy to help!"
-
-FEEDBACK REQUEST (a few days after delivery):
-"Hello [Name]! We'd love to hear about your experience.
-Could you take 2 minutes to fill this quick form?
-[Google Form Link]
-Your feedback helps us serve families better. Thank you for trusting us with [child's name]'s memories!"
-""",
-    ),
-
+    
     # ─── SCRIPTS: KINYARWANDA ────────────────────────────────────────────────
 
     (
@@ -362,35 +300,59 @@ Mudusubize mugihe mwabona. Murakoze"
     ),
 
     (
-        "script",
-        "rw",
-        "Gutanga Amakuru y'Ibikorwa (Kinyarwanda)",
-        """
-PACKAGE PRESENTATION — KINYARWANDA
+    "script",
+    "rw",
+    "Flow Complet en Kinyarwanda",
+    """
+DISCOVERY QUESTIONS — KINYARWANDA:
+Q1: "Mushaka gufotorwa muri studio cyangwa mu rugo?"
+Q2: "Mushaka ko mwajya n'amaframe 2 A5 yo gusubiraho?"
+Q3: "Mushaka ko dutegura keke y'amavuko muri studio?"
+Q4: "Mushaka video ngufi y'ibirori?"
 
-GUTUZA MBERE YO GUTANGA AMAKURU:
-"Kugirango tubashe kubakorera photoshoot nziza,
-mwatubwira nimba mwifuza ko twabakorera package irimo:
-Studio shoot, Home shoot, Cake, Frames, cyangwa video gato?"
+PACKAGE PRESENTATION — KINYARWANDA:
+"Dore packages 3 zikwiye ibyo mushaka:
 
-GUTANGA OPTIONS (after client answers):
-"Hashingiwe ku bishaka byanyu, dore options 2:
+🥇 *Gold* — [igiciro] RWF
+Igihe: [x] Session
+Gutangwa: Amafoto [X] Yateguwe 
+Ayandi Yose Ateguwe
+[inyongera ihari]
 
-[Package 1] — [Igiciro] RWF
-- [ibigizwe]
+🥈 *Silver* — [igiciro] RWF
+Igihe: [x] Session
+Gutangwa: Amafoto [X] Yateguwe 
+Ayandi Yose Ateguwe
+[inyongera ihari]
 
-[Package 2] — [Igiciro] RWF
-- [ibigizwe]
+🥉 *Starter* — [igiciro] RWF
+Igihe: [x] Session
+Gutangwa: Amafoto [X] Yateguwe
+Ayandi Yose Ateguwe
+[inyongera ihari]
 
-Nimuyifate iyihe?"
+Nimubwire iyihe muyifata mbere yo gukomeza. Murakoze"
 
-GUSABA BOOKING FEE (after selection):
-"Nziza! Mwakora booking ya 20,000 frw gusa kuri code:
-798741 Kigali Photography Ltd
-Andi yishyurwa session irangiye!
-Mwampa itariki n'igihe mushaka tukabona kujya kuyindi step."
+BOOKING FEE — KINYARWANDA:
+"Nziza! Kugira ngo twohereze itariki yanyu, mwishyure booking fee ya 20,000 RWF kuri MTN MoMo: *798741* — Kigali Photography Ltd.
+Andi yishyurwa session irangiye.
+Mutubanize murangije!"
+
+CONFIRMATION PAYMENT — KINYARWANDA:
+"Murakoze! Muhe akanya gato tubone ko payment yashitse."
+
+BOOKING FORM — KINYARWANDA:
+"Twayakiriye! Murakoze.
+Mwuzuze amakuru yanyu:
+
+Izina:
+Igitsina cy'umwana:
+Imyaka y'umwana:
+Package:
+Umunsi w'isoko:
+Isaha y'isoko:"
 """,
-    ),
+),
 
     # ─── OBJECTION HANDLING ──────────────────────────────────────────────────
 
@@ -421,8 +383,8 @@ Let me show you what's already included at this price:
 For a returning client like you, we've already applied our loyalty pricing."
 
 LEVEL 2 — ADJUST SCOPE, NOT PRICE (if they push):
-"If [price] feels like a lot right now, our Essential Package at 100,000 RWF
-still gives you 10 professionally edited photos and 24-hour delivery.
+"If [price] feels like a lot right now, our Starter Package at 50,000 RWF
+still gives you 8 professionally edited photos and 24-hour delivery.
 Would that work better for your family?"
 
 LEVEL 3 — HUMAN TAKEOVER:
@@ -469,38 +431,7 @@ LOW heat: Follow up after 48 hours, once only
 """,
     ),
 
-    (
-        "objection",
-        "both",
-        "Extra Photos Request Handling",
-        """
-EXTRA PHOTOS REQUEST
-
-CLIENT SAYS: "munyongeze naka" / "can you add just one more?" / "byananiye nibikunda munyongeze"
-
-This is extremely common — clients fall in love with photos and want more.
-
-RESPONSE (HIGH heat, after delivery):
-"Ntakibazo, turazongera!" (No problem, we'll add it!)
-— For 1-2 extras when client is clearly happy and has been a good client.
-— Always flag for human approval first.
-
-RESPONSE (paid extras):
-"Ifoto iri extra ni 5,000 RWF gusa.
-Mwayiduha ntakibazo!" (Just 5k per extra, send payment when ready!)
-
-RESPONSE (large quantity):
-"Ntakibazo! Mwampe umubare w'ibitoze mushaka, tubahe igiciro cya buri kimwe."
-
-IMPORTANT: Never automatically add free extras without human approval.
-The decision to give a free extra is a human-managed bonus, not an AI decision.
-""",
-# CLIENT SELECTS MORE THAN THEIR PACKAGE ALLOWS (without asking):
-# Example: package = 10 photos, client lists 11 in their selection
-# Agent: "Ntago kwishyura, it's a gift from us"
-# This is a human decision — flag for approval, never auto-gift.
-# But the AI should acknowledge warmly: "Ntakibazo, turabireba!"
-    ),
+  
 
     (
         "objection",
@@ -586,7 +517,7 @@ EN: "Well received! Thank you."
 RW: "Twayakiriye. Murakoze!"
 
 SENDING PAYMENT CODE:
-"798741 Kigali Photography Ltd" (always send the number + name together)
+" MTN Momo 798741 - Kigali Photography Ltd" (always send the number + name together)
 
 BOOKING FORM:
 "Details:
@@ -598,16 +529,10 @@ Booking Day:
 Booking Time:
 May you fill this?"
 
-PHOTO DELIVERY:
-EN: "Here is your gallery link!"
-RW: "Amafoto yanyu ari tayeri!"
 
-CLIENT ASKS FOR EXTRAS:
-RW: "munyongeze naka" = "please add just one more"
-Agent: "Ntakibazo, turazongera" = "No problem, we'll add it"
 
 BIRTHDAY WISHES (personal, spontaneous):
-"Hey [Name]! It's [Agent] from KP Studio.
+"Hey [Name]! It's Julie from KP Studio.
 I noticed that today is [child]'s birthday!
 Just wanted to wish them a happy birthday and hope you have a beautiful celebration planned.
 Sending you and your family good vibes!"
@@ -658,23 +583,25 @@ Small celebrations build rapport.
 Impact: HIGH — client feels appreciated, not just processed.
 
 PATTERN 5: SILENCE FOLLOW-UP WITH GENUINE CONCERN
-Not: "Are you still interested?"
+Not: "Are we still connected?"
 Real: "We're very concerned with the silence, and I wanted to check up on you..."
 Impact: HIGH — non-threatening, client feels cared for not chased.
 
-PATTERN 6: GRACEFUL EXTRAS HANDLING
+PATTERN 6: CODE-SWITCH NATURALLY
+Respond in the same language mix the client uses.
+If client writes "Bjr, amafoto nimeza" → respond in RW/FR mix
+If client writes "Hello, when will photos be ready?" → respond in English
+If client mixes → mix back
+Impact: HIGH — client feels at home, not like talking to a bot.
+
+PATTERN 7: GRACEFUL EXTRAS HANDLING
 Client always asks for more photos after delivery. This is normal and expected.
 For loyal/happy clients: "Ntakibazo, turazongera" (builds loyalty)
 For new/unknown: offer at 5k/photo (fair, transparent)
 Never make client feel bad for asking.
 Impact: HIGH for repeat bookings and referrals.
 
-PATTERN 7: CODE-SWITCH NATURALLY
-Respond in the same language mix the client uses.
-If client writes "Bjr, amafoto nimeza" → respond in RW/FR mix
-If client writes "Hello, when will photos be ready?" → respond in English
-If client mixes → mix back
-Impact: HIGH — client feels at home, not like talking to a bot.
+
 
 PATTERN 8: MILESTONE FRAMING
 "[Child] is only 1 year old once — these moments are so fleeting"
