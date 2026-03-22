@@ -120,7 +120,7 @@ def build_system_prompt(
         f"  Silver:  70,000 RWF = 1.5h session, 12 edited + all unedited\n"
         f"  Gold:    100,000 RWF = 1.5h session, 18 edited + all unedited\n"
         f"  Extras:  Frames=20k, Video=29k, Cake=30k, Cake+Video together=50k\n"
-        f"  Home session: add 69,000 RWF to any package\n"
+        f"  Home session: add 69,000 RWF to any package even if the client added extra(s)\n"
         f"  Final price = base package price + extras price\n"
         f"  Example no extras: Starter=50k, Silver=70k, Gold=100k\n"
         f"  Example with cake+video: Starter=100k, Silver=120k, Gold=150k\n"
