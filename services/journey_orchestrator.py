@@ -223,14 +223,29 @@ def handle_inbound_message(
         needs_approval = _requires_approval(journey, intent_data)
 
         if needs_approval:
+
+            if journey.step == "payment_confirmation":
+                ai_suggestion = (
+                    "Well received! Thank you.\n"
+                    "Twayakiriye! Murakoze.\n\n"
+                    "Please fill in your details / Mwuzuze amakuru yanyu:\n\n"
+                    "Name / Izina:\n"
+                    "Kid Gender / Igitsina cy'umwana:\n"
+                    "Kid Age / Imyaka y'umwana:\n"
+                    "Package:\n"
+                    "Booking Day / Umunsi:\n"
+                    "Booking Time / Isaha:"
+        )
+            else:
+                ai_suggestion = claude_response.text
             _queue_for_approval(
-                client=client,
-                conversation=conversation,
-                ai_suggestion=claude_response.text,
-                ai_reasoning=f"Phase: {journey.phase}/{journey.step} | Heat: {journey.heat_label} | Intent: {intent_data.get('intent', 'unknown')}",
-                heat_score=journey.heat_score,
-                action=_map_approval_action(journey, intent_data),
-            )
+                        client=client,
+                        conversation=conversation,
+                        ai_suggestion=ai_suggestion,
+                        ai_reasoning=f"Phase: {journey.phase}/{journey.step} | Heat: {journey.heat_label} | Intent: {intent_data.get('intent', 'unknown')}",
+                        heat_score=journey.heat_score,
+                        action=_map_approval_action(journey, intent_data),
+                    )
             outbound_msg.approved_by_human = None  # pending
             outbound_msg.save(update_fields=["approved_by_human"])
             return OrchestratorResult(
