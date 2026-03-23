@@ -106,6 +106,18 @@ CELERY_TIMEZONE = "Africa/Kigali"
 CELERY_BROKER_USE_SSL = {"ssl_cert_reqs": "none"}
 CELERY_REDIS_BACKEND_USE_SSL = {"ssl_cert_reqs": "none"}
 
+#CELERY RETRY CITO CITO
+CELERY_BROKER_TRANSPORT_OPTIONS = {
+    "visibility_timeout": 3600,
+    "socket_keepalive": True,
+    "retry_on_timeout": True,
+    "socket_connect_timeout": 30,
+    "socket_timeout": 30,
+}
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+CELERY_BROKER_CONNECTION_RETRY = True
+CELERY_BROKER_CONNECTION_MAX_RETRIES = 10
+
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework.authentication.SessionAuthentication",

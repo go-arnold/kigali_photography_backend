@@ -284,9 +284,7 @@ VALUE REMINDER (if hesitation):
 INTANGIRIRO — KINYARWANDA
 
 UBUTUMIRE (casual, warm):
-"Muraho! Murakaza neza kuri Kigali Photography!
-Mwantubwira izina n'imyaka y'umwana wanyu?
-Ni ihuriro ryihe, cyangwa ni isomo rya milestone?"
+"Muraho! 😊 Murakoze kuduhamagara muri KP Kids Studio. Nitwa Julie, kandi ndi hano ngo mbafashe. Ni gute nabafasha uyu munsi? "
 
 GUSUBIZA UMUKIRIYA WAZONGEYE:
 "Muraho [Izina]! Twishimye kubabona nanone!
