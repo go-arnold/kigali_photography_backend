@@ -234,9 +234,37 @@ def handle_inbound_message(
                 
                 package_line = "Package: (see conversation)"
                 if last_package_msg:
-                    for line in last_package_msg.content.split("\n"):
-                        if any(p in line for p in ["Starter", "Silver", "Gold"]) and "RWF" in line:
-                            package_line = f"Package: {line.strip()}"
+                    lines = last_package_msg.content.split("\n")
+                    for i, line in enumerate(lines):
+                        # Trouve la ligne du package choisi (dernier message client)
+                        last_client_msg = conversation.messages.filter(
+                            direction="inbound"
+                        ).order_by("-timestamp").first()
+                        
+                        chosen = last_client_msg.content.lower() if last_client_msg else ""
+                        
+                        # Cherche la ligne de prix du package choisi
+                        if any(p.lower() in chosen for p in ["starter", "silver", "gold", 
+                                                            "first", "cheaper", "last", 
+                                                            "middle", "expensive"]):
+                            # Détermine quel package
+                            if "starter" in chosen or "first" in chosen or "cheaper" in chosen:
+                                pkg_name = "Starter"
+                            elif "gold" in chosen or "last" in chosen or "expensive" in chosen:
+                                pkg_name = "Gold"
+                            else:
+                                pkg_name = "Silver"
+                            
+                            # Trouve la ligne prix + extras pour ce package
+                            for j, l in enumerate(lines):
+                                if pkg_name in l and "RWF" in l:
+                                    # Prend le prix + la ligne Includes suivante
+                                    price_line = l.strip()
+                                    includes_line = ""
+                                    if j+4 < len(lines) and "Includes" in lines[j+4]:
+                                        includes_line = lines[j+4].strip()
+                                    package_line = f"Package: {pkg_name} — {price_line.split('—')[1].strip() if '—' in price_line else ''} ({includes_line})"
+                                    break
                             break
 
                 ai_suggestion = (
@@ -677,18 +705,27 @@ def _send_payment_notification_email(client, conversation=None):
         from django.core.mail import send_mail
         from django.conf import settings
 
-        # Récupère le dernier message avec les packages
         package_info = "See dashboard"
         if conversation:
-            last_pkg = conversation.messages.filter(
-                direction="outbound",
-                content__icontains="Package"
+            # Cherche le message client qui contient le choix du package
+            client_choice = conversation.messages.filter(
+                direction="inbound",
             ).order_by("-timestamp").first()
-            if last_pkg:
-                # Extrait les lignes de packages
-                lines = [l.strip() for l in last_pkg.content.split("\n") 
-                         if any(p in l for p in ["Starter", "Silver", "Gold", "Includes", "RWF"])]
-                package_info = "\n".join(lines[:10])
+
+            chosen = client_choice.content if client_choice else "Unknown"
+
+            # Cherche le message IA avec les packages présentés
+            last_pkg_msg = conversation.messages.filter(
+                direction="outbound",
+                content__icontains="Includes:"
+            ).order_by("-timestamp").first()
+
+            extras = "No extras"
+            if last_pkg_msg:
+                for line in last_pkg_msg.content.split("\n"):
+                    if "Includes:" in line:
+                        extras = line.strip()
+                        break
 
         send_mail(
             subject=f"💳 Payment pending — {client.name or client.wa_number}",
@@ -696,7 +733,8 @@ def _send_payment_notification_email(client, conversation=None):
                 f"Client ready to pay.\n\n"
                 f"Name: {client.name or 'Unknown'}\n"
                 f"Phone: {client.wa_number}\n\n"
-                f"Package selected:\n{package_info}\n\n"
+                f"Package chosen by client: {chosen}\n"
+                f"Extras: {extras}\n\n"
                 f"Action: Verify MoMo on 798741 then approve in dashboard.\n"
                 f"Dashboard: https://senior-madeleine-matabar-93648cd5.koyeb.app/"
             ),
@@ -706,7 +744,7 @@ def _send_payment_notification_email(client, conversation=None):
         )
         logger.info("Payment notification sent for %s", client.wa_number)
     except Exception as exc:
-        logger.warning("Email notification failed: %s", exc)   
+        logger.warning("Email notification failed: %s", exc)
 
 
 
