@@ -70,7 +70,9 @@ def build_system_prompt(
     client_name: str,
     children_info: str,
     rag_context: str,
-    is_first_message: bool = False #CITO CITO
+    is_first_message: bool = False, #CITO CITO
+    package_prices: str = "",
+
     ) -> str:
     """
     Build system prompt. Compact by design — every token here
@@ -121,35 +123,8 @@ def build_system_prompt(
         f"  Step 4: Would you like a highlight video?\n"
         f"- After discovery: build packages based on selected extras.\n"
         f"- Always present EXACTLY 3 options — same extras, increasing edited photos.\n"
-        f"- PACKAGE PRICES ARE FIXED — memorize these exactly and strictly:\n"
-        f"  Starter: 50,000 RWF = 1h session, 8 edited + all unedited\n"
-        f"  Silver:  70,000 RWF = 1.5h session, 12 edited + all unedited\n"
-        f"  Gold:    100,000 RWF = 1.5h session, 18 edited + all unedited\n"
-        f"  Extras:  Frames=20k, Video=29k, Cake=30k, Cake+Video together=50k\n"
-        f"  Home session: add 69,000 RWF to any package even if the client added extra(s)\n"
-        f"  Final price = base package price + extras price\n"
-        f"  CALCULATION RULE: Final price = base + ALL extras + home session (if chosen). Add EVERY selected item.\n"
-        f"  Example studio, no extras:          Starter=50k,  Silver=70k,  Gold=100k\n"
-        f"  Example studio, frames only:        Starter=70k,  Silver=90k,  Gold=120k\n"
-        f"  Example studio, cake only:          Starter=80k,  Silver=100k, Gold=130k\n"
-        f"  Example studio, video only:         Starter=79k,  Silver=99k,  Gold=129k\n"
-        f"  Example studio, cake+video:         Starter=100k, Silver=120k, Gold=150k\n"
-        f"  Example studio, frames+cake:        Starter=100k, Silver=120k, Gold=150k\n"
-        f"  Example studio, frames+video:       Starter=99k,  Silver=119k, Gold=149k\n"
-        f"  Example studio, frames+cake+video:  Starter=119k, Silver=139k, Gold=169k\n"
-        f"  Example home, no extras:            Starter=119k, Silver=139k, Gold=169k\n"
-        f"  Example home, frames only:          Starter=139k, Silver=159k, Gold=189k\n"
-        f"  Example home, cake only:            Starter=149k, Silver=169k, Gold=199k\n"
-        f"  Example home, video only:           Starter=148k, Silver=168k, Gold=198k\n"
-        f"  Example home, cake+video:           Starter=169k, Silver=189k, Gold=219k\n"
-        f"  Example home, frames+cake:          Starter=169k, Silver=189k, Gold=219k\n"
-        f"  Example home, frames+video:         Starter=168k, Silver=188k, Gold=218k\n"
-        f"  Example home, frames+cake+video:    Starter=188k, Silver=208k, Gold=238k\n"
-        f"  Example studio, frames+cake+video:  Starter=119k, Silver=139k, Gold=169k\n"
-        f"  Example home,   frames+cake+video:  Starter=188k, Silver=208k, Gold=238k\n"
-        f"  Example studio, frames+cake (NO video): Starter=100k, Silver=120k, Gold=150k\n"
-        f"  IMPORTANT: cake+video bundle=50k. If client also chose frames, add 20k ON TOP of the 50k bundle.\n"
-        f"  So frames+cake+video = 20k + 50k = 70k extras total.\n"
+        f"- PACKAGE PRICES — USE THESE EXACT NUMBERS, DO NOT RECALCULATE:\n"
+        f"{package_prices}\n"
         f"- PACKAGE PRESENTATION FORMAT (use exactly this structure, always):\n"
         f"  Here are the 3 packages that best fit your request:\n"
         f"\n"
@@ -198,7 +173,6 @@ def build_system_prompt(
         f"- Short messages — WhatsApp style, one idea per message.\n"
         f"- Match language the client uses (EN / RW / FR mix).\n"
         f"- When client confirms payment and you send the booking form, pre-fill Package field with full details.\n"
-        f"  Example: 'Package: Silver Package — 99,000 RWF (Studio, Highlight Video)'\n"
         f"  Include: package name + price + session type + extras chosen.\n"
         f"- Guide: discovery → 3 options → Client chooses → booking fee(20k -deducted from package price) → form → prep → delivery → feedback.\n\n"
         f"ABSOLUTE RULES:\n"

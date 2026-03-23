@@ -165,6 +165,51 @@ def handle_inbound_message(
 
         assistant_count = sum(1 for m in recent_msgs if m.get("role") == "assistant")
         is_first_message = assistant_count == 0
+
+        # Détecte les choix de discovery depuis l'historique
+        session_type = "studio"
+        frames = False
+        cake = False
+        video = False
+
+        for msg in recent_msgs:
+            if msg.get("role") == "assistant":
+                content = msg.get("content", "").lower()
+                if "home" in content and ("session" in content or "rugo" in content):
+                    pass  # question posée
+            if msg.get("role") == "user":
+                content = msg.get("content", "").lower()
+
+        # Méthode plus fiable — cherche dans les messages assistant les questions
+        # et dans les messages user les réponses correspondantes
+        msgs_list = list(recent_msgs)
+        for i, msg in enumerate(msgs_list):
+            if msg.get("role") == "assistant":
+                q = msg.get("content", "").lower()
+                # Cherche la réponse suivante du client
+                next_user = next((m for m in msgs_list[i+1:] if m.get("role") == "user"), None)
+                if not next_user:
+                    continue
+                answer = next_user.get("content", "").lower()
+                yes = any(w in answer for w in ["yes", "yego", "oui", "sure", "yeah", "ok"])
+                home_ans = any(w in answer for w in ["home", "rugo", "maison"])
+                
+                if any(w in q for w in ["studio or home", "home session", "studio session", "rugo", "studio cyangwa"]):
+                    if home_ans:
+                        session_type = "home"
+                if any(w in q for w in ["frame", "cadre", "amaframe"]):
+                    if yes:
+                        frames = True
+                if any(w in q for w in ["cake", "umutsima", "gateau", "gâteau"]):
+                    if yes:
+                        cake = True
+                if any(w in q for w in ["video", "videwo"]):
+                    if yes:
+                        video = True
+
+        # Calcule les prix
+        package_prices = _calculate_packages(session_type, frames, cake, video)
+
         system_prompt = build_system_prompt(
             journey_phase=journey.phase,
             journey_step=journey.step,
@@ -174,6 +219,7 @@ def handle_inbound_message(
             children_info=children_info,
             rag_context=rag_context,
             is_first_message=is_first_message,
+            package_prices=package_prices,
 
            
             # discovery_state=discovery_state, #cito cito
@@ -185,7 +231,7 @@ def handle_inbound_message(
             new_message=text or f"[{msg_type} message]",
         )
 
-        # Step 12: Call Claude
+        # Step 12: Call OpenAi
         escalate = journey.phase == "sales_resistance" and journey.heat_score >= 40
         # from services.claude import call_claude
 
@@ -299,42 +345,6 @@ def handle_inbound_message(
                 tokens_used=claude_response.total_tokens,
             )
 
-        # # Step 15: Human approval gate
-        # needs_approval = _requires_approval(journey, intent_data)
-
-        # if needs_approval:
-
-        #     if journey.step == "payment_confirmation":
-        #         ai_suggestion = (
-        #             "Well received! Thank you.\n"
-        #             "Twayakiriye! Murakoze.\n\n"
-        #             "Please fill in your details / Mwuzuze amakuru yanyu:\n\n"
-        #             "Name / Izina:\n"
-        #             "Kid Gender / Igitsina cy'umwana:\n"
-        #             "Kid Age / Imyaka y'umwana:\n"
-        #             "Package:\n"
-        #             "Booking Day / Umunsi:\n"
-        #             "Booking Time / Isaha:"
-        # )
-        #     else:
-        #         ai_suggestion = claude_response.text
-        #     _queue_for_approval(
-        #                 client=client,
-        #                 conversation=conversation,
-        #                 ai_suggestion=ai_suggestion,
-        #                 ai_reasoning=f"Phase: {journey.phase}/{journey.step} | Heat: {journey.heat_label} | Intent: {intent_data.get('intent', 'unknown')}",
-        #                 heat_score=journey.heat_score,
-        #                 action=_map_approval_action(journey, intent_data),
-        #             )
-        #     outbound_msg.approved_by_human = None  # pending
-        #     outbound_msg.save(update_fields=["approved_by_human"])
-        #     return OrchestratorResult(
-        #         success=True,
-        #         action="queued_for_approval",
-        #         client_id=str(client.pk),
-        #         conversation_id=conversation.pk,
-        #         tokens_used=claude_response.total_tokens,
-        #     )
         
 
         # Step 16: Send response
@@ -770,7 +780,42 @@ def _notify_human_takeover(client, conversation, reason: str):
         "Human takeover triggered | client=%s reason=%s", client.wa_number, reason
     )
 
-
+def _calculate_packages(session_type: str, frames: bool, cake: bool, video: bool) -> str:
+    """Calculate exact prices based on discovery answers."""
+    base = {"Starter": 50000, "Silver": 70000, "Gold": 100000}
+    
+    extras = 0
+    extras_list = []
+    
+    if frames:
+        extras += 20000
+        extras_list.append("2 A5 Photo Frames")
+    if cake and video:
+        extras += 50000
+        extras_list.append("Birthday Cake")
+        extras_list.append("Highlight Video")
+    elif cake:
+        extras += 30000
+        extras_list.append("Birthday Cake")
+    elif video:
+        extras += 29000
+        extras_list.append("Highlight Video")
+    
+    home = 69000 if session_type == "home" else 0
+    session_label = "Home" if session_type == "home" else "Studio"
+    includes = ", ".join(extras_list) if extras_list else "No extras"
+    
+    result = f"SESSION: {session_label}\nEXTRAS CHOSEN: {includes}\n\n"
+    for name, base_price in base.items():
+        total = base_price + extras + home
+        duration = "1h" if name == "Starter" else "1.5h"
+        photos = 8 if name == "Starter" else (12 if name == "Silver" else 18)
+        result += f"{name}: {total:,} RWF | {duration} {session_label} Session | {photos} Edited Photos"
+        if extras_list:
+            result += f" | Includes: {includes}"
+        result += "\n"
+    
+    return result
 #________________________________________________________________________________________________________
 # """
 # Journey Orchestrator
