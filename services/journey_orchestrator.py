@@ -549,29 +549,21 @@ def _format_children(client) -> str:
 
 
 def _requires_approval(journey, intent_data: dict) -> bool:
-    """
-    Determine if AI response needs human review before sending.
-    Based on the AI vs Human Control Matrix.
-    """
     phase = journey.phase
     step = journey.step
-    intent = intent_data.get("intent", "")
 
     # Payment confirmation always needs human
     if step == "payment_confirmation":
         return True
 
-    # Sales resistance: escalation decisions need human
+    # Sales resistance: let AI handle levels 1 and 2, escalate on 3rd objection
     if phase == "sales_resistance":
-    # if packages are presented already
-        if step in ("payment_confirmation", "package_presentation", "objection_handling"):
+        if journey.objection_count and journey.objection_count >= 2:
             return True
-        # AI deals with it alone
         return False
 
     # Booking phase: moderate oversight
     if phase == "booking" and step in ("package_presentation",):
-        # Only auto-send for LOW heat — HIGH/MEDIUM needs human check
         return journey.heat_score >= 70
 
     return False
