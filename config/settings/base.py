@@ -210,5 +210,12 @@ CORS_ALLOWED_ORIGINS =["https://senior-madeleine-matabar-93648cd5.koyeb.app"]
 # )
 CSRF_TRUSTED_ORIGINS =["https://senior-madeleine-matabar-93648cd5.koyeb.app"]
 
-    
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = "smtp.gmail.com"
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = env("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD")
+DEFAULT_FROM_EMAIL = env("EMAIL_HOST_USER")
+STUDIO_NOTIFICATION_EMAIL = env("STUDIO_NOTIFICATION_EMAIL") 
 # APPEND_SLASH = False

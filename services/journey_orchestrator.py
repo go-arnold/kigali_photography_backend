@@ -621,19 +621,12 @@ def _map_heat_signal(signal_name: str) -> str:
     }
     return mapping.get(signal_name, HeatEvent.SignalType.ENGAGEMENT_PATTERN)
 
+#Confirmation awaiting
+
 def _maybe_flag_payment_confirmation(journey, ai_response_text: str):
-    """
-    If AI just sent payment instructions (MTN number),
-    advance journey to payment_confirmation.
-    Next client message will trigger human approval automatically.
-    """
     if not ai_response_text:
         return
-    PAYMENT_SENT_SIGNALS = [
-        "798741",
-        "mtn momo",
-        "please send the 20,000",
-    ]
+    PAYMENT_SENT_SIGNALS = ["798741", "mtn momo", "please send the 20,000"]
     text_lower = ai_response_text.lower()
     if any(signal in text_lower for signal in PAYMENT_SENT_SIGNALS):
         from apps.clients.models import JourneyPhase, JourneyStep
@@ -646,8 +639,31 @@ def _maybe_flag_payment_confirmation(journey, ai_response_text: str):
                     "Auto-advanced to payment_confirmation | client=%s",
                     journey.client.wa_number,
                 )
+                # Envoie email notification
+                _send_payment_notification_email(journey.client)
         except Exception as exc:
-            logger.warning("Could not advance to payment_confirmation: %s", exc)      
+            logger.warning("Could not advance to payment_confirmation: %s", exc)
+
+
+def _send_payment_notification_email(client):
+    try:
+        from django.core.mail import send_mail
+        from django.conf import settings
+        send_mail(
+            subject=f"💳 Payment pending — {client.name or client.wa_number}",
+            message=(
+                f"A client is about to confirm payment.\n\n"
+                f"Client: {client.name or 'Unknown'}\n"
+                f"Phone: {client.wa_number}\n\n"
+                f"Please verify the MoMo payment on 798741 and approve in the dashboard."
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[settings.STUDIO_NOTIFICATION_EMAIL],
+            fail_silently=True,
+        )
+        logger.info("Payment notification email sent for %s", client.wa_number)
+    except Exception as exc:
+        logger.warning("Could not send payment notification email: %s", exc)    
 
 
 
