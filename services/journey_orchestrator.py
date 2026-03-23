@@ -712,50 +712,118 @@ def _maybe_flag_payment_confirmation(journey, ai_response_text: str, conversatio
 
 def _send_payment_notification_email(client, conversation=None):
     try:
-        from django.core.mail import send_mail
+        from django.core.mail import EmailMultiAlternatives
         from django.conf import settings
 
         package_info = "See dashboard"
+        extras = "None"
+        chosen = "Unknown"
+
         if conversation:
-            # Cherche le message client qui contient le choix du package
-            client_choice = conversation.messages.filter(
-                direction="inbound",
+            last_client_msg = conversation.messages.filter(
+                direction="inbound"
             ).order_by("-timestamp").first()
+            if last_client_msg:
+                chosen = last_client_msg.content
 
-            chosen = client_choice.content if client_choice else "Unknown"
-
-            # Cherche le message IA avec les packages présentés
             last_pkg_msg = conversation.messages.filter(
                 direction="outbound",
                 content__icontains="Includes:"
             ).order_by("-timestamp").first()
-
-            extras = "No extras"
             if last_pkg_msg:
                 for line in last_pkg_msg.content.split("\n"):
                     if "Includes:" in line:
-                        extras = line.strip()
+                        extras = line.replace("Includes:", "").strip()
                         break
 
-        send_mail(
-            subject=f"💳 Payment pending — {client.name or client.wa_number}",
-            message=(
-                f"Client ready to pay.\n\n"
-                f"Name: {client.name or 'Unknown'}\n"
-                f"Phone: {client.wa_number}\n\n"
-                f"Package chosen by client: {chosen}\n"
-                f"Extras: {extras}\n\n"
-                f"Action: Verify MoMo on 798741 then approve in dashboard.\n"
-                f"Dashboard: https://senior-madeleine-matabar-93648cd5.koyeb.app/"
-            ),
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[settings.STUDIO_NOTIFICATION_EMAIL],
-            fail_silently=True,
+        text_body = (
+            f"Client ready to pay.\n\n"
+            f"Name: {client.name or 'Unknown'}\n"
+            f"Phone: {client.wa_number}\n\n"
+            f"Package chosen: {chosen}\n"
+            f"Extras: {extras}\n\n"
+            f"Action: Verify MoMo on 798741 then approve in dashboard.\n"
+            f"Dashboard: https://senior-madeleine-matabar-93648cd5.koyeb.app/"
         )
+
+        html_body = f"""
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body {{ margin: 0; padding: 0; background-color: #f5f0eb; font-family: 'Georgia', serif; }}
+    .wrapper {{ max-width: 600px; margin: 40px auto; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }}
+    .header {{ background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); padding: 40px 30px; text-align: center; }}
+    .header h1 {{ color: #fff; margin: 0; font-size: 24px; letter-spacing: 2px; text-transform: uppercase; }}
+    .header p {{ color: #e2b96f; margin: 8px 0 0; font-size: 14px; letter-spacing: 1px; }}
+    .badge {{ display: inline-block; background: #e2b96f; color: #1a1a2e; padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: bold; margin-top: 15px; letter-spacing: 1px; }}
+    .body {{ padding: 35px 40px; }}
+    .section-title {{ font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #999; margin-bottom: 8px; }}
+    .info-block {{ background: #f9f6f2; border-left: 4px solid #e2b96f; border-radius: 6px; padding: 16px 20px; margin-bottom: 20px; }}
+    .info-block p {{ margin: 6px 0; color: #333; font-size: 15px; }}
+    .info-block strong {{ color: #1a1a2e; }}
+    .package-block {{ background: linear-gradient(135deg, #1a1a2e, #0f3460); border-radius: 10px; padding: 20px 24px; margin-bottom: 20px; }}
+    .package-block p {{ margin: 6px 0; color: #fff; font-size: 15px; }}
+    .package-block .pkg-name {{ color: #e2b96f; font-size: 18px; font-weight: bold; margin-bottom: 10px; }}
+    .package-block .extras {{ color: #a8d8ea; font-size: 13px; }}
+    .action-btn {{ display: block; background: #e2b96f; color: #1a1a2e; text-align: center; padding: 16px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px; letter-spacing: 1px; margin: 25px 0; }}
+    .footer {{ background: #1a1a2e; padding: 20px; text-align: center; }}
+    .footer p {{ color: #666; font-size: 12px; margin: 4px 0; }}
+    .footer a {{ color: #e2b96f; text-decoration: none; }}
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header">
+      <h1>KP Kids Studio</h1>
+      <p>Payment Notification</p>
+      <span class="badge">💳 ACTION REQUIRED</span>
+    </div>
+    <div class="body">
+      <div class="section-title">Client Details</div>
+      <div class="info-block">
+        <p><strong>Name:</strong> {client.name or 'Unknown'}</p>
+        <p><strong>Phone:</strong> {client.wa_number}</p>
+      </div>
+
+      <div class="section-title">Package Selected</div>
+      <div class="package-block">
+        <p class="pkg-name">📦 {chosen}</p>
+        <p class="extras">✨ Extras: {extras}</p>
+      </div>
+
+      <div class="section-title">Action Required</div>
+      <div class="info-block">
+        <p>1. Verify MoMo payment on <strong>798741</strong></p>
+        <p>2. Approve the booking in the dashboard</p>
+      </div>
+
+      <a href="https://senior-madeleine-matabar-93648cd5.koyeb.app/" class="action-btn">
+        Open Dashboard →
+      </a>
+    </div>
+    <div class="footer">
+      <p>KP Kids Studio — Kigali, Rwanda</p>
+      <p><a href="https://senior-madeleine-matabar-93648cd5.koyeb.app/">Dashboard</a></p>
+    </div>
+  </div>
+</body>
+</html>
+"""
+
+        msg = EmailMultiAlternatives(
+            subject=f"💳 Payment pending — {client.name or client.wa_number}",
+            body=text_body,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[settings.STUDIO_NOTIFICATION_EMAIL],
+        )
+        msg.attach_alternative(html_body, "text/html")
+        msg.send(fail_silently=True)
+
         logger.info("Payment notification sent for %s", client.wa_number)
     except Exception as exc:
         logger.warning("Email notification failed: %s", exc)
-
 
 
 def _notify_human_takeover(client, conversation, reason: str):
