@@ -654,8 +654,8 @@ def _send_payment_notification_email(client):
             message=(
                 f"A client is about to confirm payment.\n\n"
                 f"Client: {client.name or 'Unknown'}\n"
-                f"Phone: {client.wa_number}\n\n"
-                f"Please verify the MoMo payment on 798741 and approve in the dashboard."
+                f"Phone: +{client.wa_number}\n\n"
+                f"Please verify the MoMo payment on 798741 before you approve (and takeover Julie) in the dashboard."
             ),
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[settings.STUDIO_NOTIFICATION_EMAIL],
