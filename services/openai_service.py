@@ -79,8 +79,15 @@ def build_system_prompt(
     studio = settings.STUDIO
 
     lang_instruction = (
-        "Respond in Kinyarwanda." if language == "rw" else "Respond in English."
+    "Respond ENTIRELY in Kinyarwanda. Never switch to English." 
+    if language == "rw" 
+    else (
+        "Detect the language of the client's message and respond in that exact language. "
+        "If client writes in Kinyarwanda → respond in Kinyarwanda. "
+        "If client writes in French → respond in French. "
+        "If client mixes → match their mix exactly."
     )
+)
 
     heat_strategy = {
         "HIGH": "Client is HOT. Be warm, responsive, move toward commitment.",
@@ -130,19 +137,19 @@ def build_system_prompt(
         f"  Here are the 3 packages that best fit your request:\n"
         f"\n"
         f"  🥉 *Starter Package* — [price] RWF\n"
-        f"  [session duration] Session\n"
+        f"  [session duration] [Studio or Home]Session\n"
         f"  Delivery: [X] Edited Photos\n"
         f"  All Other Unedited Photos\n"
         f"  [extras if any]\n"
         f"\n"
         f"  🥈 *Silver Package* — [price] RWF\n"
-        f"  [session duration] Session\n"
+        f"  [session duration] [Studio or Home]Session\n"
         f"  Delivery: [X] Edited Photos\n"
         f"  All Other Unedited Photos\n"
         f"  [extras if any]\n"
         f"\n"
         f"  🥇 *Gold Package* — [price] RWF\n"
-        f"  [session duration] Session\n"
+        f"  [session duration] [Studio or Home]Session\n"
         f"  Delivery: [X] Edited Photos\n"
         f"  All Other Unedited Photos\n"
         f"  [extras if any]\n"
