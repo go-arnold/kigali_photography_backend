@@ -226,10 +226,37 @@ def handle_inbound_message(
         needs_approval = _requires_approval(journey, intent_data)
 
         if needs_approval:
+            if journey.step == "payment_confirmation":
+                last_package_msg = conversation.messages.filter(
+                    direction="outbound",
+                    content__icontains="Package"
+                ).order_by("-timestamp").first()
+                
+                package_line = "Package: (see conversation)"
+                if last_package_msg:
+                    for line in last_package_msg.content.split("\n"):
+                        if any(p in line for p in ["Starter", "Silver", "Gold"]) and "RWF" in line:
+                            package_line = f"Package: {line.strip()}"
+                            break
+
+                ai_suggestion = (
+                    "Well received! Thank you.\n"
+                    "Twayakiriye! Murakoze.\n\n"
+                    "Please fill in your details / Mwuzuze amakuru yanyu:\n\n"
+                    "Name / Izina:\n"
+                    "Kid Gender / Igitsina cy'umwana:\n"
+                    "Kid Age / Imyaka y'umwana:\n"
+                    f"{package_line}\n"
+                    "Booking Day / Umunsi:\n"
+                    "Booking Time / Isaha:"
+                )
+            else:
+                ai_suggestion = claude_response.text
+
             _queue_for_approval(
                 client=client,
                 conversation=conversation,
-                ai_suggestion=claude_response.text,
+                ai_suggestion=ai_suggestion,  # ai_suggestion to use
                 ai_reasoning=f"Phase: {journey.phase}/{journey.step} | Heat: {journey.heat_label} | Intent: {intent_data.get('intent', 'unknown')}",
                 heat_score=journey.heat_score,
                 action=_map_approval_action(journey, intent_data),
@@ -290,7 +317,7 @@ def handle_inbound_message(
         outbound_msg.save(update_fields=["approved_by_human"])
 
         #  # Auto-advance to payment_confirmation if AI just sent payment details CITO
-        _maybe_flag_payment_confirmation(journey, claude_response.text)
+        _maybe_flag_payment_confirmation(journey, claude_response.text, conversation)
 
         # Update conversation window
         conversation.touch()
@@ -623,7 +650,7 @@ def _map_heat_signal(signal_name: str) -> str:
 
 #Confirmation awaiting
 
-def _maybe_flag_payment_confirmation(journey, ai_response_text: str):
+def _maybe_flag_payment_confirmation(journey, ai_response_text: str, conversation =None):
     if not ai_response_text:
         return
     PAYMENT_SENT_SIGNALS = ["798741", "mtn momo", "please send the 20,000"]
@@ -640,30 +667,46 @@ def _maybe_flag_payment_confirmation(journey, ai_response_text: str):
                     journey.client.wa_number,
                 )
                 # Envoie email notification
-                _send_payment_notification_email(journey.client)
+                _send_payment_notification_email(journey.client, conversation)
         except Exception as exc:
             logger.warning("Could not advance to payment_confirmation: %s", exc)
 
 
-def _send_payment_notification_email(client):
+def _send_payment_notification_email(client, conversation=None):
     try:
         from django.core.mail import send_mail
         from django.conf import settings
+
+        # Récupère le dernier message avec les packages
+        package_info = "See dashboard"
+        if conversation:
+            last_pkg = conversation.messages.filter(
+                direction="outbound",
+                content__icontains="Package"
+            ).order_by("-timestamp").first()
+            if last_pkg:
+                # Extrait les lignes de packages
+                lines = [l.strip() for l in last_pkg.content.split("\n") 
+                         if any(p in l for p in ["Starter", "Silver", "Gold", "Includes", "RWF"])]
+                package_info = "\n".join(lines[:10])
+
         send_mail(
             subject=f"💳 Payment pending — {client.name or client.wa_number}",
             message=(
-                f"A client is about to confirm payment.\n\n"
-                f"Client: {client.name or 'Unknown'}\n"
-                f"Phone: +{client.wa_number}\n\n"
-                f"Please verify the MoMo payment on 798741 before you approve (and takeover Julie) in the dashboard."
+                f"Client ready to pay.\n\n"
+                f"Name: {client.name or 'Unknown'}\n"
+                f"Phone: {client.wa_number}\n\n"
+                f"Package selected:\n{package_info}\n\n"
+                f"Action: Verify MoMo on 798741 then approve in dashboard.\n"
+                f"Dashboard: https://senior-madeleine-matabar-93648cd5.koyeb.app/"
             ),
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[settings.STUDIO_NOTIFICATION_EMAIL],
             fail_silently=True,
         )
-        logger.info("Payment notification email sent for %s", client.wa_number)
+        logger.info("Payment notification sent for %s", client.wa_number)
     except Exception as exc:
-        logger.warning("Could not send payment notification email: %s", exc)    
+        logger.warning("Email notification failed: %s", exc)   
 
 
 
