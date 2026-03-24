@@ -584,10 +584,6 @@ def _serialize_booking(b):
 
 
 def _schedule_birthday_messages(booking):
-    """
-    Auto-schedule birthday messages based on child_birthday.
-    Schedules: 1 week before, 1 day before, day-of, and next year.
-    """
     from apps.conversations.models import ScheduledMessage, ScheduledMessageType
     from apps.clients.models import Client
     import datetime
@@ -595,14 +591,12 @@ def _schedule_birthday_messages(booking):
     birthday = booking.child_birthday
     today = timezone.now().date()
 
-    # Find next upcoming birthday
     this_year_bday = birthday.replace(year=today.year)
     if this_year_bday < today:
         next_bday = birthday.replace(year=today.year + 1)
     else:
         next_bday = this_year_bday
 
-    # Try to find linked client
     client = booking.client
     if not client:
         try:
@@ -613,6 +607,8 @@ def _schedule_birthday_messages(booking):
     if not client:
         logger.warning("Cannot schedule birthday messages — no client linked for booking %s", booking.pk)
         return
+
+    nine_am = datetime.time(9, 0, 0)  # ← Fix: datetime.time() direct, pas de .replace()
 
     schedules = [
         (next_bday - datetime.timedelta(days=7), ScheduledMessageType.BIRTHDAY_REMINDER,
@@ -629,7 +625,7 @@ def _schedule_birthday_messages(booking):
     for send_date, msg_type, content in schedules:
         dedup_key = f"{msg_type}:{client.pk}:{send_date.year}:{send_date.month}"
         send_at = timezone.make_aware(
-            timezone.datetime.combine(send_date, timezone.datetime.min.time().replace(hour=9))
+            datetime.datetime.combine(send_date, nine_am)  # ← Fix: datetime.datetime, pas timezone.datetime
         )
         try:
             ScheduledMessage.objects.get_or_create(
@@ -648,4 +644,3 @@ def _schedule_birthday_messages(booking):
             logger.warning("Could not schedule birthday message: %s", exc)
 
     logger.info("Scheduled %s birthday messages for %s (booking %s)", created, booking.child_name, booking.pk)
- 
