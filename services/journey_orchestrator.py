@@ -877,7 +877,7 @@ def _calculate_packages(session_type: str, frames: bool, cake: bool, video: bool
     result = f"SESSION: {session_label}\nEXTRAS CHOSEN: {includes}\n\n"
     for name, base_price in base.items():
         total = base_price + extras + home
-        duration = "1h" if name == "Starter" else "1.5h"
+        duration = "1.5h" if name == "Gold" else "1h"
         photos = 8 if name == "Starter" else (12 if name == "Silver" else 18)
         result += f"{name}: {total:,} RWF | {duration} {session_label} Session | {photos} Edited Photos"
         if extras_list:
