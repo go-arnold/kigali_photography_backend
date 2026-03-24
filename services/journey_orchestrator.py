@@ -203,7 +203,9 @@ def handle_inbound_message(
                          "rugo", "studio cyangwa", "murifuzako", "muri studio"]):
                     if home_ans:
                         session_type = "home"
-                if any(w in q for w in ["frame", "cadre", "amaframe", "twabongereramo frame"]):
+                if any(w in q for w in [
+                    "frame", "cadre", "amaframe", "twabongereramo", 
+                    "a5", "photo frame", "frames 2", "frame 2"]):
                     if yes:
                         frames = True
                 if any(w in q for w in ["cake", "umutsima", "gateau", "twabakorera na cake"]):

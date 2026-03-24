@@ -104,7 +104,7 @@ def build_system_prompt(
 
     if language == "rw":
         pkg_format = (
-            f"  Dore packages 3:\n\n"
+            f"  Dore packages 3 zikwiye ibyo mushaka:\n\n"
             f"  🥉 *Starter Package* — [igiciro] RWF\n"
             f"  [igihe] Session\n"
             f"  Gutangwa: Amafoto [X]  mwahisemo (edited)\n"
