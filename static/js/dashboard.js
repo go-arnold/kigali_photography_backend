@@ -495,7 +495,7 @@ function pageBookings() {
               </td>
               <td>
                 <div class="flex aic gap1">
-                  <button class="btn btn-ghost btn-xs" onclick="openBookingForm(${JSON.stringify(b).replace(/</g,"\\u003c").replace(/>/g,"\\u003e").replace(/&/g,"\\u0026")})">
+                  <button class="btn btn-ghost btn-xs" onclick="openBookingFormById(${b.id})">
                     ✏ Edit
                   </button>
                   <button class="btn btn-red btn-xs" onclick="deleteBooking(${b.id},'${esc(b.child_name)}')">
@@ -536,6 +536,12 @@ function openJourneyEdit(c) {
 }
 
 function openBookingForm(booking) {
+  set({ modal: { type: "booking", booking } });
+}
+
+function openBookingFormById(id) {
+  const booking = S.bookings.find((b) => b.id === id);
+  if (!booking) { toast("Booking not found", "err"); return; }
   set({ modal: { type: "booking", booking } });
 }
 
