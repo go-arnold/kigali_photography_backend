@@ -4,7 +4,7 @@ echo "Starting application..."
 
 python manage.py migrate --noinput || true
 
-celery -A config worker --loglevel=info --concurrency=1 &
+celery -A config worker --loglevel=info --concurrency=1 --without-mingle --without-gossip &
 
 celery -A config beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler &
 

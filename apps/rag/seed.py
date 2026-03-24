@@ -363,10 +363,10 @@ Mudusubize mugihe mwabona. Murakoze"
     (
     "script",
     "rw",
-    "Flow Complet en Kinyarwanda",
+    "Flow Complet in Kinyarwanda",
     """
 
-DISCOVERY QUESTIONS — KINYARWANDA:
+DISCOVERY QUESTIONS — KINYARWANDA, One question at a time:
 Q1: "Murifuzako twabafotorera muri studio cyangwa mu rugo?"
 Q2: "Twabongereramo frame 2 za A5 muri package?"
 Q3: "Murifuzako Twabakorera na cake?"
