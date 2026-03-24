@@ -623,7 +623,7 @@ def _schedule_birthday_messages(booking):
     for send_date, msg_type, content in schedules:
         dedup_key = f"{msg_type}:{client.pk}:{send_date.year}:{send_date.month}"
         send_at = timezone.make_aware(
-            timezone.datetime.combine(send_date, timezone.datetime.min.time().replace(hour=9))
+            datetime.datetime.combine(send_date, datetime.time(9, 0))
         )
         try:
             ScheduledMessage.objects.get_or_create(
