@@ -179,28 +179,28 @@ Q: Session imara igihe kingana iki?
 A:
 ● Starter Package: iminota 60
 ● Silver Package: iminota 60
-● Gold Package: isaha 1 n’igice
+● Gold Package: isaha 1 n'igice
 ● Platinum Package: amasaha 2
 ● Premium Package: amasaha 2
-Turabasaba kuza nibura iminota 15 mbere y’igihe mwahawe.
+Turabasaba kuza nibura iminota 15 mbere y'igihe mwahawe.
 Q: Umwana akwiriye kwambara iki?
 A:
 Imyenda isanzwe (casual) nimyiza neza, mwirinde imyenda ifite amabara menci avanze.
-Mwazana nibura imyambaro 2–3 itandukanye.
+Mwazana nibura imyambaro 2-3 itandukanye.
 Mushobora no kubanza kutwoherereza imyambaro umwana azambara, tukabafasha gutegura studio hakiri kare.
 Ibi bidufasha gutanga serivisi nziza no kutabakerereza muje kuri studio.
 Q: Umwana wanjye arakina cyane / agira isoni — ntacyo bitwaye?
 A:
 Yego rwose, ntakibazo! Dufite ubunararibonye mu gufotora abana.
-Dufite ibikinisho byinshi, décor zitandukanye, n’ubumenyi buhagije bwo gukorana n’abana bingeri zose.
+Dufite ibikinisho byinshi, décor zitandukanye, n'ubumenyi buhagije bwo gukorana n'abana bingeri zose.
 Dukurikirana buri mwana uko ari, tukamuha umwanya uhagije, nta kumuhutaza.
 Q: Amafoto tuyabona ryari?
 A:
-Tubaha amafoto mu gihe kitarenze amasaha 24 nyuma yo kuyahitamo, kandi akenshi tubikora mbere y’ayo masaha.
+Tubaha amafoto mu gihe kitarenze amasaha 24 nyuma yo kuyahitamo, kandi akenshi tubikora mbere y'ayo masaha.
 Tuzabohereza link ya gallery (Pixieset), aho muzahitamo amafoto mushaka ko atunganywa.
 Q: Ese nshobora kugura andi mafoto nyuma yo kubona ayambere?
 A:
-Yego, birashoboka! Ifoto y’inyongera itunganyijwe ni 5,000 RWF gusa!
+Yego, birashoboka! Ifoto y'inyongera itunganyijwe ni 5,000 RWF gusa!
 Mushobora kuyishyura ukwayo igihe mubishakiye tukayibakorera ntakibazo.
 Q: Ese nshobora kuzana abavandimwe?
 A:
@@ -208,7 +208,7 @@ Yego rwose! Mutumenyesha mbere kugira ngo tubitegure neza.
 Q: Bigenda bite umwana arwaye ku munsi wo kwifotoza?
 A:
 Mushobora gusubika gahunda, ubuzima buza mbere ya byose!
-Mutubwira mbere y’igihe, tukabafasha gutegura undi munsi ubabereye.
+Mutubwira mbere y'igihe, tukabafasha gutegura undi munsi ubabereye.
 Q: Ese mutunganya amafoto yose?
 A:
 Amafoto mwahisemo yose atunganywa kinyamwuga:
@@ -216,13 +216,13 @@ Amafoto mwahisemo yose atunganywa kinyamwuga:
 ● kunoza uruhu (skin smoothing)
 ● gusukura background
 ● kunoza urumuri
-Umubare w’amafoto uterwa na package mwahisemo.
+Umubare w'amafoto uterwa na package mwahisemo.
 👉 Niba hari ibyo mushaka ko bihindurwa cyangwa byongerwaho, murabitubwira tugakosora nta kibazo.
 Q: Ese dushobora gushyira amafoto ku mbuga nkoranyambaga?
 A:
 Yego! Mwadukorera tag @kp kids studio kuri Instagram. Murakoze cyane � 
 """,
-)
+),
 
     # ─── LOCATION ────────────────────────────────────────────────────────────
 
