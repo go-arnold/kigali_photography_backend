@@ -191,19 +191,25 @@ def handle_inbound_message(
                 if not next_user:
                     continue
                 answer = next_user.get("content", "").lower()
-                yes = any(w in answer for w in ["yes", "yego", "oui", "sure", "yeah", "ok"])
-                home_ans = any(w in answer for w in ["home", "rugo", "maison"])
+                yes = any(w in answer for w in [
+                    "yes", "yego", "oui", "sure", "yeah", "ok", "okay",
+                    "yep", "alright", "nziza", "ntakibazo", "twaza"
+                ])
+                home_ans = any(w in answer for w in [
+                    "home", "rugo", "maison", "mu rugo", "at home"
+                ])
                 
-                if any(w in q for w in ["studio or home", "home session", "studio session", "rugo", "studio cyangwa"]):
+                if any(w in q for w in ["studio or home", "home session", "studio session", 
+                         "rugo", "studio cyangwa", "murifuzako", "muri studio"]):
                     if home_ans:
                         session_type = "home"
-                if any(w in q for w in ["frame", "cadre", "amaframe"]):
+                if any(w in q for w in ["frame", "cadre", "amaframe", "twabongereramo frame"]):
                     if yes:
                         frames = True
-                if any(w in q for w in ["cake", "umutsima", "gateau", "gâteau"]):
+                if any(w in q for w in ["cake", "umutsima", "gateau", "twabakorera na cake"]):
                     if yes:
                         cake = True
-                if any(w in q for w in ["video", "videwo"]):
+                if any(w in q for w in ["video", "videwo", "twabakorera naka video"]):
                     if yes:
                         video = True
 
@@ -848,6 +854,8 @@ def _notify_human_takeover(client, conversation, reason: str):
     logger.warning(
         "Human takeover triggered | client=%s reason=%s", client.wa_number, reason
     )
+
+
 
 def _calculate_packages(session_type: str, frames: bool, cake: bool, video: bool) -> str:
     """Calculate exact prices based on discovery answers."""
