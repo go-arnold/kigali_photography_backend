@@ -797,6 +797,7 @@ def _send_payment_notification_email(client, conversation=None):
       <div class="info-block">
         <p>1. Verify MoMo payment on <strong>798741</strong></p>
         <p>2. Approve the booking in the dashboard</p>
+        <p>3. Release Ai and continue discussing with the client</p>
       </div>
 
       <a href="https://senior-madeleine-matabar-93648cd5.koyeb.app/" class="action-btn">

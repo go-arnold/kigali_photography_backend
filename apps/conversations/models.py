@@ -352,3 +352,87 @@ class ScheduledMessage(models.Model):
         self.status = self.SendStatus.FAILED
         self.failure_reason = reason[:200]
         self.save(update_fields=["status", "failure_reason"])
+
+
+class Booking(models.Model):
+    """
+    A confirmed photoshoot booking created manually by a studio agent.
+    Auto-schedules birthday messages based on child_birthday.
+    """
+
+    class Package(models.TextChoices):
+        STARTER = "starter", "Starter Package"
+        SILVER = "silver", "Silver Package"
+        GOLD = "gold", "Gold Package"
+
+    class Gender(models.TextChoices):
+        BOY = "boy", "Boy"
+        GIRL = "girl", "Girl"
+        OTHER = "other", "Other"
+
+    class Occasion(models.TextChoices):
+        BIRTHDAY = "birthday", "Birthday"
+        MILESTONE = "milestone", "Milestone"
+        FAMILY = "family", "Family Portrait"
+        GRADUATION = "graduation", "Graduation"
+        OTHER = "other", "Other"
+
+    # Client link (optional — agent may not have linked)
+    client = models.ForeignKey(
+        Client,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="bookings",
+    )
+
+    # Parent / contact info
+    parent_name = models.CharField(max_length=100)
+    phone = models.CharField(max_length=20)
+
+    # Child info
+    child_name = models.CharField(max_length=100)
+    child_gender = models.CharField(max_length=10, choices=Gender.choices)
+    child_age = models.CharField(max_length=20, help_text="e.g. '2 years', '6 months'")
+    child_birthday = models.DateField(
+        null=True, blank=True,
+        help_text="Used for auto-scheduling birthday messages"
+    )
+
+    # Session details
+    occasion = models.CharField(max_length=20, choices=Occasion.choices, default=Occasion.BIRTHDAY)
+    package = models.CharField(max_length=10, choices=Package.choices)
+    extras = models.CharField(max_length=200, blank=True, help_text="e.g. Frames, Cake, Video")
+    preferred_outfit = models.CharField(max_length=200, blank=True)
+    notes = models.TextField(blank=True)
+
+    # Booking date/time
+    booking_day = models.DateField()
+    booking_time = models.TimeField()
+
+    # Meta
+    created_by = models.ForeignKey(
+        "auth.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="bookings_created",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["booking_day", "booking_time"]
+        indexes = [
+            models.Index(fields=["booking_day"]),
+            models.Index(fields=["phone"]),
+        ]
+
+    def __str__(self):
+        return f"{self.child_name} ({self.parent_name}) — {self.booking_day}"
+
+    @property
+    def package_display(self):
+        extras = f" + {self.extras}" if self.extras else ""
+        return f"{self.get_package_display()}{extras}"
+ 

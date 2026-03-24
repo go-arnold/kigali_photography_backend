@@ -441,3 +441,205 @@ def models_F(field):
     """Lazy import of F() to avoid circular imports at module load."""
     from django.db.models import F
     return F(field)
+
+
+class BookingListCreateView(APIView):
+    """
+    GET  /dashboard/bookings/   → list all bookings
+    POST /dashboard/bookings/   → create new booking
+    """
+    permission_classes = [IsStudioStaff]
+
+    def get(self, request):
+        from apps.conversations.models import Booking
+        qs = Booking.objects.select_related("client", "created_by").order_by("booking_day", "booking_time")
+        
+        # Filter by upcoming/past
+        filter_type = request.query_params.get("filter", "upcoming")
+        today = timezone.now().date()
+        if filter_type == "upcoming":
+            qs = qs.filter(booking_day__gte=today)
+        elif filter_type == "past":
+            qs = qs.filter(booking_day__lt=today)
+
+        data = [_serialize_booking(b) for b in qs]
+        return Response(data)
+
+    def post(self, request):
+        from apps.conversations.models import Booking
+        d = request.data
+        
+        try:
+            booking = Booking.objects.create(
+                parent_name=d.get("parent_name", ""),
+                phone=d.get("phone", ""),
+                child_name=d.get("child_name", ""),
+                child_gender=d.get("child_gender", ""),
+                child_age=d.get("child_age", ""),
+                child_birthday=d.get("child_birthday") or None,
+                occasion=d.get("occasion", "birthday"),
+                package=d.get("package", "starter"),
+                extras=d.get("extras", ""),
+                preferred_outfit=d.get("preferred_outfit", ""),
+                notes=d.get("notes", ""),
+                booking_day=d["booking_day"],
+                booking_time=d["booking_time"],
+                created_by=request.user,
+            )
+            # Auto-schedule birthday messages if birthday provided
+            if booking.child_birthday:
+                _schedule_birthday_messages(booking)
+            
+            logger.info("Booking created | id=%s child=%s by=%s", booking.pk, booking.child_name, request.user.username)
+            return Response(_serialize_booking(booking), status=status.HTTP_201_CREATED)
+        except Exception as exc:
+            logger.error("Booking create failed: %s", exc)
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class BookingDetailView(APIView):
+    """
+    GET    /dashboard/bookings/{id}/  → get booking
+    PATCH  /dashboard/bookings/{id}/  → update booking
+    DELETE /dashboard/bookings/{id}/  → delete booking
+    """
+    permission_classes = [IsStudioStaff]
+
+    def get(self, request, pk):
+        from apps.conversations.models import Booking
+        try:
+            booking = Booking.objects.get(pk=pk)
+            return Response(_serialize_booking(booking))
+        except Booking.DoesNotExist:
+            return Response({"error": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    def patch(self, request, pk):
+        from apps.conversations.models import Booking
+        try:
+            booking = Booking.objects.get(pk=pk)
+            d = request.data
+            had_birthday = bool(booking.child_birthday)
+            
+            for field in ["parent_name", "phone", "child_name", "child_gender",
+                         "child_age", "child_birthday", "occasion", "package",
+                         "extras", "preferred_outfit", "notes", "booking_day", "booking_time"]:
+                if field in d:
+                    val = d[field]
+                    if field == "child_birthday" and not val:
+                        val = None
+                    setattr(booking, field, val)
+            
+            booking.save()
+            
+            # Re-schedule birthday messages if birthday was added/changed
+            if booking.child_birthday and not had_birthday:
+                _schedule_birthday_messages(booking)
+            
+            logger.info("Booking updated | id=%s by=%s", pk, request.user.username)
+            return Response(_serialize_booking(booking))
+        except Booking.DoesNotExist:
+            return Response({"error": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        from apps.conversations.models import Booking
+        try:
+            booking = Booking.objects.get(pk=pk)
+            name = booking.child_name
+            booking.delete()
+            logger.info("Booking deleted | id=%s child=%s by=%s", pk, name, request.user.username)
+            return Response({"status": "deleted"})
+        except Booking.DoesNotExist:
+            return Response({"error": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+
+
+# ── Helpers ──────────────────────────────────────────────────────────────────
+
+def _serialize_booking(b):
+    return {
+        "id": b.pk,
+        "parent_name": b.parent_name,
+        "phone": b.phone,
+        "child_name": b.child_name,
+        "child_gender": b.child_gender,
+        "child_age": b.child_age,
+        "child_birthday": str(b.child_birthday) if b.child_birthday else None,
+        "occasion": b.occasion,
+        "package": b.package,
+        "extras": b.extras,
+        "preferred_outfit": b.preferred_outfit,
+        "notes": b.notes,
+        "booking_day": str(b.booking_day),
+        "booking_time": str(b.booking_time)[:5],  # HH:MM
+        "created_at": b.created_at.isoformat(),
+        "created_by": b.created_by.username if b.created_by else "—",
+    }
+
+
+def _schedule_birthday_messages(booking):
+    """
+    Auto-schedule birthday messages based on child_birthday.
+    Schedules: 1 week before, 1 day before, day-of, and next year.
+    """
+    from apps.conversations.models import ScheduledMessage, ScheduledMessageType
+    from apps.clients.models import Client
+    import datetime
+
+    birthday = booking.child_birthday
+    today = timezone.now().date()
+
+    # Find next upcoming birthday
+    this_year_bday = birthday.replace(year=today.year)
+    if this_year_bday < today:
+        next_bday = birthday.replace(year=today.year + 1)
+    else:
+        next_bday = this_year_bday
+
+    # Try to find linked client
+    client = booking.client
+    if not client:
+        try:
+            client = Client.objects.get(wa_number=booking.phone)
+        except Client.DoesNotExist:
+            client = None
+
+    if not client:
+        logger.warning("Cannot schedule birthday messages — no client linked for booking %s", booking.pk)
+        return
+
+    schedules = [
+        (next_bday - datetime.timedelta(days=7), ScheduledMessageType.BIRTHDAY_REMINDER,
+         f"Hi! {booking.child_name}'s birthday is in 1 week 🎂 Would you like to book a session to capture this special milestone?"),
+        (next_bday - datetime.timedelta(days=1), ScheduledMessageType.BIRTHDAY_REMINDER,
+         f"Tomorrow is {booking.child_name}'s big day! 🎉 Wishing you a wonderful celebration!"),
+        (next_bday, ScheduledMessageType.BIRTHDAY_WISH,
+         f"Happy Birthday {booking.child_name}! 🎂🎈 Wishing you a magical day full of joy and laughter! From the KP Kids Studio family 💕"),
+        (next_bday.replace(year=next_bday.year + 1) - datetime.timedelta(days=7), ScheduledMessageType.BIRTHDAY_REMINDER,
+         f"Hi! {booking.child_name}'s birthday is coming up again 🎂 Time flies! Would you like to book a session to capture this year's milestone?"),
+    ]
+
+    created = 0
+    for send_date, msg_type, content in schedules:
+        dedup_key = f"{msg_type}:{client.pk}:{send_date.year}:{send_date.month}"
+        send_at = timezone.make_aware(
+            timezone.datetime.combine(send_date, timezone.datetime.min.time().replace(hour=9))
+        )
+        try:
+            ScheduledMessage.objects.get_or_create(
+                dedup_key=dedup_key,
+                defaults={
+                    "client": client,
+                    "message_type": msg_type,
+                    "content": content,
+                    "language": "en",
+                    "send_at": send_at,
+                    "status": ScheduledMessage.SendStatus.PENDING,
+                }
+            )
+            created += 1
+        except Exception as exc:
+            logger.warning("Could not schedule birthday message: %s", exc)
+
+    logger.info("Scheduled %s birthday messages for %s (booking %s)", created, booking.child_name, booking.pk)
+ 

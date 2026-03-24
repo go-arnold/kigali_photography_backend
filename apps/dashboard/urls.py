@@ -50,6 +50,8 @@ urlpatterns = [
         views.ScheduledMessageCancelView.as_view(),
         name="scheduled-cancel",
     ),
+    path("bookings/", views.BookingListCreateView.as_view()),
+    path("bookings/<int:pk>/", views.BookingDetailView.as_view()),
 ]
 
 
