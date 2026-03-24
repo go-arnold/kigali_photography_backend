@@ -557,6 +557,12 @@ class BookingDetailView(APIView):
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 def _serialize_booking(b):
+    booking_time = b.booking_time
+    if hasattr(booking_time, 'strftime'):
+        time_str = booking_time.strftime("%H:%M")
+    else:
+        time_str = str(booking_time)[:5]
+    
     return {
         "id": b.pk,
         "parent_name": b.parent_name,
@@ -564,14 +570,14 @@ def _serialize_booking(b):
         "child_name": b.child_name,
         "child_gender": b.child_gender,
         "child_age": b.child_age,
-        "child_birthday": str(b.child_birthday) if b.child_birthday else None,
+        "child_birthday": b.child_birthday.isoformat() if b.child_birthday else None,
         "occasion": b.occasion,
         "package": b.package,
         "extras": b.extras,
         "preferred_outfit": b.preferred_outfit,
         "notes": b.notes,
-        "booking_day": str(b.booking_day),
-        "booking_time": str(b.booking_time)[:5],  # HH:MM
+        "booking_day": b.booking_day.isoformat() if b.booking_day else None,
+        "booking_time": time_str,
         "created_at": b.created_at.isoformat(),
         "created_by": b.created_by.username if b.created_by else "—",
     }
@@ -623,7 +629,7 @@ def _schedule_birthday_messages(booking):
     for send_date, msg_type, content in schedules:
         dedup_key = f"{msg_type}:{client.pk}:{send_date.year}:{send_date.month}"
         send_at = timezone.make_aware(
-            datetime.datetime.combine(send_date, datetime.time(9, 0))
+            timezone.datetime.combine(send_date, timezone.datetime.min.time().replace(hour=9))
         )
         try:
             ScheduledMessage.objects.get_or_create(
