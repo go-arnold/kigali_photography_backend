@@ -476,14 +476,14 @@ class BookingListCreateView(APIView):
                 child_name=d.get("child_name", ""),
                 child_gender=d.get("child_gender", ""),
                 child_age=d.get("child_age", ""),
-                child_birthday=d.get("child_birthday") or None,
+                child_birthday=_parse_date(d.get("child_birthday")), 
                 occasion=d.get("occasion", "birthday"),
                 package=d.get("package", "starter"),
                 extras=d.get("extras", ""),
                 preferred_outfit=d.get("preferred_outfit", ""),
                 notes=d.get("notes", ""),
-                booking_day=d["booking_day"],
-                booking_time=d["booking_time"],
+                booking_day=_parse_date(d["booking_day"]),
+                booking_time=_parse_time(d["booking_time"]),
                 created_by=request.user,
             )
             # Auto-schedule birthday messages if birthday provided
@@ -520,13 +520,19 @@ class BookingDetailView(APIView):
             d = request.data
             had_birthday = bool(booking.child_birthday)
             
+            field_parsers = {
+                "booking_day": _parse_date,
+                "booking_time": _parse_time,
+                "child_birthday": _parse_date,
+            }
+
             for field in ["parent_name", "phone", "child_name", "child_gender",
-                         "child_age", "child_birthday", "occasion", "package",
-                         "extras", "preferred_outfit", "notes", "booking_day", "booking_time"]:
+                        "child_age", "child_birthday", "occasion", "package",
+                        "extras", "preferred_outfit", "notes", "booking_day", "booking_time"]:
                 if field in d:
                     val = d[field]
-                    if field == "child_birthday" and not val:
-                        val = None
+                    if field in field_parsers:
+                        val = field_parsers[field](val) if val else None
                     setattr(booking, field, val)
             
             booking.save()
@@ -638,3 +644,19 @@ def _schedule_birthday_messages(booking):
             logger.warning("Could not schedule birthday message: %s", exc)
 
     logger.info("Scheduled %s birthday messages for %s (booking %s)", created, booking.child_name, booking.pk)
+
+def _parse_date(val):
+    from datetime import date
+    if not val:
+        return None
+    if isinstance(val, date):
+        return val
+    return date.fromisoformat(str(val))
+
+def _parse_time(val):
+    from datetime import time
+    if not val:
+        return None
+    if isinstance(val, time):
+        return val
+    return time.fromisoformat(str(val)[:5])
