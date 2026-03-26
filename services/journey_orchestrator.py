@@ -502,10 +502,15 @@ def _update_language(client, text: str):
     from utils.language import detect_language
 
     detected = detect_language(text)
+
+    # Not switch RW → EN on a short message
+    if client.language == "rw" and detected == "en":
+        if len(text.strip().split()) < 5:
+            return  # "ok", "yes", "Silver", "no" → We keep RW
+
     if detected != client.language:
         client.language = detected
         client.save(update_fields=["language", "updated_at"])
-
 
 def _analyze_intent(text: str, journey, conversation) -> dict:
     """
