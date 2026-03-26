@@ -150,11 +150,11 @@ def handle_inbound_message(
         #if client.language == "rw" and not journey.human_takeover:
             journey.flag_human_takeover("Client writes in Kinyarwanda — human agent required")
             _notify_human_takeover(client, conversation, reason="Kinyarwanda client — needs human agent")
-            from services.whatsapp import send_text
-            send_text(
-                to=from_number,
-                message="Muraho! Umwe mu bakoze bacu azabasubiza vuba. 🙏"
-            )
+            # from services.whatsapp import send_text
+            # send_text(
+            #     to=from_number,
+            #     message="Muraho! Umwe mu bakoze bacu azabasubiza vuba. 🙏"
+            # )
             return OrchestratorResult(
                 success=True,
                 action="human_takeover",
