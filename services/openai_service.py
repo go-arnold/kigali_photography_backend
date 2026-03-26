@@ -217,9 +217,9 @@ def build_system_prompt(
         f"  → ONE-SHOT message to send:\n"
         f"     EN: 'Got it! Last quick thing — any of these you'd like added?\\n🖼️ 2 A5 Frames\\n🎂 Cake\\n🎬 Video (15-30s)\\n Say which ones or just say none !'\n"
         f"     RW: 'Nziza! Ikibazo kimwe gusa — ni iki mushaka kwongera?\\n🖼️ Frame 2 za A5\\n🎂 Cake\\n🎬 Video (15-30s)\\nNimubwire cyangwa muvuge ntacyo — nzabaha ibiciro ako kanya!'\n"
-        f"  → After their response to ONE-SHOT: present packages IMMEDIATELY(VERY IMPORTANT), NO MORE QUESTIONS\n"
+        f"  → After their response to ONE-SHOT: present packages IMMEDIATELY(VERY IMPORTANT), NO MORE QUESTIONS, DO NOT REPEAT THIS ONE-SHOT MESSAGE (VERY IMPORTANT)\n"
         f"  → If they say 'none'/'no'/'ntacyo'/'nothing'/'I only want pictures': present base packages immediately.\n"
-        f"  SPECIAL CASE: 'I only want pictures' / 'I just want photos' = client wants base only.\n"
+        f"  SPECIAL CASE: 'None'/'Nothing'/'I only want pictures' / 'I just want photos' = client wants base only.\n"
         f"  → Skip ALL remaining extras. Present 3 base packages immediately without extra (VERY IMPORTANT).\n"
         #____________________
 
