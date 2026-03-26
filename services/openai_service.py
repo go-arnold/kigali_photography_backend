@@ -72,6 +72,7 @@ def build_system_prompt(
     rag_context: str,
     is_first_message: bool = False, #CITO CITO
     package_prices: str = "",
+    discovery_state: str = "", 
 
     ) -> str:
     """
@@ -169,6 +170,7 @@ def build_system_prompt(
        # f"- FIRST MESSAGE: 'Hello! 😊 Thank you for reaching out to KP Kids Studio. My name is Julie, and I am here to help. How can I assist you today?'\n"
         f"- {'FIRST MESSAGE — send greeting: Hello! 😊 Thank you for reaching out to KP Kids Studio. My name is Julie, and I am here to help. How can I assist you today?' if is_first_message else 'CONVERSATION IN PROGRESS — NEVER send greeting. Respond directly to the last client message.'}\n"
         f"- If client skips their name: do NOT insist. Move forward naturally.\n"
+        + (f"\n{discovery_state}\n" if discovery_state else "")
         f"- DISCOVERY ORDER — ask ONE question at a time:\n"
         f"  Step 1: Studio session or home session?\n"
         f"  Step 2: Would you like 2 A5 photo frames included in your packages?\n"

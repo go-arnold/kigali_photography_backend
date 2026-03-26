@@ -212,148 +212,67 @@ def handle_inbound_message(
             if msg.get("role") == "user":
                 content = msg.get("content", "").lower()
 
-        # # Méthode plus fiable — cherche dans les messages assistant les questions
-        # # et dans les messages user les réponses correspondantes
-        # msgs_list = list(recent_msgs)
-        # for i, msg in enumerate(msgs_list):
-        #     if msg.get("role") == "assistant":
-        #         q = msg.get("content", "").lower()
-        #         # Cherche la réponse suivante du client
-        #         next_user = next((m for m in msgs_list[i+1:] if m.get("role") == "user"), None)
-        #         if not next_user:
-        #             continue
-        #         answer = next_user.get("content", "").lower()
-        #         yes = any(w in answer for w in [
-        #             "yes", "yego", "oui", "sure", "yeah", "ok", "okay",
-        #             "yep", "alright", "nziza", "ntakibazo", "twaza", "ndashaka",
-        #             "nshaka", "ngomba", "good", "mhm"
-        #         ])
-
-        #         no = any(w in answer for w in [
-        #             "no", "non", "oya", "hoya", "sinjye", "sinshaka",
-        #             "ntabwo", "ntago", "nta", "anze", "nope"
-        #         ])
-        #         home_ans = any(w in answer for w in [
-        #             "home", "rugo", "maison", "mu rugo", "at home"
-        #         ])
-
-        #         # Detect "NO EXTRA RESPONSE"
-        #         no_extras = any(w in answer for w in [
-        #             "no extras", "just photos", "photos only", "nothing else", "that's it", "base only", "none", "nothing","only pictures"
-        #         ])
-        #         if no_extras:
-        #             frames = False
-        #             cake = False  
-        #             video = False
-                
-        #         if any(w in q for w in ["studio or home", "home session", "studio session", 
-        #                  "rugo", "studio cyangwa", "murifuzako", "muri studio"]):
-        #             if home_ans:
-        #                 session_type = "home"
-        #         if any(w in q for w in [
-        #             "frame", "cadre", "amaframe", "twabongereramo", 
-        #             "a5", "photo frame", "frames 2", "frame 2"]):
-        #             if yes:
-        #                 frames = True
-        #             elif no:
-        #                 frames = False
-        #         if any(w in q for w in ["cake", "umutsima", "gateau", "twabakorera na cake"]):
-        #             if yes:
-        #                 cake = True
-        #             elif no:
-        #                 cake = False
-        #         if any(w in q for w in ["video", "videwo", "twabakorera naka video"]):
-        #             if yes:
-        #                 video = True
-        #             elif no:
-        #                 video = False
-        session_type = "studio"  # default
-        session_answered = False
-        frames = False
-        cake = False
-        video = False
-
+        # Méthode plus fiable — cherche dans les messages assistant les questions
+        # et dans les messages user les réponses correspondantes
         msgs_list = list(recent_msgs)
         for i, msg in enumerate(msgs_list):
             if msg.get("role") == "assistant":
                 q = msg.get("content", "").lower()
+                # Cherche la réponse suivante du client
                 next_user = next((m for m in msgs_list[i+1:] if m.get("role") == "user"), None)
                 if not next_user:
                     continue
                 answer = next_user.get("content", "").lower()
-                
                 yes = any(w in answer for w in [
                     "yes", "yego", "oui", "sure", "yeah", "ok", "okay",
-                    "yep", "alright", "nziza", "ntakibazo", "twaza", "ni byiza"
+                    "yep", "alright", "nziza", "ntakibazo", "twaza", "ndashaka",
+                    "nshaka", "ngomba", "good", "mhm"
+                ])
+
+                no = any(w in answer for w in [
+                    "no", "non", "oya", "hoya", "sinjye", "sinshaka",
+                    "ntabwo", "ntago", "nta", "anze", "nope"
                 ])
                 home_ans = any(w in answer for w in [
                     "home", "rugo", "maison", "mu rugo", "at home"
                 ])
-                studio_ans = any(w in answer for w in [
-                    "studio", "muri studio"
+
+                # Detect "NO EXTRA RESPONSE"
+                no_extras = any(w in answer for w in [
+                    "no extras", "just photos", "photos only", "nothing else", "that's it", "base only", "none", "nothing","only pictures"
                 ])
+                if no_extras:
+                    frames = False
+                    cake = False  
+                    video = False
                 
-                # Session type — détecte UNE SEULE FOIS, ne jamais écraser
-                if not session_answered and any(w in q for w in [
-                    "studio or home", "home session", "studio session",
-                    "rugo", "studio cyangwa", "murifuzako", "muri studio",
-                    "prefer a studio", "prefer a home", "studio or", "home or"
-                ]):
+                if any(w in q for w in ["studio or home", "home session", "studio session", 
+                         "rugo", "studio cyangwa", "murifuzako", "muri studio"]):
                     if home_ans:
                         session_type = "home"
-                    elif studio_ans or yes:
-                        session_type = "studio"
-                    session_answered = True  # ← ne plus réécrire
-
                 if any(w in q for w in [
-                    "frame", "cadre", "amaframe", "twabongereramo",
-                    "a5", "photo frame", "frames 2", "frame 2"
-                ]):
+                    "frame", "cadre", "amaframe", "twabongereramo", 
+                    "a5", "photo frame", "frames 2", "frame 2"]):
                     if yes:
                         frames = True
-
-                if any(w in q for w in [
-                    "cake", "umutsima", "gateau", "twabakorera na cake",
-                    "birthday cake"
-                ]):
+                    elif no:
+                        frames = False
+                if any(w in q for w in ["cake", "umutsima", "gateau", "twabakorera na cake"]):
                     if yes:
                         cake = True
-
-                if any(w in q for w in [
-                    "video", "videwo", "twabakorera naka video",
-                    "highlight video"
-                ]):
+                    elif no:
+                        cake = False
+                if any(w in q for w in ["video", "videwo", "twabakorera naka video"]):
                     if yes:
                         video = True
+                    elif no:
+                        video = False
 
-        # Détecte aussi les réponses "fast discovery" dans les messages user
-        for msg in msgs_list:
-            if msg.get("role") == "user":
-                content = msg.get("content", "").lower()
-                if any(w in content for w in ["only pictures", "just photos", "photos only", 
-                                                "no extras", "nothing else", "only photos"]):
-                    frames = False
-                    cake = False
-                    video = False
-                    session_answered = True
-                if "cake only" in content:
-                    cake = True
-                    frames = False
-                    video = False
-                if "video only" in content:
-                    video = True
-                    frames = False
-                    cake = False
-                if "frames only" in content:
-                    frames = True
-                    cake = False
-                    video = False
-                if "home" in content and not session_answered:
-                    session_type = "home"
-                    session_answered = True
-                if "studio" in content and not session_answered:
-                    session_type = "studio"
-                    session_answered = True
+        # Construis le résumé discovery pour le prompt
+        discovery_state_summary = _build_discovery_summary(
+            session_type, frames, cake, video,
+            msgs_list  # pour savoir quelles questions ont été posées
+        )
 
         # Calcule les prix
         package_prices = _calculate_packages(session_type, frames, cake, video)
@@ -368,6 +287,7 @@ def handle_inbound_message(
             rag_context=rag_context,
             is_first_message=is_first_message,
             package_prices=package_prices,
+            discovery_state=discovery_state_summary, 
 
            
             # discovery_state=discovery_state, #cito cito
@@ -1053,6 +973,59 @@ def _calculate_packages(session_type: str, frames: bool, cake: bool, video: bool
         result += "\n"
     
     return result
+
+
+def _build_discovery_summary(session_type, frames, cake, video, msgs_list) -> str:
+    """
+    Résume l'état actuel de la discovery pour l'injecter dans le prompt.
+    Permet à l'IA de savoir exactement où elle en est sans relire tout l'historique.
+    """
+    # Détermine quelles questions ont été posées
+    q1_asked = any(
+        any(w in m.get("content", "").lower() for w in [
+            "studio or home", "studio session", "home session",
+            "murifuzako", "muri studio", "mu rugo"
+        ])
+        for m in msgs_list if m.get("role") == "assistant"
+    )
+    q2_asked = any(
+        any(w in m.get("content", "").lower() for w in [
+            "frame", "a5", "photo frame", "twabongereramo"
+        ])
+        for m in msgs_list if m.get("role") == "assistant"
+    )
+    q3_asked = any(
+        any(w in m.get("content", "").lower() for w in [
+            "cake", "umutsima", "twabakorera na cake"
+        ])
+        for m in msgs_list if m.get("role") == "assistant"
+    )
+    q4_asked = any(
+        any(w in m.get("content", "").lower() for w in [
+            "video", "videwo", "highlight"
+        ])
+        for m in msgs_list if m.get("role") == "assistant"
+    )
+
+    lines = ["DISCOVERY STATE (already known — DO NOT re-ask):"]
+    lines.append(f"  Q1 Session type: {'HOME' if session_type == 'home' else 'STUDIO'} {'✅ ANSWERED' if q1_asked else '⬜ NOT YET ASKED'}")
+    lines.append(f"  Q2 Frames:       {'YES' if frames else 'NO'} {'✅ ANSWERED' if q2_asked else '⬜ NOT YET ASKED'}")
+    lines.append(f"  Q3 Cake:         {'YES' if cake else 'NO'} {'✅ ANSWERED' if q3_asked else '⬜ NOT YET ASKED'}")
+    lines.append(f"  Q4 Video:        {'YES' if video else 'NO'} {'✅ ANSWERED' if q4_asked else '⬜ NOT YET ASKED'}")
+
+    # Détermine la prochaine question à poser
+    if not q1_asked:
+        lines.append("  → NEXT: Ask Q1 (studio or home?)")
+    elif not q2_asked:
+        lines.append("  → NEXT: Ask Q2 (frames?)")
+    elif not q3_asked:
+        lines.append("  → NEXT: Ask Q3 (cake?)")
+    elif not q4_asked:
+        lines.append("  → NEXT: Ask Q4 (video?)")
+    else:
+        lines.append("  → ALL QUESTIONS ANSWERED: present packages now.")
+
+    return "\n".join(lines)
 #________________________________________________________________________________________________________
 # """
 # Journey Orchestrator
