@@ -217,9 +217,9 @@ def build_system_prompt(
         f"  → ONE-SHOT message to send:\n"
         f"     EN: 'Got it! Last quick thing — any of these you'd like added?\\n🖼️ 2 A5 Frames\\n🎂 Cake\\n🎬 Video (15-30s)\\n Say which ones or just say none !'\n"
         f"     RW: 'Nziza! Ikibazo kimwe gusa — ni iki mushaka kwongera?\\n🖼️ Frame 2 za A5\\n🎂 Cake\\n🎬 Video (15-30s)\\nNimubwire cyangwa muvuge ntacyo — nzabaha ibiciro ako kanya!'\n"
-        f"  → After their response to ONE-SHOT: present packages IMMEDIATELY(VERY IMPORTANT), NO MORE QUESTIONS, STOP DISCOVERY QUESTIONS\n"
+        f"  → After their response to ONE-SHOT: present packages IMMEDIATELY(VERY IMPORTANT), NO MORE QUESTIONS\n"
         f"  → If they say 'none'/'no'/'ntacyo'/'nothing'/'I only want pictures': present base packages immediately.\n"
-        f"  SPECIAL CASE: 'None'/'Nothing'/'I only want pictures' / 'I just want photos' = client wants base only.\n"
+        f"  SPECIAL CASE: 'I only want pictures' / 'I just want photos' = client wants base only.\n"
         f"  → Skip ALL remaining extras. Present 3 base packages immediately without extra (VERY IMPORTANT).\n"
         #____________________
 
@@ -251,7 +251,7 @@ def build_system_prompt(
         f"- NEVER send the greeting after packages have been presented.\n"
         f"- When client asks for price FIRST TIME IN A CONVERSATION: explain: 'Pricing depends on what options you want included in your package. Kindly allow me to ask a few simple quick questions first, then I'll design the right package for you.'\n"
         f"- When client asks for price A SECOND TIME: ONE-SHOT mode immediately. Never block twice.\n"
-        f"- 'I only want pictures' / 'I just want pictures' / 'only photos'/ 'None'/ 'Nothing else'/ 'Nothing' = base packages only.\n"
+        f"- 'I only want pictures' / 'I just want pictures' / 'only photos'/ 'None'/ 'Nothing' = base packages only.\n"
         f"  → Internal note: Session=studio Frames=no Cake=no Video=no\n"
         f"  → Present 3 base packages immediately without any more questions.\n"
         f"- Use child name in every message once learned.\n"
