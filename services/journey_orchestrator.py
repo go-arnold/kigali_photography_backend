@@ -133,15 +133,14 @@ def handle_inbound_message(
             _update_language(client, text)
 
         # Step 6b: Kinyarwanda → human takeover immédiat ----- KINYARWANDA HUMAN TAKEOVER CLEAN_DEV
-        if client.language == "rw" and not journey.human_takeover:
+        if client.language not in ["en", "unknown"] and not journey.human_takeover:
+        #if client.language == "rw" and not journey.human_takeover:
             journey.flag_human_takeover("Client writes in Kinyarwanda — human agent required")
             _notify_human_takeover(client, conversation, reason="Kinyarwanda client — needs human agent")
             from services.whatsapp import send_text
             send_text(
                 to=from_number,
-                message="Hello! Thank you for reaching out to KP Kids Studio. "
-                        "One of our agents will be with you shortly. / "
-                        "Muraho! Umwe mu bakoze bacu azabasubiza vuba. 🙏"
+                message="Muraho! Umwe mu bakoze bacu azabasubiza vuba. 🙏"
             )
             return OrchestratorResult(
                 success=True,
@@ -149,6 +148,8 @@ def handle_inbound_message(
                 client_id=str(client.pk),
                 conversation_id=conversation.pk,
             )
+
+        
 
         # Step 7: Intent + objection analysis
         intent_data = _analyze_intent(text, journey, conversation)
@@ -530,10 +531,10 @@ def _update_language(client, text: str):
 
     detected = detect_language(text)
 
-    # # Not switch RW → EN on a short message
-    # if client.language == "rw" and detected == "en":
-    #     if len(text.strip().split()) < 5:
-    #         return  # "ok", "yes", "Silver", "no" → We keep RW
+    # Not switch RW → EN on a short message
+    if client.language == "rw" and detected == "en":
+        if len(text.strip().split()) < 5:
+            return  # "ok", "yes", "Silver", "no" → We keep RW
 
     if detected != client.language:
         client.language = detected
