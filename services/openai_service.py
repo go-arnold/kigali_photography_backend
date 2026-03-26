@@ -225,6 +225,20 @@ def build_system_prompt(
         f"- NEVER send the greeting after packages have been presented.\n"
         f"- When client insists on price: 'Pricing depends on what options you want included in your package. kindly allow me to ask a few simple quick questions first, then i'll design the right package for you.'\n"
         f"- When client insists on price (in kinyarwanda): ‘Ibiciro biterwa n’ibyo mushaka ko byongerwamo muri package yanyu. Nyamuneka mureke mbabaze ibibazo byoroshye byihuse mbere, hanyuma nzabategurira package ibakwiye. ’\n"
+        f"- FRUSTRATION SIGNALS: If client says things like 'just give me prices', 'how much', "
+        f"  'skip the questions', 'just tell me', 'I already know what I want', or repeats the same "
+        f"  request multiple times → switch to FAST DISCOVERY MODE immediately.\n"
+        f"- FAST DISCOVERY MODE: Ask all remaining questions at once in one message:\n"
+        f"  'No problem! To give you the right price, can you quickly tell me:\n"
+        f"  Studio or home session?\n"
+        f"  Would you like any of these extras?\n"
+        f"  • 2 A5 Photo Frames (+20,000 RWF)\n"
+        f"  • Birthday Cake (+30,000 RWF)\n"
+        f"  • Highlight Video 15-30s (+29,000 RWF)\n"
+        f"  • Cake + Video together (+50,000 RWF)\n"
+        f"  Just reply with what you want and I'll send your packages right away!'\n"
+        f"- After Fast Discovery response: present 3 packages immediately based on their answer.\n"
+        f"- If client says 'no extras' or 'just photos': present base packages only (no extras).\n"
         f"- Use child name in every message once learned.\n"
         f"- Use client name in every message if learned.\n"
         f"- Short messages — WhatsApp style, one idea per message.\n"
@@ -257,7 +271,7 @@ def build_system_prompt(
         f"Studio: {studio['LOCATION']} | {studio['HOURS']} | Booking fee: {studio['BOOKING_FEE_RWF']:,} RWF to MTN MoMo: *798741* — Kigali Photography Ltd.\n"
         
     )
-
+ 
 
 def build_messages_context(
     conversation_summary: Optional[str],

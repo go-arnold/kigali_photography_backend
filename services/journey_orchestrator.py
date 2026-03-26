@@ -133,7 +133,20 @@ def handle_inbound_message(
             _update_language(client, text)
 
         # Step 6b: Kinyarwanda → human takeover immédiat ----- KINYARWANDA HUMAN TAKEOVER CLEAN_DEV
-        if client.language not in ["en", "unknown"] and not journey.human_takeover:
+        text_words = text.strip().lower().split()
+
+        SHORT_SAFE_WORDS = {
+            "ok", "yes", "no", "silver", "gold", "starter",
+            "studio", "home", "package"
+        }
+
+        is_short_safe = len(text_words) <= 3 and all(w in SHORT_SAFE_WORDS for w in text_words)
+
+        if (
+            client.language not in ["en", "unknown"]
+            and not is_short_safe
+            and not journey.human_takeover
+        ):
         #if client.language == "rw" and not journey.human_takeover:
             journey.flag_human_takeover("Client writes in Kinyarwanda — human agent required")
             _notify_human_takeover(client, conversation, reason="Kinyarwanda client — needs human agent")
@@ -531,10 +544,10 @@ def _update_language(client, text: str):
 
     detected = detect_language(text)
 
-    # Not switch RW → EN on a short message
-    if client.language == "rw" and detected == "en":
-        if len(text.strip().split()) < 5:
-            return  # "ok", "yes", "Silver", "no" → We keep RW
+    # # Not switch RW → EN on a short message
+    # if client.language == "rw" and detected == "en":
+    #     if len(text.strip().split()) < 5:
+    #         return  # "ok", "yes", "Silver", "no" → We keep RW
 
     if detected != client.language:
         client.language = detected
