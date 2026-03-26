@@ -132,6 +132,24 @@ def handle_inbound_message(
         if text:
             _update_language(client, text)
 
+        # Step 6b: Kinyarwanda → human takeover immédiat ----- KINYARWANDA HUMAN TAKEOVER CLEAN_DEV
+        if client.language == "rw" and not journey.human_takeover:
+            journey.flag_human_takeover("Client writes in Kinyarwanda — human agent required")
+            _notify_human_takeover(client, conversation, reason="Kinyarwanda client — needs human agent")
+            from services.whatsapp import send_text
+            send_text(
+                to=from_number,
+                message="Hello! Thank you for reaching out to KP Kids Studio. "
+                        "One of our agents will be with you shortly. / "
+                        "Muraho! Umwe mu bakoze bacu azabasubiza vuba. 🙏"
+            )
+            return OrchestratorResult(
+                success=True,
+                action="human_takeover",
+                client_id=str(client.pk),
+                conversation_id=conversation.pk,
+            )
+
         # Step 7: Intent + objection analysis
         intent_data = _analyze_intent(text, journey, conversation)
 
@@ -204,6 +222,15 @@ def handle_inbound_message(
                 home_ans = any(w in answer for w in [
                     "home", "rugo", "maison", "mu rugo", "at home"
                 ])
+
+                # Detect "NO EXTRA RESPONSE"
+                no_extras = any(w in answer for w in [
+                    "no extras", "just photos", "photos only", "nothing else", "that's it", "base only"
+                ])
+                if no_extras:
+                    frames = False
+                    cake = False  
+                    video = False
                 
                 if any(w in q for w in ["studio or home", "home session", "studio session", 
                          "rugo", "studio cyangwa", "murifuzako", "muri studio"]):

@@ -18,6 +18,7 @@ Processing:
 import logging
 
 from django.conf import settings
+from django.http import JsonResponse
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
@@ -125,3 +126,7 @@ def _dispatch_status(status) -> None:
         )
     except Exception as exc:
         logger.exception("Failed to dispatch status update: %s", exc)
+
+## SERVER NOT TO GO TO SLEEP
+def ping(request):
+    return JsonResponse({"status": "ok"})

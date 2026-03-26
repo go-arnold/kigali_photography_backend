@@ -9,6 +9,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/webhook/", include("apps.webhook.urls")),
     path("api/dashboard/", include("apps.dashboard.urls")),
+
 ]
 
 
