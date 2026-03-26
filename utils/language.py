@@ -14,35 +14,35 @@ _KIN_WORDS = {
     "muraho", "mwaramutse", "mwiriwe", "murakoze", "urakoze",
     "murakoze cyane", "ntakibazo", "twayakiriye", "nziza",
 
-    # Réponses courantes
-    "yego", "oya", "hoya", "ndashaka", "nshaka", "ngomba",
-    "ntifuza", "sinshaka", "ntabwo", "sinjye", "anze",
-    "nzaza", "twaza", "neza",
+    # # Réponses courantes
+    # "yego", "oya", "hoya", "ndashaka", "nshaka", "ngomba",
+    # "ntifuza", "sinshaka", "ntabwo", "sinjye", "anze",
+    # "nzaza", "twaza", "neza",
 
-    # Questions / exploration
-    "ibiciro", "ibiro", "gute", "kuki", "iki", "bite",
-    "ese", "ryari", "he", "nde", "iki",
+    # # Questions / exploration
+    # "ibiciro", "ibiro", "gute", "kuki", "iki", "bite",
+    # "ese", "ryari", "he", "nde", "iki",
 
-    # Discovery & booking
-    "mu rugo", "muri studio", "isoko", "umunsi", "isaha",
-    "igitsina", "imyaka", "izina", "umwana", "abana",
-    "amafoto", "ifoto", "package", "packages",
-    "gutangwa", "igihe", "session",
+    # # Discovery & booking
+    # "mu rugo", "muri studio", "isoko", "umunsi", "isaha",
+    # "igitsina", "imyaka", "izina", "umwana", "abana",
+    # "amafoto", "ifoto", "package", "packages",
+    # "gutangwa", "igihe",
 
-    # Paiement
-    "kwishyura", "naramaze", "nishyuye", "ishyura",
-    "booking", "payment",
+    # # Paiement
+    # "kwishyura", "naramaze", "nishyuye", "ishyura",
+    # "booking", "payment",
 
-    # Verbes / connecteurs communs
-    "ndashaka", "nifuza", "murifuzako", "twabongereramo",
-    "twabakorera", "tubakorera", "dukore", "dukorane",
-    "kugira", "ngo", "kandi", "ariko", "cyane", "rwose",
-    "nibura", "nyuma", "mbere", "hanyuma",
+    # # Verbes / connecteurs communs
+    # "ndashaka", "nifuza", "murifuzako", "twabongereramo",
+    # "twabakorera", "tubakorera", "dukore", "dukorane",
+    # "kugira", "ngo", "kandi", "ariko", "cyane", "rwose",
+    # "nibura", "nyuma", "mbere", "hanyuma",
 
-    # Phrases réelles observées
-    "mwuzuze", "nimubwire", "nyamuneka", "ihitamo",
-    "naramaze", "ibyo", "uko", "hari", "niba",
-    "dore", "ubu", "maze", "noneho",
+    # # Phrases réelles observées
+    # "mwuzuze", "nimubwire", "nyamuneka", "ihitamo",
+    # "naramaze", "ibyo", "uko", "hari", "niba",
+    # "dore", "ubu", "maze", "noneho",
 }
 
 # Regex pour les mots courts / patterns morphologiques RW
