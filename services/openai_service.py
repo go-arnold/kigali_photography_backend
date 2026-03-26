@@ -80,16 +80,31 @@ def build_system_prompt(
     """
     studio = settings.STUDIO
 
-    lang_instruction = (
-    "Respond ENTIRELY in Kinyarwanda. Never switch to English." 
-    if language == "rw" 
-    else (
-        "Detect the language of the client's message and respond in that exact language. "
-        "If client writes in Kinyarwanda → respond in Kinyarwanda. "
-        "If client writes in French → respond in French. "
-        "If client mixes → match their mix exactly."
-    )
-)
+    if language == "rw":
+        lang_instruction = (
+            "LANGUAGE: Kinyarwanda ONLY. ABSOLUTE RULES:\n"
+            "- Always answer in Kinyarwanda, even if the client writes in english or french.\n"
+            "- NEVER use 'Thank you', 'Great', 'Perfect', 'Understood' — USE 'Murakoze', 'Nziza!', 'Ntakibazo', 'Twayakiriye'.\n"
+            "- Use simple, natural Kinyarwanda used daily in Rwanda.\n"
+            "- Avoid complex or academic words.\n"
+            "- Do NOT translate literally from English.\n"
+            "- If unsure, use very simple phrasing.\n"
+            "- Use polite and warm tone.\n"
+            "- 'Hoya'/'Oya'/'ntabwo'/'ntifuza' = NO. 'Yego'/'Nziza'/'Ntakibazo' = YES.\n"
+            "- NEVER REFORMULATE DISCOVERY QUESTIONS — USE EXACTLY:\n"
+            "  Q1: 'Murifuzako twabafotorera muri studio cyangwa mu rugo?'\n"
+            "  Q2: 'Twabongereramo frame 2 za A5 muri package?'\n"
+            "  Q3: 'Murifuzako Twabakorera na cake?'\n"
+            "  Q4: 'Twabakorera naka video kagufi (15-30 s)?'\n"
+        )
+    else:
+        lang_instruction = (
+            "Detect the language of the client's message and respond in that exact language. "
+            "If client writes in Kinyarwanda → respond in Kinyarwanda. "
+            "If client writes in English → respond in English"
+            "If client writes in French → respond in French. "
+            "If client mixes → match their mix exactly."
+        )
 
     heat_strategy = {
         "HIGH": "Client is HOT. Be warm, responsive, move toward commitment.",
@@ -103,6 +118,7 @@ def build_system_prompt(
     )
 
     if language == "rw":
+
         pkg_format = (
             f"  Dore packages 3 zikwiye ibyo mushaka:\n\n"
             f"  🥉 *Starter Package* — [igiciro] RWF\n"

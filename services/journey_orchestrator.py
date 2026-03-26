@@ -193,7 +193,13 @@ def handle_inbound_message(
                 answer = next_user.get("content", "").lower()
                 yes = any(w in answer for w in [
                     "yes", "yego", "oui", "sure", "yeah", "ok", "okay",
-                    "yep", "alright", "nziza", "ntakibazo", "twaza"
+                    "yep", "alright", "nziza", "ntakibazo", "twaza", "ndashaka",
+                    "nshaka", "ngomba", "good", "mhm"
+                ])
+
+                no = any(w in answer for w in [
+                    "no", "non", "oya", "hoya", "sinjye", "sinshaka",
+                    "ntabwo", "ntago", "nta", "anze", "nope"
                 ])
                 home_ans = any(w in answer for w in [
                     "home", "rugo", "maison", "mu rugo", "at home"
@@ -208,12 +214,18 @@ def handle_inbound_message(
                     "a5", "photo frame", "frames 2", "frame 2"]):
                     if yes:
                         frames = True
+                    elif no:
+                        frames = False
                 if any(w in q for w in ["cake", "umutsima", "gateau", "twabakorera na cake"]):
                     if yes:
                         cake = True
+                    elif no:
+                        cake = False
                 if any(w in q for w in ["video", "videwo", "twabakorera naka video"]):
                     if yes:
                         video = True
+                    elif no:
+                        video = False
 
         # Calcule les prix
         package_prices = _calculate_packages(session_type, frames, cake, video)
@@ -321,17 +333,30 @@ def handle_inbound_message(
                                     break
                             break
 
-                ai_suggestion = (
-                    "Well received! Thank you.\n"
-                    "Twayakiriye! Murakoze.\n\n"
-                    "Please fill in your details / Mwuzuze amakuru yanyu:\n\n"
-                    "Name / Izina:\n"
-                    "Kid Gender / Igitsina cy'umwana:\n"
-                    "Kid Age / Imyaka y'umwana:\n"
-                    f"{package_line}\n"
-                    "Booking Day / Umunsi:\n"
-                    "Booking Time / Isaha:"
-                )
+                lang = client.language  # "rw" or "en"
+    
+                if lang == "rw":
+                    ai_suggestion = (
+                        "Twayakiriye! Murakoze.\n\n"
+                        "Mwuzuze amakuru yanyu:\n\n"
+                        "Izina:\n"
+                        "Igitsina cy'umwana:\n"
+                        "Imyaka y'umwana:\n"
+                        f"{package_line}\n"
+                        "Umunsi w'isoko:\n"
+                        "Isaha y'isoko:"
+                    )
+                else:
+                    ai_suggestion = (
+                        "Well received! Thank you.\n\n"
+                        "Please fill in your details:\n\n"
+                        "Name:\n"
+                        "Kid's Gender:\n"
+                        "Kid's Age:\n"
+                        f"{package_line}\n"
+                        "Booking Day:\n"
+                        "Booking Time:"
+                    )
             else:
                 ai_suggestion = claude_response.text
 
