@@ -215,7 +215,7 @@ def build_system_prompt(
         f"  → Triggers: 'just tell me', 'just give me', 'prices', 'how much', 'ibiciro' appearing MORE THAN ONCE in conversation\n"
         f"  → OR: client already answered Q1 (studio/home) AND still asks for prices\n"
         f"  → ONE-SHOT message to send:\n"
-        f"     EN: 'Got it! Last quick thing — any of these you'd like added?\\n🖼️ 2 A5 Frames\\n🎂 Cake\\n🎬 Video (15-30s)\\n Say which ones or just say none !'\n"
+        f"     EN: 'Got it! Last quick thing — any of these you'd like added?\\n🖼️ 2 A5 Frames\\n🎂 Cake\\n🎬 Video (15-30s)\\n Tell us which ones or just say if you want only pictures !'\n"
         f"     RW: 'Nziza! Ikibazo kimwe gusa — ni iki mushaka kwongera?\\n🖼️ Frame 2 za A5\\n🎂 Cake\\n🎬 Video (15-30s)\\nNimubwire cyangwa muvuge ntacyo — nzabaha ibiciro ako kanya!'\n"
         f"  → After their response to ONE-SHOT: present packages IMMEDIATELY(VERY IMPORTANT), NO MORE QUESTIONS\n"
         f"  → If they say 'none'/'no'/'ntacyo'/'nothing'/'I only want pictures': present base packages immediately.\n"

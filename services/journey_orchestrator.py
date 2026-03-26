@@ -239,7 +239,7 @@ def handle_inbound_message(
 
                 # Detect "NO EXTRA RESPONSE"
                 no_extras = any(w in answer for w in [
-                    "no extras", "just photos", "photos only", "nothing else", "that's it", "base only", "none", "nothing"
+                    "no extras", "just photos", "photos only", "nothing else", "that's it", "base only", "none", "nothing","only pictures"
                 ])
                 if no_extras:
                     frames = False
