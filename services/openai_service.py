@@ -218,6 +218,7 @@ def build_system_prompt(
         f"- When client chooses a package: send ONLY this exact message:\n  '{booking_fee_msg}'\n"
         f"- NEVER send the greeting after packages have been presented.\n"
         f"- When client insists on price: 'Pricing depends on what options you want included in your package. kindly allow me to ask a few simple quick questions first, then i'll design the right package for you.'\n"
+        f"- When client insists on price (in kinyarwanda): ‘Ibiciro biterwa n’ibyo mushaka ko byongerwamo muri package yanyu. Nyamuneka mureke mbabaze ibibazo byoroshye byihuse mbere, hanyuma nzabategurira package ibakwiye. ’\n"
         f"- Use child name in every message once learned.\n"
         f"- Use client name in every message if learned.\n"
         f"- Short messages — WhatsApp style, one idea per message.\n"
