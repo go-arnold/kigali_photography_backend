@@ -251,7 +251,7 @@ def build_system_prompt(
         f"- NEVER send the greeting after packages have been presented.\n"
         f"- When client asks for price FIRST TIME IN A CONVERSATION: explain: 'Pricing depends on what options you want included in your package. Kindly allow me to ask a few simple quick questions first, then I'll design the right package for you.'\n"
         f"- When client asks for price A SECOND TIME: ONE-SHOT mode immediately. Never block twice.\n"
-        f"- 'I only want pictures' / 'I just want pictures' / 'only photos' = base packages only.\n"
+        f"- 'I only want pictures' / 'I just want pictures' / 'only photos'/ 'None'/ 'Nothing else'/ 'Nothing' = base packages only.\n"
         f"  → Internal note: Session=studio Frames=no Cake=no Video=no\n"
         f"  → Present 3 base packages immediately without any more questions.\n"
         f"- Use child name in every message once learned.\n"
