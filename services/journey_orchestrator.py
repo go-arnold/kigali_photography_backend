@@ -530,10 +530,10 @@ def _update_language(client, text: str):
 
     detected = detect_language(text)
 
-    # Not switch RW → EN on a short message
-    if client.language == "rw" and detected == "en":
-        if len(text.strip().split()) < 5:
-            return  # "ok", "yes", "Silver", "no" → We keep RW
+    # # Not switch RW → EN on a short message
+    # if client.language == "rw" and detected == "en":
+    #     if len(text.strip().split()) < 5:
+    #         return  # "ok", "yes", "Silver", "no" → We keep RW
 
     if detected != client.language:
         client.language = detected
