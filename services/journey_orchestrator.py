@@ -212,61 +212,148 @@ def handle_inbound_message(
             if msg.get("role") == "user":
                 content = msg.get("content", "").lower()
 
-        # Méthode plus fiable — cherche dans les messages assistant les questions
-        # et dans les messages user les réponses correspondantes
+        # # Méthode plus fiable — cherche dans les messages assistant les questions
+        # # et dans les messages user les réponses correspondantes
+        # msgs_list = list(recent_msgs)
+        # for i, msg in enumerate(msgs_list):
+        #     if msg.get("role") == "assistant":
+        #         q = msg.get("content", "").lower()
+        #         # Cherche la réponse suivante du client
+        #         next_user = next((m for m in msgs_list[i+1:] if m.get("role") == "user"), None)
+        #         if not next_user:
+        #             continue
+        #         answer = next_user.get("content", "").lower()
+        #         yes = any(w in answer for w in [
+        #             "yes", "yego", "oui", "sure", "yeah", "ok", "okay",
+        #             "yep", "alright", "nziza", "ntakibazo", "twaza", "ndashaka",
+        #             "nshaka", "ngomba", "good", "mhm"
+        #         ])
+
+        #         no = any(w in answer for w in [
+        #             "no", "non", "oya", "hoya", "sinjye", "sinshaka",
+        #             "ntabwo", "ntago", "nta", "anze", "nope"
+        #         ])
+        #         home_ans = any(w in answer for w in [
+        #             "home", "rugo", "maison", "mu rugo", "at home"
+        #         ])
+
+        #         # Detect "NO EXTRA RESPONSE"
+        #         no_extras = any(w in answer for w in [
+        #             "no extras", "just photos", "photos only", "nothing else", "that's it", "base only", "none", "nothing","only pictures"
+        #         ])
+        #         if no_extras:
+        #             frames = False
+        #             cake = False  
+        #             video = False
+                
+        #         if any(w in q for w in ["studio or home", "home session", "studio session", 
+        #                  "rugo", "studio cyangwa", "murifuzako", "muri studio"]):
+        #             if home_ans:
+        #                 session_type = "home"
+        #         if any(w in q for w in [
+        #             "frame", "cadre", "amaframe", "twabongereramo", 
+        #             "a5", "photo frame", "frames 2", "frame 2"]):
+        #             if yes:
+        #                 frames = True
+        #             elif no:
+        #                 frames = False
+        #         if any(w in q for w in ["cake", "umutsima", "gateau", "twabakorera na cake"]):
+        #             if yes:
+        #                 cake = True
+        #             elif no:
+        #                 cake = False
+        #         if any(w in q for w in ["video", "videwo", "twabakorera naka video"]):
+        #             if yes:
+        #                 video = True
+        #             elif no:
+        #                 video = False
+        session_type = "studio"  # default
+        session_answered = False
+        frames = False
+        cake = False
+        video = False
+
         msgs_list = list(recent_msgs)
         for i, msg in enumerate(msgs_list):
             if msg.get("role") == "assistant":
                 q = msg.get("content", "").lower()
-                # Cherche la réponse suivante du client
                 next_user = next((m for m in msgs_list[i+1:] if m.get("role") == "user"), None)
                 if not next_user:
                     continue
                 answer = next_user.get("content", "").lower()
+                
                 yes = any(w in answer for w in [
                     "yes", "yego", "oui", "sure", "yeah", "ok", "okay",
-                    "yep", "alright", "nziza", "ntakibazo", "twaza", "ndashaka",
-                    "nshaka", "ngomba", "good", "mhm"
-                ])
-
-                no = any(w in answer for w in [
-                    "no", "non", "oya", "hoya", "sinjye", "sinshaka",
-                    "ntabwo", "ntago", "nta", "anze", "nope"
+                    "yep", "alright", "nziza", "ntakibazo", "twaza", "ni byiza"
                 ])
                 home_ans = any(w in answer for w in [
                     "home", "rugo", "maison", "mu rugo", "at home"
                 ])
-
-                # Detect "NO EXTRA RESPONSE"
-                no_extras = any(w in answer for w in [
-                    "no extras", "just photos", "photos only", "nothing else", "that's it", "base only", "none", "nothing","only pictures"
+                studio_ans = any(w in answer for w in [
+                    "studio", "muri studio"
                 ])
-                if no_extras:
-                    frames = False
-                    cake = False  
-                    video = False
                 
-                if any(w in q for w in ["studio or home", "home session", "studio session", 
-                         "rugo", "studio cyangwa", "murifuzako", "muri studio"]):
+                # Session type — détecte UNE SEULE FOIS, ne jamais écraser
+                if not session_answered and any(w in q for w in [
+                    "studio or home", "home session", "studio session",
+                    "rugo", "studio cyangwa", "murifuzako", "muri studio",
+                    "prefer a studio", "prefer a home", "studio or", "home or"
+                ]):
                     if home_ans:
                         session_type = "home"
+                    elif studio_ans or yes:
+                        session_type = "studio"
+                    session_answered = True  # ← ne plus réécrire
+
                 if any(w in q for w in [
-                    "frame", "cadre", "amaframe", "twabongereramo", 
-                    "a5", "photo frame", "frames 2", "frame 2"]):
+                    "frame", "cadre", "amaframe", "twabongereramo",
+                    "a5", "photo frame", "frames 2", "frame 2"
+                ]):
                     if yes:
                         frames = True
-                    elif no:
-                        frames = False
-                if any(w in q for w in ["cake", "umutsima", "gateau", "twabakorera na cake"]):
+
+                if any(w in q for w in [
+                    "cake", "umutsima", "gateau", "twabakorera na cake",
+                    "birthday cake"
+                ]):
                     if yes:
                         cake = True
-                    elif no:
-                        cake = False
-                if any(w in q for w in ["video", "videwo", "twabakorera naka video"]):
+
+                if any(w in q for w in [
+                    "video", "videwo", "twabakorera naka video",
+                    "highlight video"
+                ]):
                     if yes:
                         video = True
-                    elif no:
-                        video = False
+
+        # Détecte aussi les réponses "fast discovery" dans les messages user
+        for msg in msgs_list:
+            if msg.get("role") == "user":
+                content = msg.get("content", "").lower()
+                if any(w in content for w in ["only pictures", "just photos", "photos only", 
+                                                "no extras", "nothing else", "only photos"]):
+                    frames = False
+                    cake = False
+                    video = False
+                    session_answered = True
+                if "cake only" in content:
+                    cake = True
+                    frames = False
+                    video = False
+                if "video only" in content:
+                    video = True
+                    frames = False
+                    cake = False
+                if "frames only" in content:
+                    frames = True
+                    cake = False
+                    video = False
+                if "home" in content and not session_answered:
+                    session_type = "home"
+                    session_answered = True
+                if "studio" in content and not session_answered:
+                    session_type = "studio"
+                    session_answered = True
 
         # Calcule les prix
         package_prices = _calculate_packages(session_type, frames, cake, video)
