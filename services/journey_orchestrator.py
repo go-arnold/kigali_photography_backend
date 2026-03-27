@@ -31,7 +31,7 @@ from dataclasses import dataclass
 from typing import Optional
 from django.utils import timezone
 from django.conf import settings
-
+from services.button_flow import handle_button_click, send_welcome #CITO BUTTONS
 
 logger = logging.getLogger(__name__)
 
@@ -88,6 +88,14 @@ def handle_inbound_message(
         if opt_out_result:
             return opt_out_result
 
+        # # Step 2: Onboard client
+        # from services.client_service import onboard_client
+
+        # client, journey, conversation, is_new = onboard_client(
+        #     wa_number=from_number,
+        #     name=from_name,
+        # )
+
         # Step 2: Onboard client
         from services.client_service import onboard_client
 
@@ -95,6 +103,65 @@ def handle_inbound_message(
             wa_number=from_number,
             name=from_name,
         )
+
+        # ── BRANCHEMENT BOUTONS ──────────────────────────────────────────────────────
+        # Si c'est un clic de bouton → flow déterministe, pas d'IA
+        if msg_type == "interactive" and interactive_id:
+            action = handle_button_click(
+                interactive_id=interactive_id,
+                from_number=from_number,
+                journey=journey,
+                client=client,
+            )
+            conversation.touch()
+            logger.info("Button handled | client=%s button=%s action=%s",
+                        from_number, interactive_id, action)
+            return OrchestratorResult(
+                success=True,
+                action="sent",
+                client_id=str(client.pk),
+                conversation_id=conversation.pk,
+                tokens_used=0,  # Zéro tokens pour les boutons
+            )
+
+        # ── PREMIER MESSAGE TEXTE → Welcome + boutons ────────────────────────────────
+        # Si c'est le tout premier message du client (jamais eu de réponse AI)
+        # ET pas en mode "question" → envoyer le welcome avec boutons
+        recent_msgs = _get_recent_messages(conversation)
+        assistant_count = sum(1 for m in recent_msgs if m.get("role") == "assistant")
+        flow_mode = getattr(journey, "flow_mode", "")
+
+        if assistant_count == 0 and flow_mode != "question":
+            send_welcome(from_number)
+            conversation.touch()
+            return OrchestratorResult(
+                success=True,
+                action="sent",
+                client_id=str(client.pk),
+                conversation_id=conversation.pk,
+                tokens_used=0,
+            )
+
+        # ── MESSAGE TEXTE LIBRE ──────────────────────────────────────────────────────
+        # flow_mode == "question" → laisser l'IA répondre (ancien pipeline continue)
+        # flow_mode == "booking"/"prices" et texte hors-contexte → renvoyer les boutons
+        if flow_mode in ("booking", "prices") and text:
+            # Le client tape du texte pendant la discovery → renvoyer la question en cours
+            from services.button_flow import _send_next_discovery_question
+            send_text(
+                to=from_number,
+                message="No worries! Let me re-send the question 😊",
+            )
+            _send_next_discovery_question(from_number, journey)
+            conversation.touch()
+            return OrchestratorResult(
+                success=True,
+                action="sent",
+                client_id=str(client.pk),
+                conversation_id=conversation.pk,
+                tokens_used=0,
+            )
+        # ── FIN BRANCHEMENT BOUTONS ──────────────────────────────────────────────────
 
         # Step 3: Save inbound message
         inbound_msg = _save_inbound(
@@ -421,12 +488,30 @@ def handle_inbound_message(
 
         
 
+        # # Step 16: Send response
+        # from services.whatsapp import send_text
+
+        # send_text(to=from_number, message=claude_response.text)
+        # outbound_msg.approved_by_human = True
+        # outbound_msg.save(update_fields=["approved_by_human"])
+
+
         # Step 16: Send response
-        from services.whatsapp import send_text
+        from services.whatsapp import send_text, send_buttons
 
         send_text(to=from_number, message=claude_response.text)
-        outbound_msg.approved_by_human = True
-        outbound_msg.save(update_fields=["approved_by_human"])
+
+        # En mode "question" → ajouter le bouton "Talk to Agent" après chaque réponse IA
+        flow_mode = getattr(journey, "flow_mode", "")
+        if flow_mode == "question":
+            send_buttons(
+                to=from_number,
+                body="Need more help?",
+                buttons=[
+                    {"id": "btn_agent",   "title": "🧑 Talk to Agent"},
+                    {"id": "btn_book",    "title": "📸 Book a Session"},
+                ],
+            )
 
         #  # Auto-advance to payment_confirmation if AI just sent payment details CITO
         _maybe_flag_payment_confirmation(journey, claude_response.text, conversation)

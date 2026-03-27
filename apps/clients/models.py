@@ -201,6 +201,19 @@ class JourneyState(models.Model):
     selected_package = models.CharField(max_length=100, blank=True)
     session_date = models.DateTimeField(null=True, blank=True)
 
+    # Button flow — discovery State
+    discovery_state = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text='{"session_type":"studio","frames":true,"cake":false,"video":null}'
+    )
+    flow_mode = models.CharField(
+        max_length=20,
+        blank=True,
+        default="",
+        help_text="booking | prices | question | '' (aucun flow actif)"
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

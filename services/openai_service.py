@@ -206,7 +206,7 @@ def build_system_prompt(
             f"- If client repeats price request AFTER already receiving that explanation, OR says 'just tell me', 'skip', 'I only want pictures', 'just photos', 'no extras': DO NOT repeat the explanation. Instead ask ALL remaining unanswered discovery questions in ONE message like this: 'Got it! Just one quick question —  Any extras to add like 2 A5 frames or a cake, or a highlight video?'\n"
             f"- After their reply to that combined question: present packages immediately.\n"
             f"- 'I only want pictures' / 'just photos' / 'no extras' / 'none' = Session already known + Frames=no, Cake=no, Video=no → present base packages immediately.\n"
-            f"- When client asks for discount or lower price AFTER packages are already presented: NEVER restart discovery. Use objection handling from knowledge base — quality service, reframe value, mention 24h delivery, child specialists, professional editing. If they push hard (3rd time): 'Let me check with our team and get back to you shortly.'\n"
+            f"- When client asks for discount or lower price AFTER packages are already presented: NEVER restart discovery. Use objection handling from knowledge base —no discount, quality service, reframe value, mention 24h delivery, child specialists, professional editing. If they push hard (3rd time): 'Let me check with our team and get back to you shortly.'\n"
             f"- Use child name in every message once learned.\n"
             f"- Use client name in every message if learned.\n"
             f"- Short messages — WhatsApp style, one idea per message.\n"
@@ -239,6 +239,7 @@ def build_system_prompt(
             f"Studio: {studio['LOCATION']} | {studio['HOURS']} | Booking fee: {studio['BOOKING_FEE_RWF']:,} RWF to MTN MoMo: *798741* — Kigali Photography Ltd.\n"
             
         )
+
 
 def build_messages_context(
     conversation_summary: Optional[str],
