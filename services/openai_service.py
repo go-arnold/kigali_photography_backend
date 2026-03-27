@@ -174,7 +174,7 @@ def build_system_prompt(
             f"  Step 1: Studio session or home session?\n"
             f"  Step 2: Would you like 2 A5 photo frames included in your packages?\n"
             f"  Step 3: how about a birthday cake?\n"
-            f"  Step 4: Would you like a highlight video(15-30 s)?\n"
+            f"  Step 4: Would you be interested in a video(15-30 s) to capture some moments during the photoshoot?\n"
             f"- After discovery: build packages based on selected extras.\n"
             f"- Always present EXACTLY 3 options — same extras, increasing edited photos.\n"
             f"- PACKAGE PRICES — USE THESE EXACT NUMBERS, DO NOT RECALCULATE:\n"
@@ -203,6 +203,9 @@ def build_system_prompt(
             f"- When client chooses a package: send ONLY this exact message:\n  '{booking_fee_msg}'\n"
             f"- NEVER send the greeting after packages have been presented.\n"
             f"- When client insists on price: 'Pricing depends on what options you want included in your package. kindly allow me to ask a few simple quick questions first, then i'll design the right package for you.'\n"
+            f"- If client repeats price request AFTER already receiving that explanation, OR says 'just tell me', 'skip', 'I only want pictures', 'just photos', 'no extras': DO NOT repeat the explanation. Instead ask ALL remaining unanswered discovery questions in ONE message like this: 'Got it! Just two quick things — studio or home session? And any extras: frames, cake, or video? Say none if you just want photos.'\n"
+            f"- After their reply to that combined question: present packages immediately.\n"
+            f"- 'I only want pictures' / 'just photos' / 'no extras' / 'none' = Session already known + Frames=no, Cake=no, Video=no → present base packages immediately.\n"
             f"- Use child name in every message once learned.\n"
             f"- Use client name in every message if learned.\n"
             f"- Short messages — WhatsApp style, one idea per message.\n"
@@ -235,6 +238,7 @@ def build_system_prompt(
             f"Studio: {studio['LOCATION']} | {studio['HOURS']} | Booking fee: {studio['BOOKING_FEE_RWF']:,} RWF to MTN MoMo: *798741* — Kigali Photography Ltd.\n"
             
         )
+
 
 def build_messages_context(
     conversation_summary: Optional[str],
