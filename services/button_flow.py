@@ -443,3 +443,114 @@ def _set_flow_mode(journey, mode: str) -> None:
     """Sauvegarde le mode de flow actif."""
     journey.flow_mode = mode
     journey.save(update_fields=["flow_mode", "updated_at"])
+
+
+#Ajoute apres pour gerer les reponses du clients pendant les discovery questions
+
+def handle_text_during_discovery(
+    text: str,
+    from_number: str,
+    journey,
+    client,
+    conversation,
+) -> str:
+    """
+    Le client a tapé du texte pendant la discovery (au lieu de cliquer un bouton).
+    
+    On distingue 3 cas :
+    1. Question courte → réponse IA rapide via knowledge base + renvoyer les boutons
+    2. Opt-out / abandon → on laisse l'orchestrateur gérer
+    3. Texte sans sens / très court → renvoyer les boutons directement
+    """
+    text_clean = text.strip().lower()
+
+    # Cas 3 : texte trop court ou non-informatif → renvoyer boutons directement
+    MEANINGLESS = {"ok", "okay", "k", "ok", "hmm", "lol", "haha", "😊", "👍", "🙏"}
+    if len(text_clean) <= 3 or text_clean in MEANINGLESS:
+        send_text(
+            to=from_number,
+            message="No worries! 😊 Let me re-send the options:",
+        )
+        _resend_current_question(from_number, journey)
+        return "resent_buttons_short_text"
+
+    # Cas 1 : vraie question → réponse IA + boutons
+    try:
+        from services.rag_service import retrieve_context
+        from services.openai_service import call_openai, build_system_prompt, build_messages_context
+
+        # Contexte RAG léger
+        rag_context = retrieve_context(
+            query=text,
+            journey_phase="booking",
+            language="en",
+            top_k=2,
+        )
+
+        # Prompt minimal — juste répondre à la question
+        system_prompt = (
+            "You are Julie, WhatsApp assistant for KP Kids Studio, Kigali. "
+            "The client is in the middle of choosing their session options. "
+            "Answer their question briefly (2-3 sentences max, WhatsApp style). "
+            "Be warm and helpful. After your answer, say: "
+            "'Now, back to your package options 👇'\n\n"
+            f"Knowledge base:\n{rag_context}" if rag_context else
+            "You are Julie, WhatsApp assistant for KP Kids Studio, Kigali. "
+            "Answer briefly (2-3 sentences max, WhatsApp style). "
+            "After your answer, say: 'Now, back to your package options 👇'"
+        )
+
+        messages = [{"role": "user", "content": text}]
+
+        from services.openai_service import call_openai
+        response = call_openai(
+            system_prompt=system_prompt,
+            messages=messages,
+            escalate=False,
+        )
+
+        if response.ok:
+            send_text(to=from_number, message=response.text)
+        else:
+            send_text(
+                to=from_number,
+                message=(
+                    "Great question! 😊 Our team will be happy to answer that in detail. "
+                    "For now, let's continue building your package 👇"
+                ),
+            )
+
+        # Enregistrer les tokens
+        try:
+            from services.client_service import record_tokens
+            record_tokens(client, conversation,
+                         response.input_tokens, response.output_tokens)
+        except Exception:
+            pass
+
+    except Exception as exc:
+        logger.warning("AI response during discovery failed: %s", exc)
+        send_text(
+            to=from_number,
+            message="Good question! 😊 Let's continue and our team will follow up on that.",
+        )
+
+    # Dans tous les cas → renvoyer les boutons de l'étape en cours
+    _resend_current_question(from_number, journey)
+    return "answered_text_resent_buttons"
+
+
+def _resend_current_question(to: str, journey) -> None:
+    """Renvoie les boutons de la question discovery en cours."""
+    state = journey.discovery_state or {}
+    current_step = _get_next_unanswered_step(state)
+    if current_step:
+        send_buttons(
+            to=to,
+            body=current_step["message"],
+            buttons=current_step["buttons"],
+        )
+    else:
+        # Toutes les questions répondues — présenter les packages
+        # (cas rare mais possible)
+        _present_packages(to, journey, None)

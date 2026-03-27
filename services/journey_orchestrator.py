@@ -146,20 +146,21 @@ def handle_inbound_message(
         # flow_mode == "question" → laisser l'IA répondre (ancien pipeline continue)
         # flow_mode == "booking"/"prices" et texte hors-contexte → renvoyer les boutons
         if flow_mode in ("booking", "prices") and text:
-            # Le client tape du texte pendant la discovery → renvoyer la question en cours
-            from services.button_flow import _send_next_discovery_question
-            send_text(
-                to=from_number,
-                message="No worries! Let me re-send the question 😊",
+            from services.button_flow import handle_text_during_discovery
+            handle_text_during_discovery(
+                text=text,
+                from_number=from_number,
+                journey=journey,
+                client=client,
+                conversation=conversation,
             )
-            _send_next_discovery_question(from_number, journey)
             conversation.touch()
             return OrchestratorResult(
                 success=True,
                 action="sent",
                 client_id=str(client.pk),
                 conversation_id=conversation.pk,
-                tokens_used=0,
+                tokens_used=0,  # Les tokens sont enregistrés dans handle_text_during_discovery
             )
         # ── FIN BRANCHEMENT BOUTONS ──────────────────────────────────────────────────
 
