@@ -155,6 +155,8 @@ def build_system_prompt(
             f"*798741* — Kigali Photography Ltd. The rest is paid after the session. "
             f"Just let me know once you are done!"
         )
+    
+    discovery_block = f"\n{discovery_state}\n" if discovery_state else ""
 
     
     return (
@@ -170,7 +172,7 @@ def build_system_prompt(
        # f"- FIRST MESSAGE: 'Hello! 😊 Thank you for reaching out to KP Kids Studio. My name is Julie, and I am here to help. How can I assist you today?'\n"
         f"- {'FIRST MESSAGE — send greeting: Hello! 😊 Thank you for reaching out to KP Kids Studio. My name is Julie, and I am here to help. How can I assist you today?' if is_first_message else 'CONVERSATION IN PROGRESS — NEVER send greeting. Respond directly to the last client message.'}\n"
         f"- If client skips their name: do NOT insist. Move forward naturally.\n"
-        f"\n{discovery_state}\n" if discovery_state else ""
+        f"{discovery_block}"
         f"- DISCOVERY ORDER — ask ONE question at a time:\n"
         f"  Step 1: Studio session or home session?\n"
         f"  Step 2: Would you like 2 A5 photo frames included in your packages?\n"
