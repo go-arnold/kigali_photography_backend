@@ -354,7 +354,7 @@ def _handle_action(action: str, from_number: str, journey, client) -> str:
 
 # ─── HANDLER DISCOVERY ───────────────────────────────────────────────────────
 
-def _handle_discovery(field: str, value, from_number: str, journey, client, lang) -> str:
+def _handle_discovery(field: str, value, from_number: str, journey, client) -> str:
     """
     Enregistre la réponse discovery et envoie la prochaine question.
     Quand tout est rempli → calcule et présente les packages.
@@ -373,7 +373,7 @@ def _handle_discovery(field: str, value, from_number: str, journey, client, lang
         return f"discovery_{field}_saved_next_{next_step['key']}"
     else:
         # Toutes les questions répondues → présenter les packages
-        _present_packages(from_number, journey, client, lang)
+        _present_packages(from_number, journey, client)
         return "discovery_complete_packages_sent"
 
 
