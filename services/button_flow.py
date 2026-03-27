@@ -314,7 +314,7 @@ def _handle_action(action: str, from_number: str, journey, client) -> str:
                 "Let's start! 👇"
             ),
         )
-        _send_next_discovery_question(from_number, journey)
+        _send_next_discovery_question(from_number, journey,client)
         return "started_booking_flow"
 
     if action == "start_prices":
@@ -328,7 +328,7 @@ def _handle_action(action: str, from_number: str, journey, client) -> str:
                 "and I'll build your custom price right away!"
             ),
         )
-        _send_next_discovery_question(from_number, journey)
+        _send_next_discovery_question(from_number,client, journey)
         return "started_prices_flow"
 
     if action == "start_question":
