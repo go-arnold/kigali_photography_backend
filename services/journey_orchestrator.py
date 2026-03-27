@@ -268,12 +268,6 @@ def handle_inbound_message(
                     elif no:
                         video = False
 
-        # Construis le résumé discovery pour le prompt
-        discovery_state_summary = _build_discovery_summary(
-            session_type, frames, cake, video,
-            msgs_list  # pour savoir quelles questions ont été posées
-        )
-
         # Calcule les prix
         package_prices = _calculate_packages(session_type, frames, cake, video)
 
@@ -287,7 +281,6 @@ def handle_inbound_message(
             rag_context=rag_context,
             is_first_message=is_first_message,
             package_prices=package_prices,
-            discovery_state=discovery_state_summary, 
 
            
             # discovery_state=discovery_state, #cito cito
@@ -973,59 +966,6 @@ def _calculate_packages(session_type: str, frames: bool, cake: bool, video: bool
         result += "\n"
     
     return result
-
-
-def _build_discovery_summary(session_type, frames, cake, video, msgs_list) -> str:
-    """
-    Résume l'état actuel de la discovery pour l'injecter dans le prompt.
-    Permet à l'IA de savoir exactement où elle en est sans relire tout l'historique.
-    """
-    # Détermine quelles questions ont été posées
-    q1_asked = any(
-        any(w in m.get("content", "").lower() for w in [
-            "studio or home", "studio session", "home session",
-            "murifuzako", "muri studio", "mu rugo"
-        ])
-        for m in msgs_list if m.get("role") == "assistant"
-    )
-    q2_asked = any(
-        any(w in m.get("content", "").lower() for w in [
-            "frame", "a5", "photo frame", "twabongereramo"
-        ])
-        for m in msgs_list if m.get("role") == "assistant"
-    )
-    q3_asked = any(
-        any(w in m.get("content", "").lower() for w in [
-            "cake", "umutsima", "twabakorera na cake"
-        ])
-        for m in msgs_list if m.get("role") == "assistant"
-    )
-    q4_asked = any(
-        any(w in m.get("content", "").lower() for w in [
-            "video", "videwo", "highlight"
-        ])
-        for m in msgs_list if m.get("role") == "assistant"
-    )
-
-    lines = ["DISCOVERY STATE (already known — DO NOT re-ask):"]
-    lines.append(f"  Q1 Session type: {'HOME' if session_type == 'home' else 'STUDIO'} {'✅ ANSWERED' if q1_asked else '⬜ NOT YET ASKED'}")
-    lines.append(f"  Q2 Frames:       {'YES' if frames else 'NO'} {'✅ ANSWERED' if q2_asked else '⬜ NOT YET ASKED'}")
-    lines.append(f"  Q3 Cake:         {'YES' if cake else 'NO'} {'✅ ANSWERED' if q3_asked else '⬜ NOT YET ASKED'}")
-    lines.append(f"  Q4 Video:        {'YES' if video else 'NO'} {'✅ ANSWERED' if q4_asked else '⬜ NOT YET ASKED'}")
-
-    # Détermine la prochaine question à poser
-    if not q1_asked:
-        lines.append("  → NEXT: Ask Q1 (studio or home?)")
-    elif not q2_asked:
-        lines.append("  → NEXT: Ask Q2 (frames?)")
-    elif not q3_asked:
-        lines.append("  → NEXT: Ask Q3 (cake?)")
-    elif not q4_asked:
-        lines.append("  → NEXT: Ask Q4 (video?)")
-    else:
-        lines.append("  → ALL QUESTIONS ANSWERED: present packages now.")
-
-    return "\n".join(lines)
 #________________________________________________________________________________________________________
 # """
 # Journey Orchestrator
