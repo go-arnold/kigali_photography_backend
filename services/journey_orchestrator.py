@@ -127,12 +127,36 @@ def handle_inbound_message(
         # ── PREMIER MESSAGE TEXTE → Welcome + boutons ────────────────────────────────
         # Si c'est le tout premier message du client (jamais eu de réponse AI)
         # ET pas en mode "question" → envoyer le welcome avec boutons
-        recent_msgs = _get_recent_messages(conversation)
-        assistant_count = sum(1 for m in recent_msgs if m.get("role") == "assistant")
-        flow_mode = getattr(journey, "flow_mode", "")
+        flow_mode = getattr(journey, "flow_mode", "") or ""
 
-        if assistant_count == 0 and flow_mode != "question":
+        # Premier contact = flow_mode vide ET pas de messages outbound en DB
+        is_first_contact = (
+            flow_mode == ""
+            and not conversation.messages.filter(direction="outbound").exists()
+        )
+
+        if is_first_contact:
             send_welcome(from_number)
+            _set_flow_mode_on_journey(journey, "welcome_sent")
+            conversation.touch()
+            return OrchestratorResult(
+                success=True,
+                action="sent",
+                client_id=str(client.pk),
+                conversation_id=conversation.pk,
+                tokens_used=0,
+            )
+
+        # Texte libre pendant discovery → répondre + renvoyer boutons
+        if flow_mode in ("booking", "prices") and text and msg_type != "interactive":
+            from services.button_flow import handle_text_during_discovery
+            handle_text_during_discovery(
+                text=text,
+                from_number=from_number,
+                journey=journey,
+                client=client,
+                conversation=conversation,
+            )
             conversation.touch()
             return OrchestratorResult(
                 success=True,
@@ -1052,6 +1076,10 @@ def _calculate_packages(session_type: str, frames: bool, cake: bool, video: bool
         result += "\n"
     
     return result
+
+def _set_flow_mode_on_journey(journey, mode: str):
+    journey.flow_mode = mode
+    journey.save(update_fields=["flow_mode", "updated_at"])
 #________________________________________________________________________________________________________
 # """
 # Journey Orchestrator
