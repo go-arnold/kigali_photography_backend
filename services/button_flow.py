@@ -129,48 +129,35 @@ DISCOVERY_STEPS = {
 PACKAGE_MESSAGES = {
     "en": {
         "intro": "Here are the 3 packages built just for you:\n",
-        "session": {"studio": "Studio", "home": "Home"},
+        "session_studio": "Studio Session",
+        "session_home": "Home Session",
         "delivery": "Delivery: {photos} Edited Photos",
         "unedited": "All Other Unedited Photos",
         "includes": "Includes: {includes}",
         "question": "Which one feels right for you? 😊",
         "body": "Choose your package:",
-        "buttons": [
-            {"id": "pkg_starter", "title": "🥉 Starter"},
-            {"id": "pkg_silver",  "title": "🥈 Silver"},
-            {"id": "pkg_gold",    "title": "🥇 Gold"},
-        ],
     },
     "rw": {
         "intro": "Dore packages 3 zikwiye ibyo mushaka:\n",
-        "session": {"studio": "Studio", "home": "Mu Rugo"},
-        "delivery": "Gutangwa: Amafoto {photos} mwahisemo (edited)",
-        "unedited": "Ayandi Yose Adatunganijwe (not edited)",
+        "session_studio": "Session muri Studio",
+        "session_home": "Session mu Rugo",
+        "delivery": "Gutangwa: Amafoto {photos} mwahisemo",
+        "unedited": "Ayandi Yose Adatunganijwe",
         "includes": "Birimo: {includes}",
         "question": "Ni iyihe muyifata? 😊",
         "body": "Hitamo package:",
-        "buttons": [
-            {"id": "pkg_starter", "title": "🥉 Starter"},
-            {"id": "pkg_silver",  "title": "🥈 Silver"},
-            {"id": "pkg_gold",    "title": "🥇 Gold"},
-        ],
     },
     "fr": {
         "intro": "Voici les 3 packages faits pour vous:\n",
-        "session": {"studio": "Studio", "home": "À Domicile"},
+        "session_studio": "Séance en Studio",
+        "session_home": "Séance à Domicile",
         "delivery": "Livraison: {photos} Photos Éditées",
         "unedited": "Toutes les Autres Non Éditées",
         "includes": "Inclus: {includes}",
         "question": "Lequel vous convient? 😊",
         "body": "Choisissez votre package:",
-        "buttons": [
-            {"id": "pkg_starter", "title": "🥉 Starter"},
-            {"id": "pkg_silver",  "title": "🥈 Silver"},
-            {"id": "pkg_gold",    "title": "🥇 Gold"},
-        ],
     },
 }
-
 # ─── MAPPING BOUTON → SIGNIFICATION ─────────────────────────────────────────
 
 # Format : "button_id" → ("type", *valeurs)
