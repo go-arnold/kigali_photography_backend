@@ -385,6 +385,10 @@ def _present_packages(from_number: str, journey, client) -> None:
     msgs = PACKAGE_MESSAGES.get(lang, PACKAGE_MESSAGES["en"])
 
     session_type = state.get("session_type", "studio")
+    session_label = (
+        msgs["session_home"] if session_type == "home" 
+        else msgs["session_studio"]
+    )
     frames  = state.get("frames", False)
     cake    = state.get("cake",   False)
     video   = state.get("video",  False)
