@@ -21,40 +21,155 @@ logger = logging.getLogger(__name__)
 
 # ─── DÉFINITION DES ÉTAPES DISCOVERY ────────────────────────────────────────
 
-DISCOVERY_STEPS = [
-    {
-        "key": "session_type",
-        "message": "Where would you prefer your session? 📸",
+DISCOVERY_STEPS = {
+    "en": [
+        {
+            "key": "session_type",
+            "message": "Where would you prefer your session? 📸",
+            "buttons": [
+                {"id": "disc_studio", "title": "🎨 In Studio"},
+                {"id": "disc_home",   "title": "🏠 At Home"},
+            ],
+        },
+        {
+            "key": "frames",
+            "message": "Would you like 2 A5 photo frames included? 🖼️\n(+20,000 RWF)",
+            "buttons": [
+                {"id": "disc_frames_yes", "title": "✅ Yes"},
+                {"id": "disc_frames_no",  "title": "❌ No"},
+            ],
+        },
+        {
+            "key": "cake",
+            "message": "How about a birthday cake? 🎂\n(+30,000 RWF)",
+            "buttons": [
+                {"id": "disc_cake_yes", "title": "✅ Yes"},
+                {"id": "disc_cake_no",  "title": "❌ No"},
+            ],
+        },
+        {
+            "key": "video",
+            "message": "Would you like a short highlight video? 🎬\n(15–30 sec, +29,000 RWF)",
+            "buttons": [
+                {"id": "disc_video_yes", "title": "✅ Yes"},
+                {"id": "disc_video_no",  "title": "❌ No"},
+            ],
+        },
+    ],
+    "rw": [
+        {
+            "key": "session_type",
+            "message": "Murifuzako mufotorwe he? 📸",
+            "buttons": [
+                {"id": "disc_studio", "title": "🎨 Muri Studio"},
+                {"id": "disc_home",   "title": "🏠 Mu Rugo"},
+            ],
+        },
+        {
+            "key": "frames",
+            "message": "Mwifuza frames 2 za A5? 🖼️\n(+20,000 RWF)",
+            "buttons": [
+                {"id": "disc_frames_yes", "title": "✅ Yego"},
+                {"id": "disc_frames_no",  "title": "❌ Oya"},
+            ],
+        },
+        {
+            "key": "cake",
+            "message": "Mwifuza cake ya za birthday? 🎂\n(+30,000 RWF)",
+            "buttons": [
+                {"id": "disc_cake_yes", "title": "✅ Yego"},
+                {"id": "disc_cake_no",  "title": "❌ Oya"},
+            ],
+        },
+        {
+            "key": "video",
+            "message": "Mwifuza video ngufi? 🎬\n(15–30 sec, +29,000 RWF)",
+            "buttons": [
+                {"id": "disc_video_yes", "title": "✅ Yego"},
+                {"id": "disc_video_no",  "title": "❌ Oya"},
+            ],
+        },
+    ],
+    "fr": [
+        {
+            "key": "session_type",
+            "message": "Où préférez-vous votre séance? 📸",
+            "buttons": [
+                {"id": "disc_studio", "title": "🎨 En Studio"},
+                {"id": "disc_home",   "title": "🏠 À Domicile"},
+            ],
+        },
+        {
+            "key": "frames",
+            "message": "Souhaitez-vous 2 cadres photo A5? 🖼️\n(+20,000 RWF)",
+            "buttons": [
+                {"id": "disc_frames_yes", "title": "✅ Oui"},
+                {"id": "disc_frames_no",  "title": "❌ Non"},
+            ],
+        },
+        {
+            "key": "cake",
+            "message": "Et un gâteau d'anniversaire? 🎂\n(+30,000 RWF)",
+            "buttons": [
+                {"id": "disc_cake_yes", "title": "✅ Oui"},
+                {"id": "disc_cake_no",  "title": "❌ Non"},
+            ],
+        },
+        {
+            "key": "video",
+            "message": "Une courte vidéo souvenir? 🎬\n(15–30 sec, +29,000 RWF)",
+            "buttons": [
+                {"id": "disc_video_yes", "title": "✅ Oui"},
+                {"id": "disc_video_no",  "title": "❌ Non"},
+            ],
+        },
+    ],
+}
+
+PACKAGE_MESSAGES = {
+    "en": {
+        "intro": "Here are the 3 packages built just for you:\n",
+        "session": {"studio": "Studio", "home": "Home"},
+        "delivery": "Delivery: {photos} Edited Photos",
+        "unedited": "All Other Unedited Photos",
+        "includes": "Includes: {includes}",
+        "question": "Which one feels right for you? 😊",
+        "body": "Choose your package:",
         "buttons": [
-            {"id": "disc_studio", "title": "🎨 In Studio"},
-            {"id": "disc_home",   "title": "🏠 At Home"},
+            {"id": "pkg_starter", "title": "🥉 Starter"},
+            {"id": "pkg_silver",  "title": "🥈 Silver"},
+            {"id": "pkg_gold",    "title": "🥇 Gold"},
         ],
     },
-    {
-        "key": "frames",
-        "message": "Would you like 2 A5 photo frames included? 🖼️",
+    "rw": {
+        "intro": "Dore packages 3 zikwiye ibyo mushaka:\n",
+        "session": {"studio": "Studio", "home": "Mu Rugo"},
+        "delivery": "Gutangwa: Amafoto {photos} mwahisemo (edited)",
+        "unedited": "Ayandi Yose Adatunganijwe (not edited)",
+        "includes": "Birimo: {includes}",
+        "question": "Ni iyihe muyifata? 😊",
+        "body": "Hitamo package:",
         "buttons": [
-            {"id": "disc_frames_yes", "title": "✅ Yes"},
-            {"id": "disc_frames_no",  "title": "❌ No"},
+            {"id": "pkg_starter", "title": "🥉 Starter"},
+            {"id": "pkg_silver",  "title": "🥈 Silver"},
+            {"id": "pkg_gold",    "title": "🥇 Gold"},
         ],
     },
-    {
-        "key": "cake",
-        "message": "How about a birthday cake? 🎂",
+    "fr": {
+        "intro": "Voici les 3 packages faits pour vous:\n",
+        "session": {"studio": "Studio", "home": "À Domicile"},
+        "delivery": "Livraison: {photos} Photos Éditées",
+        "unedited": "Toutes les Autres Non Éditées",
+        "includes": "Inclus: {includes}",
+        "question": "Lequel vous convient? 😊",
+        "body": "Choisissez votre package:",
         "buttons": [
-            {"id": "disc_cake_yes", "title": "✅ Yes"},
-            {"id": "disc_cake_no",  "title": "❌ No"},
+            {"id": "pkg_starter", "title": "🥉 Starter"},
+            {"id": "pkg_silver",  "title": "🥈 Silver"},
+            {"id": "pkg_gold",    "title": "🥇 Gold"},
         ],
     },
-    {
-        "key": "video",
-        "message": "Would you like a short highlight video? 🎬", 
-        "buttons": [
-            {"id": "disc_video_yes", "title": "✅ Yes"},
-            {"id": "disc_video_no",  "title": "❌ No"},
-        ],
-    },
-]
+}
 
 # ─── MAPPING BOUTON → SIGNIFICATION ─────────────────────────────────────────
 
@@ -83,6 +198,11 @@ BUTTON_MAP = {
     # Post-booking
     "btn_paid":          ("action", "payment_confirmed"),
     "btn_agent":         ("action", "talk_to_agent"),
+
+    # Language selection
+    "lang_en": ("action", "set_language_en"),
+    "lang_rw": ("action", "set_language_rw"),
+    "lang_fr": ("action", "set_language_fr"),
 }
 
 
@@ -115,26 +235,49 @@ def handle_button_click(interactive_id: str, from_number: str, journey, client) 
     return "unhandled"
 
 
+# def send_welcome(to: str) -> None:
+#     """
+#     Envoie le message de bienvenue + les 3 boutons entry.
+#     Appelé au premier message ET si le client tape du texte hors-contexte.
+#     """
+#     send_text(
+#         to=to,
+#         message=(
+#             "Hello! 😊 Thank you for reaching out to *KP Kids Studio*.\n"
+#             "My name is Julie, and I am here to help.\n\n"
+#             "How can I assist you today?"
+#         ),
+#     )
+#     send_buttons(
+#         to=to,
+#         body="Please choose an option:",
+#         buttons=[
+#             {"id": "btn_book",     "title": "📸 Book a Session"},
+#             {"id": "btn_prices",   "title": "💰 View Prices"},
+#             {"id": "btn_question", "title": "ℹ️ Ask a Question"},
+#         ],
+#     )
 def send_welcome(to: str) -> None:
     """
-    Envoie le message de bienvenue + les 3 boutons entry.
-    Appelé au premier message ET si le client tape du texte hors-contexte.
+    Envoie le message de bienvenue UNIQUEMENT avec le choix de langue.
+    Les 3 boutons (Book/Prices/Question) arrivent APRÈS le choix de langue.
     """
     send_text(
         to=to,
         message=(
-            "Hello! 😊 Thank you for reaching out to *KP Kids Studio*.\n"
-            "My name is Julie, and I am here to help.\n\n"
-            "How can I assist you today?"
+            "Hello! 😊 Welcome to *KP Kids Studio*.\n\n"
+            "Muraho! Murakaza neza kuri *KP Kids Studio*.\n\n"
+            "Bonjour! Bienvenue chez *KP Kids Studio*.\n\n"
+            "Please choose your language / Hitamo ururimi / Choisissez votre langue:"
         ),
     )
     send_buttons(
         to=to,
-        body="Please choose an option:",
+        body="Language / Ururimi / Langue:",
         buttons=[
-            {"id": "btn_book",     "title": "📸 Book a Session"},
-            {"id": "btn_prices",   "title": "💰 View Prices"},
-            {"id": "btn_question", "title": "ℹ️ Ask a Question"},
+            {"id": "lang_en", "title": "🇬🇧 English"},
+            {"id": "lang_rw", "title": "🇷🇼 Kinyarwanda"},
+            {"id": "lang_fr", "title": "🇫🇷 Français"},
         ],
     )
 
@@ -143,6 +286,22 @@ def send_welcome(to: str) -> None:
 
 def _handle_action(action: str, from_number: str, journey, client) -> str:
 
+    if action in ("set_language_en", "set_language_rw", "set_language_fr"):
+        lang_map = {
+            "set_language_en": "en",
+            "set_language_rw": "rw",
+            "set_language_fr": "fr",
+        }
+        lang = lang_map[action]
+        
+        # Sauvegarder la langue sur le client
+        client.language = lang
+        client.save(update_fields=["language", "updated_at"])
+        
+        # Envoyer le menu principal dans la langue choisie
+        _send_main_menu(to=from_number, lang=lang)
+        return f"language_set_{lang}"
+    
     if action == "start_booking":
         _set_flow_mode(journey, "booking")
         _reset_discovery(journey)
@@ -195,7 +354,7 @@ def _handle_action(action: str, from_number: str, journey, client) -> str:
 
 # ─── HANDLER DISCOVERY ───────────────────────────────────────────────────────
 
-def _handle_discovery(field: str, value, from_number: str, journey, client) -> str:
+def _handle_discovery(field: str, value, from_number: str, journey, client, lang) -> str:
     """
     Enregistre la réponse discovery et envoie la prochaine question.
     Quand tout est rempli → calcule et présente les packages.
@@ -207,40 +366,37 @@ def _handle_discovery(field: str, value, from_number: str, journey, client) -> s
     journey.save(update_fields=["discovery_state", "updated_at"])
 
     # Y a-t-il encore des questions sans réponse ?
-    next_step = _get_next_unanswered_step(state)
+    next_step = _get_next_unanswered_step(state, lang=client.language)
 
     if next_step:
         _send_discovery_question(from_number, next_step)
         return f"discovery_{field}_saved_next_{next_step['key']}"
     else:
         # Toutes les questions répondues → présenter les packages
-        _present_packages(from_number, journey, client)
+        _present_packages(from_number, journey, client, lang)
         return "discovery_complete_packages_sent"
 
 
 # ─── CALCUL ET PRÉSENTATION DES PACKAGES ────────────────────────────────────
 
 def _present_packages(from_number: str, journey, client) -> None:
-    """
-    Calcule les 3 packages selon discovery_state
-    et les présente avec 3 boutons de choix.
-    """
     state = journey.discovery_state or {}
+    lang = getattr(client, "language", "en") or "en"
+    msgs = PACKAGE_MESSAGES.get(lang, PACKAGE_MESSAGES["en"])
+
     session_type = state.get("session_type", "studio")
     frames  = state.get("frames", False)
     cake    = state.get("cake",   False)
     video   = state.get("video",  False)
 
-    # ── Calcul des extras ──
     extras_cost = 0
     extras_lines = []
-
     if frames:
         extras_cost += 20000
         extras_lines.append("2 A5 Photo Frames")
     if cake and video:
         extras_cost += 50000
-        extras_lines.append("A Birthday Cake")
+        extras_lines.append("Birthday Cake")
         extras_lines.append("Highlight Video (15–30 sec)")
     elif cake:
         extras_cost += 30000
@@ -250,44 +406,38 @@ def _present_packages(from_number: str, journey, client) -> None:
         extras_lines.append("Highlight Video (15–30 sec)")
 
     home_fee = 69000 if session_type == "home" else 0
-    session_label = "Home" if session_type == "home" else "Studio"
+    session_label = msgs["session_home"] if session_type == "home" else msgs["session_studio"]
     includes_line = ", ".join(extras_lines) if extras_lines else None
 
-    # ── Prix des 3 packages ──
     packages = [
         {"name": "Starter", "base": 50000, "duration": "1h",   "photos": 8,  "emoji": "🥉"},
         {"name": "Silver",  "base": 70000, "duration": "1h",   "photos": 12, "emoji": "🥈"},
         {"name": "Gold",    "base": 100000,"duration": "1.5h", "photos": 18, "emoji": "🥇"},
     ]
 
-    # ── Construction du message ──
-    lines = ["Here are the 3 packages built just for you:\n"]
-
+    lines = [msgs["intro"]]
     for pkg in packages:
         total = pkg["base"] + extras_cost + home_fee
         lines.append(f"{pkg['emoji']} *{pkg['name']} Package* — {total:,} RWF")
-        lines.append(f"{pkg['duration']} {session_label} Session")
-        lines.append(f"Delivery: {pkg['photos']} Edited Photos")
-        lines.append("All Other Unedited Photos")
+        lines.append(f"{pkg['duration']} {session_label}")
+        lines.append(msgs["delivery"].format(photos=pkg["photos"]))
+        lines.append(msgs["unedited"])
         if includes_line:
-            lines.append(f"Includes: {includes_line}")
-        lines.append("")  # ligne vide entre packages
+            lines.append(msgs["includes"].format(includes=includes_line))
+        lines.append("")
 
-    lines.append("Which one feels right for you? 😊")
-    message = "\n".join(lines)
+    lines.append(msgs["question"])
 
-    # ── Envoi message + boutons ──
-    send_text(to=from_number, message=message)
+    send_text(to=from_number, message="\n".join(lines))
     send_buttons(
         to=from_number,
-        body="Choose your package:",
+        body=msgs["body"],
         buttons=[
             {"id": "pkg_starter", "title": "🥉 Starter"},
             {"id": "pkg_silver",  "title": "🥈 Silver"},
             {"id": "pkg_gold",    "title": "🥇 Gold"},
         ],
     )
-
 
 # ─── HANDLER CHOIX DE PACKAGE ────────────────────────────────────────────────
 
@@ -400,21 +550,63 @@ def _handle_talk_to_agent(from_number: str, journey, client) -> str:
     )
     return "talk_to_agent_human_takeover"
 
+MAIN_MENU = {
+    "en": {
+        "text": (
+            "Thank you! 😊 My name is Julie and I'm here to help.\n\n"
+            "How can I assist you today?"
+        ),
+        "body": "Please choose an option:",
+        "buttons": [
+            {"id": "btn_book",     "title": "📸 Book a Session"},
+            {"id": "btn_prices",   "title": "💰 View Prices"},
+            {"id": "btn_question", "title": "ℹ️ Ask a Question"},
+        ],
+    },
+    "rw": {
+        "text": (
+            "Murakoze! 😊 Nitwa Julie, ndi hano ngo mbafashe.\n\n"
+            "Ni gute nabafasha uyu munsi?"
+        ),
+        "body": "Hitamo:",
+        "buttons": [
+            {"id": "btn_book",     "title": "📸 Fata Igihe"},
+            {"id": "btn_prices",   "title": "💰 Reba Ibiciro"},
+            {"id": "btn_question", "title": "ℹ️ Baza Ikibazo"},
+        ],
+    },
+    "fr": {
+        "text": (
+            "Merci! 😊 Je m'appelle Julie et je suis là pour vous aider.\n\n"
+            "Comment puis-je vous aider aujourd'hui?"
+        ),
+        "body": "Choisissez une option:",
+        "buttons": [
+            {"id": "btn_book",     "title": "📸 Réserver"},
+            {"id": "btn_prices",   "title": "💰 Voir les Prix"},
+            {"id": "btn_question", "title": "ℹ️ Poser une Question"},
+        ],
+    },
+}
 
+def _send_main_menu(to: str, lang: str) -> None:
+    menu = MAIN_MENU.get(lang, MAIN_MENU["en"])
+    send_text(to=to, message=menu["text"])
+    send_buttons(to=to, body=menu["body"], buttons=menu["buttons"])
 # ─── HELPERS DISCOVERY ───────────────────────────────────────────────────────
 
-def _get_next_unanswered_step(state: dict) -> dict | None:
-    """Retourne la prochaine étape discovery sans réponse, ou None si tout est rempli."""
-    for step in DISCOVERY_STEPS:
+def _get_next_unanswered_step(state: dict, lang: str = "en") -> dict | None:
+    steps = DISCOVERY_STEPS.get(lang, DISCOVERY_STEPS["en"])
+    for step in steps:
         if state.get(step["key"]) is None:
             return step
     return None
 
 
-def _send_next_discovery_question(to: str, journey) -> None:
+def _send_next_discovery_question(to: str, journey,client) -> None:
     """Envoie la prochaine question discovery non répondue."""
     state = journey.discovery_state or {}
-    next_step = _get_next_unanswered_step(state)
+    next_step = _get_next_unanswered_step(state, lang=client.language)
     if next_step:
         _send_discovery_question(to, next_step)
 
@@ -445,7 +637,7 @@ def _set_flow_mode(journey, mode: str) -> None:
     journey.save(update_fields=["flow_mode", "updated_at"])
 
 
-#Ajoute apres pour gerer les reponses du clients pendant les discovery questions
+#Ajoute apres pour gerer les reponses du clients pendant les discovery questions ou plus
 
 def handle_text_during_discovery(
     text: str,
@@ -454,58 +646,60 @@ def handle_text_during_discovery(
     client,
     conversation,
 ) -> str:
-    """
-    Le client a tapé du texte pendant la discovery (au lieu de cliquer un bouton).
-    
-    On distingue 3 cas :
-    1. Question courte → réponse IA rapide via knowledge base + renvoyer les boutons
-    2. Opt-out / abandon → on laisse l'orchestrateur gérer
-    3. Texte sans sens / très court → renvoyer les boutons directement
-    """
     text_clean = text.strip().lower()
 
-    # Cas 3 : texte trop court ou non-informatif → renvoyer boutons directement
-    MEANINGLESS = {"ok", "okay", "k", "ok", "hmm", "lol", "haha", "😊", "👍", "🙏"}
+    # Texte trop court → renvoyer boutons
+    MEANINGLESS = {"ok", "okay", "k", "hmm", "lol", "haha", "👍", "🙏"}
     if len(text_clean) <= 3 or text_clean in MEANINGLESS:
-        send_text(
-            to=from_number,
-            message="No worries! 😊 Let me re-send the options:",
-        )
-        _resend_current_question(from_number, journey)
+        send_text(to=from_number, message="No worries! 😊 Let me re-send the options:")
+        _resend_current_step(from_number, journey, client)
         return "resent_buttons_short_text"
 
-    # Cas 1 : vraie question → réponse IA + boutons
+    # Vérifier si discovery complète ou non
+    state = journey.discovery_state or {}
+    discovery_done = _get_next_unanswered_step(state) is None
+
+    # Détecter si c'est une demande de recalcul des packages
+    RECALC_KEYWORDS = [
+        "remove", "add", "without", "with", "instead",
+        "if i", "what if", "how much if", "price without",
+        "enlever", "ajouter", "sans", "avec",
+        "gukuraho", "kongeraho", "nta",
+    ]
+    is_recalc_request = any(kw in text_clean for kw in RECALC_KEYWORDS)
+
+    if discovery_done and is_recalc_request:
+        return _handle_package_recalc(text, from_number, journey, client, conversation)
+
+    # Question normale → réponse IA + renvoyer l'étape courante
     try:
         from services.rag_service import retrieve_context
-        from services.openai_service import call_openai, build_system_prompt, build_messages_context
+        from services.openai_service import call_openai
 
-        # Contexte RAG léger
         rag_context = retrieve_context(
             query=text,
             journey_phase="booking",
-            language="en",
+            language=client.language,
             top_k=2,
         )
 
-        # Prompt minimal — juste répondre à la question
+        # Construire le contexte packages si discovery terminée
+        packages_context = ""
+        if discovery_done:
+            packages_context = _build_packages_context_for_prompt(journey)
+
         system_prompt = (
             "You are Julie, WhatsApp assistant for KP Kids Studio, Kigali. "
-            "The client is in the middle of choosing their session options. "
-            "Answer their question briefly (2-3 sentences max, WhatsApp style). "
-            "Be warm and helpful. After your answer, say: "
-            "'Now, back to your package options 👇'\n\n"
-            f"Knowledge base:\n{rag_context}" if rag_context else
-            "You are Julie, WhatsApp assistant for KP Kids Studio, Kigali. "
-            "Answer briefly (2-3 sentences max, WhatsApp style). "
-            "After your answer, say: 'Now, back to your package options 👇'"
+            "Answer the client's question briefly (2-3 sentences max, WhatsApp style). "
+            "Be warm and helpful. "
+            f"{packages_context}"
+            f"{'Knowledge base: ' + rag_context if rag_context else ''}\n\n"
+            "After your answer, end with: 'Now, back to your options 👇'"
         )
 
-        messages = [{"role": "user", "content": text}]
-
-        from services.openai_service import call_openai
         response = call_openai(
             system_prompt=system_prompt,
-            messages=messages,
+            messages=[{"role": "user", "content": text}],
             escalate=False,
         )
 
@@ -514,13 +708,9 @@ def handle_text_during_discovery(
         else:
             send_text(
                 to=from_number,
-                message=(
-                    "Great question! 😊 Our team will be happy to answer that in detail. "
-                    "For now, let's continue building your package 👇"
-                ),
+                message="Great question! 😊 Our team will follow up on that.",
             )
 
-        # Enregistrer les tokens
         try:
             from services.client_service import record_tokens
             record_tokens(client, conversation,
@@ -532,25 +722,223 @@ def handle_text_during_discovery(
         logger.warning("AI response during discovery failed: %s", exc)
         send_text(
             to=from_number,
-            message="Good question! 😊 Let's continue and our team will follow up on that.",
+            message="Good question! 😊 Our team will follow up on that.",
         )
 
-    # Dans tous les cas → renvoyer les boutons de l'étape en cours
-    _resend_current_question(from_number, journey)
-    return "answered_text_resent_buttons"
+    # Renvoyer l'étape courante (question OU packages selon où on en est)
+    _resend_current_step(from_number, journey, client)
+    return "answered_text_resent_step"
 
 
-def _resend_current_question(to: str, journey) -> None:
-    """Renvoie les boutons de la question discovery en cours."""
+def _handle_package_recalc(
+    text: str,
+    from_number: str,
+    journey,
+    client,
+    conversation,
+) -> str:
+    """
+    Le client veut modifier les extras après la présentation des packages.
+    Ex: "remove the video", "add a cake", "without frames"
+    On détecte ce qu'il veut changer, on met à jour discovery_state, on recalcule.
+    """
+    text_lower = text.lower()
+    state = journey.discovery_state or {}
+    changed = False
+    change_description = ""
+
+    # Détecter remove video
+    if any(w in text_lower for w in ["remove video", "without video", "no video",
+                                      "remove highlight", "sans video", "gukuraho video"]):
+        state["video"] = False
+        changed = True
+        change_description = "video removed"
+
+    # Détecter add video
+    elif any(w in text_lower for w in ["add video", "with video", "include video",
+                                        "ajouter video", "kongeraho video"]):
+        state["video"] = True
+        changed = True
+        change_description = "video added"
+
+    # Détecter remove frames
+    elif any(w in text_lower for w in ["remove frame", "without frame", "no frame",
+                                        "sans frame", "gukuraho frame"]):
+        state["frames"] = False
+        changed = True
+        change_description = "frames removed"
+
+    # Détecter add frames
+    elif any(w in text_lower for w in ["add frame", "with frame", "include frame",
+                                        "ajouter frame", "kongeraho frame"]):
+        state["frames"] = True
+        changed = True
+        change_description = "frames added"
+
+    # Détecter remove cake
+    elif any(w in text_lower for w in ["remove cake", "without cake", "no cake",
+                                        "sans gateau", "sans gâteau"]):
+        state["cake"] = False
+        changed = True
+        change_description = "cake removed"
+
+    # Détecter add cake
+    elif any(w in text_lower for w in ["add cake", "with cake", "include cake",
+                                        "ajouter gateau", "ajouter gâteau"]):
+        state["cake"] = True
+        changed = True
+        change_description = "cake added"
+
+    # Détecter remove all extras
+    elif any(w in text_lower for w in ["remove all", "no extras", "just photos",
+                                        "base only", "nothing else"]):
+        state["frames"] = False
+        state["cake"] = False
+        state["video"] = False
+        changed = True
+        change_description = "all extras removed"
+
+    if changed:
+        # Sauvegarder le nouvel état
+        journey.discovery_state = state
+        journey.save(update_fields=["discovery_state", "updated_at"])
+
+        send_text(
+            to=from_number,
+            message=f"Got it! 😊 Let me recalculate your packages with {change_description}.",
+        )
+        _present_packages(from_number, journey, client)
+        return f"packages_recalculated_{change_description.replace(' ', '_')}"
+
+    else:
+        # Demande de recalcul mais on n'a pas compris quoi changer
+        # → Laisser l'IA répondre avec le contexte complet des prix
+        packages_context = _build_packages_context_for_prompt(journey)
+
+        from services.openai_service import call_openai
+        system_prompt = (
+            "You are Julie, WhatsApp assistant for KP Kids Studio, Kigali. "
+            "The client is asking about modifying their package options. "
+            "Answer precisely using the package prices below. "
+            "Be brief (2-3 sentences, WhatsApp style). "
+            "End with: 'Just let me know what you'd prefer! 😊'\n\n"
+            f"{packages_context}"
+        )
+
+        response = call_openai(
+            system_prompt=system_prompt,
+            messages=[{"role": "user", "content": text}],
+            escalate=False,
+        )
+
+        if response.ok:
+            send_text(to=from_number, message=response.text)
+        else:
+            send_text(
+                to=from_number,
+                message="Just let me know what you'd like to change and I'll recalculate! 😊",
+            )
+
+        try:
+            from services.client_service import record_tokens
+            record_tokens(client, conversation,
+                         response.input_tokens, response.output_tokens)
+        except Exception:
+            pass
+
+        # Renvoyer les boutons packages
+        _resend_package_buttons(from_number)
+        return "recalc_unclear_ai_responded"
+
+def _resend_current_step(to: str, journey, client) -> None:
+    """
+    Renvoie l'étape courante :
+    - Si discovery pas terminée → renvoyer la question en cours
+    - Si discovery terminée → renvoyer les boutons des packages
+    """
     state = journey.discovery_state or {}
     current_step = _get_next_unanswered_step(state)
+
     if current_step:
-        send_buttons(
-            to=to,
-            body=current_step["message"],
-            buttons=current_step["buttons"],
+        # Discovery pas finie → renvoyer la question
+        lang = getattr(client, "language", "en") or "en"
+        # Retrouver la version dans la bonne langue
+        steps = DISCOVERY_STEPS.get(lang, DISCOVERY_STEPS["en"])
+        lang_step = next(
+            (s for s in steps if s["key"] == current_step["key"]),
+            current_step
         )
+        send_buttons(to=to, body=lang_step["message"], buttons=lang_step["buttons"])
     else:
-        # Toutes les questions répondues — présenter les packages
-        # (cas rare mais possible)
-        _present_packages(to, journey, None)
+        # Discovery terminée → renvoyer les boutons packages
+        _resend_package_buttons(to)
+
+
+def _resend_package_buttons(to: str) -> None:
+    """Renvoie uniquement les boutons de choix de package (sans recalculer les prix)."""
+    send_buttons(
+        to=to,
+        body="Which package would you like?",
+        buttons=[
+            {"id": "pkg_starter", "title": "🥉 Starter"},
+            {"id": "pkg_silver",  "title": "🥈 Silver"},
+            {"id": "pkg_gold",    "title": "🥇 Gold"},
+        ],
+    )
+
+
+def _build_packages_context_for_prompt(journey) -> str:
+    """
+    Construit le contexte des packages calculés pour l'injecter dans le prompt IA.
+    Comme ça l'IA connaît les vrais prix et peut répondre correctement.
+    """
+    state = journey.discovery_state or {}
+    session_type = state.get("session_type", "studio")
+    frames  = state.get("frames", False)
+    cake    = state.get("cake",   False)
+    video   = state.get("video",  False)
+
+    extras_cost = 0
+    extras_list = []
+    if frames:
+        extras_cost += 20000
+        extras_list.append("2 A5 Photo Frames (+20,000 RWF)")
+    if cake and video:
+        extras_cost += 50000
+        extras_list.append("Birthday Cake + Highlight Video (+50,000 RWF bundle)")
+    elif cake:
+        extras_cost += 30000
+        extras_list.append("Birthday Cake (+30,000 RWF)")
+    elif video:
+        extras_cost += 29000
+        extras_list.append("Highlight Video (+29,000 RWF)")
+
+    home_fee = 69000 if session_type == "home" else 0
+    session_label = "Home" if session_type == "home" else "Studio"
+
+    packages = [
+        {"name": "Starter", "base": 50000},
+        {"name": "Silver",  "base": 70000},
+        {"name": "Gold",    "base": 100000},
+    ]
+
+    lines = [
+        "CURRENT PACKAGE PRICES (use these exact numbers):",
+        f"Session type: {session_label}",
+        f"Extras chosen: {', '.join(extras_list) if extras_list else 'None'}",
+        "",
+    ]
+    for pkg in packages:
+        total = pkg["base"] + extras_cost + home_fee
+        lines.append(f"- {pkg['name']}: {total:,} RWF")
+
+    lines += [
+        "",
+        "If an extra is removed:",
+        f"  - Remove video (-29,000 RWF, or -21,000 if cake+video bundle)",
+        f"  - Remove frames (-20,000 RWF)",
+        f"  - Remove cake (-30,000 RWF, or -21,000 if cake+video bundle)",
+        "",
+    ]
+
+    return "\n".join(lines)
