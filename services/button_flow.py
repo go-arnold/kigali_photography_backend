@@ -148,17 +148,35 @@ PACKAGE_MESSAGES = {
         "body": "Hitamo package:",
     },
     "fr": {
-        "intro": "Voici les 3 packages faits pour vous:\n",
+        "intro": "Voici les 3 packets faits pour vous:\n",
         "session_studio": "Séance en Studio",
         "session_home": "Séance à Domicile",
-        "delivery": "Livraison: {photos} Photos Éditées",
-        "unedited": "Toutes les Autres Non Éditées",
+        "delivery": "Livraison: {photos} Photos traitées",
+        "unedited": "Toutes les Autres Non traitées",
         "includes": "Inclus: {includes}",
         "question": "Lequel vous convient? 😊",
-        "body": "Choisissez votre package:",
+        "body": "Choisissez votre packet:",
     },
 }
 # ─── MAPPING BOUTON → SIGNIFICATION ─────────────────────────────────────────
+
+EXTRAS_LABELS = {
+    "en": {
+        "frames":    "2 A5 Photo Frames",
+        "cake":      "Birthday Cake",
+        "video":     "Highlight Video (15–30 sec)",
+    },
+    "rw": {
+        "frames":    "Ama frames 2 ya A5",
+        "cake":      "Cake ya Birthday",
+        "video":     "Video Ngufi (15–30 sec)",
+    },
+    "fr": {
+        "frames":    "2 Cadres Photo A5",
+        "cake":      "Gâteau d'Anniversaire",
+        "video":     "Vidéo Souvenir (15–30 sec)",
+    },
+}
 
 # Format : "button_id" → ("type", *valeurs)
 BUTTON_MAP = {
@@ -337,7 +355,7 @@ def _handle_discovery(field: str, value, from_number: str, journey, client) -> s
         return "discovery_complete_packages_sent"
 
 
-# ─── CALCUL ET PRÉSENTATION DES PACKAGES ────────────────────────────────────
+# ─── CALCUL ET PRÉSENTATION DES PACKAGES Cherche ici────────────────────────────────────
 
 def _present_packages(from_number: str, journey, client) -> None:
     state = journey.discovery_state or {}
@@ -353,21 +371,24 @@ def _present_packages(from_number: str, journey, client) -> None:
     cake    = state.get("cake",   False)
     video   = state.get("video",  False)
 
+    # Récupérer les labels dans la bonne langue
+    labels = EXTRAS_LABELS.get(lang, EXTRAS_LABELS["en"])
+
     extras_cost = 0
     extras_lines = []
     if frames:
         extras_cost += 20000
-        extras_lines.append("2 A5 Photo Frames")
+        extras_lines.append(labels["frames"])
     if cake and video:
         extras_cost += 50000
-        extras_lines.append("Birthday Cake")
-        extras_lines.append("Highlight Video (15–30 sec)")
+        extras_lines.append(labels["cake"])
+        extras_lines.append(labels["video"])
     elif cake:
         extras_cost += 30000
-        extras_lines.append("Birthday Cake")
+        extras_lines.append(labels["cake"])
     elif video:
         extras_cost += 29000
-        extras_lines.append("Highlight Video (15–30 sec)")
+        extras_lines.append(labels["video"])
 
     home_fee = 69000 if session_type == "home" else 0
     session_label = msgs["session_home"] if session_type == "home" else msgs["session_studio"]
@@ -561,7 +582,7 @@ MAIN_MENU = {
         "buttons": [
             {"id": "btn_book",     "title": "📸 Réserver"},
             {"id": "btn_prices",   "title": "💰 Voir les Prix"},
-            {"id": "btn_question", "title": "ℹ️ Poser une Question"},
+            {"id": "btn_question", "title": "Poser une Question"},
         ],
     },
 }

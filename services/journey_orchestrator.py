@@ -123,6 +123,32 @@ def handle_inbound_message(
                 conversation_id=conversation.pk,
                 tokens_used=0,  # Zéro tokens pour les boutons
             )
+        
+        # ── HUMAN TAKEOVER EARLY CHECK ──────────────────────────────────────────────
+        # Doit être vérifié AVANT tout traitement texte
+        # journey.human_takeover peut être mis à True par button_flow (payment, talk_to_agent)
+        # ou par le pipeline lui-même (budget, kinyarwanda, etc.)
+        if journey.human_takeover:
+            logger.info(
+                "Human takeover active for %s — AI silenced (early check)",
+                client.wa_number,
+            )
+            # Sauvegarder quand même le message inbound pour l'historique
+            _save_inbound(
+                client=client,
+                conversation=conversation,
+                message_id=message_id,
+                text=text or f"[{msg_type}]",
+                msg_type=msg_type,
+            )
+            conversation.touch()
+            return OrchestratorResult(
+                success=True,
+                action="human_takeover",
+                client_id=str(client.pk),
+                conversation_id=conversation.pk,
+            )
+        # ── FIN HUMAN TAKEOVER EARLY CHECK ──────────────────────────────────────────
 
         # ── PREMIER MESSAGE TEXTE → Welcome + boutons ────────────────────────────────
         # Si c'est le tout premier message du client (jamais eu de réponse AI)
@@ -220,17 +246,41 @@ def handle_inbound_message(
                 conversation_id=conversation.pk,
             )
 
+       
         # Step 6: Language detection
         if text:
             _update_language(client, text)
 
-        # Step 6b: Kinyarwanda → human takeover immédiat ----- KINYARWANDA HUMAN TAKEOVER CLEAN_DEV
-        text_words = text.strip().lower().split()
+        # ── NOUVEAU : skip Step 6b si flow_mode == "question" ──────────────────
+        # En mode question, le client peut écrire dans n'importe quelle langue
+        # sans déclencher le human takeover Kinyarwanda
+        if flow_mode == "question":
+            # Laisser l'IA répondre normalement — sauter Step 6b entièrement
+            pass
+        else:
+            # Step 6b: Kinyarwanda → human takeover
+            text_words = text.strip().lower().split() if text else []
+            SHORT_SAFE_WORDS = {
+                "ok", "yes", "no", "silver", "gold", "starter",
+                "studio", "home", "package"
+            }
+            is_short_safe = len(text_words) <= 3 and all(w in SHORT_SAFE_WORDS for w in text_words)
 
-        SHORT_SAFE_WORDS = {
-            "ok", "yes", "no", "silver", "gold", "starter",
-            "studio", "home", "package"
-        }
+            if (
+                client.language not in ["en", "unknown"]
+                and not is_short_safe
+                and not journey.human_takeover
+            ):
+                journey.flag_human_takeover("Client writes in Kinyarwanda — human agent required")
+                _notify_human_takeover(client, conversation, reason="Kinyarwanda client — needs human agent")
+                return OrchestratorResult(
+                    success=True,
+                    action="human_takeover",
+                    client_id=str(client.pk),
+                    conversation_id=conversation.pk,
+                )
+
+        
 
         is_short_safe = len(text_words) <= 3 and all(w in SHORT_SAFE_WORDS for w in text_words)
 
