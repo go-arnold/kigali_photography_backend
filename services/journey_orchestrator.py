@@ -105,7 +105,6 @@ def handle_inbound_message(
         )
 
         # ── BRANCHEMENT BOUTONS ──────────────────────────────────────────────────────
-        # Si c'est un clic de bouton → flow déterministe, pas d'IA
         if msg_type == "interactive" and interactive_id:
             action = handle_button_click(
                 interactive_id=interactive_id,
@@ -121,19 +120,12 @@ def handle_inbound_message(
                 action="sent",
                 client_id=str(client.pk),
                 conversation_id=conversation.pk,
-                tokens_used=0,  # Zéro tokens pour les boutons
+                tokens_used=0,
             )
-        
-        # ── HUMAN TAKEOVER EARLY CHECK ──────────────────────────────────────────────
-        # Doit être vérifié AVANT tout traitement texte
-        # journey.human_takeover peut être mis à True par button_flow (payment, talk_to_agent)
-        # ou par le pipeline lui-même (budget, kinyarwanda, etc.)
+
+        # ── HUMAN TAKEOVER EARLY CHECK ───────────────────────────────────────────────
         if journey.human_takeover:
-            logger.info(
-                "Human takeover active for %s — AI silenced (early check)",
-                client.wa_number,
-            )
-            # Sauvegarder quand même le message inbound pour l'historique
+            logger.info("Human takeover active for %s — AI silenced (early check)", client.wa_number)
             _save_inbound(
                 client=client,
                 conversation=conversation,
@@ -148,20 +140,16 @@ def handle_inbound_message(
                 client_id=str(client.pk),
                 conversation_id=conversation.pk,
             )
-        # ── FIN HUMAN TAKEOVER EARLY CHECK ──────────────────────────────────────────
 
-        # ── PREMIER MESSAGE TEXTE → Welcome + boutons ────────────────────────────────
-        # Si c'est le tout premier message du client (jamais eu de réponse AI)
-        # ET pas en mode "question" → envoyer le welcome avec boutons
+        # ── ROUTING TEXTE LIBRE ───────────────────────────────────────────────────────
         flow_mode = getattr(journey, "flow_mode", "") or ""
 
-        # Premier contact = flow_mode vide ET pas de messages outbound en DB
-        is_first_contact = (
-            flow_mode == ""
-            and not conversation.messages.filter(direction="outbound").exists()
-        )
+        if flow_mode == "question" and text:
+            # Mode question → pipeline IA directement, skip tout le reste
+            pass  # continue vers Step 3
 
-        if is_first_contact:
+        elif flow_mode == "" and not conversation.messages.filter(direction="outbound").exists():
+            # Premier contact → welcome
             send_welcome(from_number)
             _set_flow_mode_on_journey(journey, "welcome_sent")
             conversation.touch()
@@ -173,8 +161,20 @@ def handle_inbound_message(
                 tokens_used=0,
             )
 
-        # Texte libre pendant discovery → répondre + renvoyer boutons
-        if flow_mode in ("booking", "prices") and text and msg_type != "interactive":
+        elif flow_mode == "welcome_sent" and text:
+            # Client tape du texte après le welcome sans cliquer un bouton → renvoyer menu
+            send_welcome(from_number)
+            conversation.touch()
+            return OrchestratorResult(
+                success=True,
+                action="sent",
+                client_id=str(client.pk),
+                conversation_id=conversation.pk,
+                tokens_used=0,
+            )
+
+        elif flow_mode in ("booking", "prices") and text:
+            # Texte pendant discovery → répondre + renvoyer boutons
             from services.button_flow import handle_text_during_discovery
             handle_text_during_discovery(
                 text=text,
@@ -192,26 +192,12 @@ def handle_inbound_message(
                 tokens_used=0,
             )
 
-        # ── MESSAGE TEXTE LIBRE ──────────────────────────────────────────────────────
-        # flow_mode == "question" → laisser l'IA répondre (ancien pipeline continue)
-        # flow_mode == "booking"/"prices" et texte hors-contexte → renvoyer les boutons
-        if flow_mode in ("booking", "prices") and text:
-            from services.button_flow import handle_text_during_discovery
-            handle_text_during_discovery(
-                text=text,
-                from_number=from_number,
-                journey=journey,
-                client=client,
-                conversation=conversation,
-            )
-            conversation.touch()
-            return OrchestratorResult(
-                success=True,
-                action="sent",
-                client_id=str(client.pk),
-                conversation_id=conversation.pk,
-                tokens_used=0,  # Les tokens sont enregistrés dans handle_text_during_discovery
-            )
+        elif flow_mode not in ("question",) and text and flow_mode != "":
+            # flow_mode inconnu mais pas vide → renvoyer le menu par sécurité
+            # (ex: flow_mode = "payment_confirmation" et client tape du texte)
+            pass  # laisser le pipeline IA gérer
+
+        # ── FIN ROUTING ───────────────────────────────────────────────────────────────
         # ── FIN BRANCHEMENT BOUTONS ──────────────────────────────────────────────────
 
         # Step 3: Save inbound message
@@ -247,32 +233,32 @@ def handle_inbound_message(
             )
 
        
-        # Step 6: Language detection
-        if text:
+        # Step 6: Language detection — NE PAS changer la langue en mode question
+        # pour éviter de déclencher le human takeover Kinyarwanda
+        if text and flow_mode != "question":
             _update_language(client, text)
 
-        # ── NOUVEAU : skip Step 6b si flow_mode == "question" ──────────────────
-        # En mode question, le client peut écrire dans n'importe quelle langue
-        # sans déclencher le human takeover Kinyarwanda
-        if flow_mode == "question":
-            # Laisser l'IA répondre normalement — sauter Step 6b entièrement
-            pass
-        else:
-            # Step 6b: Kinyarwanda → human takeover
+        # Step 6b: Kinyarwanda → human takeover (seulement hors mode question)
+        if flow_mode != "question":
             text_words = text.strip().lower().split() if text else []
             SHORT_SAFE_WORDS = {
                 "ok", "yes", "no", "silver", "gold", "starter",
                 "studio", "home", "package"
             }
-            is_short_safe = len(text_words) <= 3 and all(w in SHORT_SAFE_WORDS for w in text_words)
-
+            is_short_safe = (
+                len(text_words) <= 3
+                and all(w in SHORT_SAFE_WORDS for w in text_words)
+            )
             if (
                 client.language not in ["en", "unknown"]
                 and not is_short_safe
                 and not journey.human_takeover
             ):
                 journey.flag_human_takeover("Client writes in Kinyarwanda — human agent required")
-                _notify_human_takeover(client, conversation, reason="Kinyarwanda client — needs human agent")
+                _notify_human_takeover(
+                    client, conversation,
+                    reason="Kinyarwanda client — needs human agent"
+                )
                 return OrchestratorResult(
                     success=True,
                     action="human_takeover",
