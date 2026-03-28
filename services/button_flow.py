@@ -430,10 +430,17 @@ def _handle_package_choice(package_name: str, from_number: str, journey, client)
 # ─── HANDLER PAIEMENT CONFIRMÉ ───────────────────────────────────────────────
 
 def _handle_payment_confirmed(from_number: str, journey, client) -> str:
+    # Imports en dehors du try — évite UnboundLocalError
+    from services.journey_orchestrator import (
+        _notify_human_takeover,
+        _send_payment_notification_email,
+    )
+
+    journey.flag_human_takeover("Client confirmed payment via button")
+
     # Construire le formulaire de booking pour le dashboard
-    state = journey.discovery_state or {}
-    pkg   = journey.selected_package or "?"
-    lang  = getattr(client, "language", "en") or "en"
+    pkg  = journey.selected_package or "?"
+    lang = getattr(client, "language", "en") or "en"
 
     if lang == "rw":
         booking_form = (
@@ -445,6 +452,17 @@ def _handle_payment_confirmed(from_number: str, journey, client) -> str:
             f"Package: {pkg}\n"
             f"Umunsi w'isoko:\n"
             f"Isaha y'isoko:"
+        )
+    elif lang == "fr":
+        booking_form = (
+            f"Bien reçu! Merci.\n\n"
+            f"Veuillez remplir vos informations:\n\n"
+            f"Nom:\n"
+            f"Sexe de l'enfant:\n"
+            f"Âge de l'enfant:\n"
+            f"Package: {pkg}\n"
+            f"Jour de réservation:\n"
+            f"Heure de réservation:"
         )
     else:
         booking_form = (
@@ -458,65 +476,58 @@ def _handle_payment_confirmed(from_number: str, journey, client) -> str:
             f"Booking Time:"
         )
 
-    _notify_human_takeover(
-        client, conversation,
-        reason="Payment confirmed by client via button",
-        ai_suggestion=booking_form,   # ← formulaire prêt à envoyer
-    )
-    journey.flag_human_takeover("Client confirmed payment via button")
     try:
-        from services.journey_orchestrator import (
-            _notify_human_takeover,
-            _send_payment_notification_email,
-        )
         conversation = (
             client.conversations.filter(window_status="open")
             .order_by("-started_at").first()
         )
         if conversation:
             _notify_human_takeover(
-                client, conversation,
-                reason="Payment confirmed by client via button"
+                client,
+                conversation,
+                reason="Payment confirmed by client via button",
+                ai_suggestion=booking_form,
             )
-            # ← passer journey ici
             _send_payment_notification_email(client, conversation, journey=journey)
     except Exception as exc:
         logger.warning("Notification failed after payment_confirmed: %s", exc)
 
-    
     send_text(to=from_number, message=_m(client, "payment_confirmed"))
     return "payment_confirmed_human_takeover"
 
 
-
 # ─── HANDLER TALK TO AGENT ───────────────────────────────────────────────────
 def _handle_talk_to_agent(from_number: str, journey, client) -> str:
-    _notify_human_takeover(
-    client, conversation,
-    reason="Client requested human agent",
-    ai_suggestion=(
+    # Import en dehors du try
+    from services.journey_orchestrator import _notify_human_takeover
+
+    journey.flag_human_takeover("Client requested human agent via button")
+
+    agent_message = (
         f"Client {client.name or client.wa_number} requested to speak "
         f"with a human agent.\n\n"
         f"Journey: {journey.phase}/{journey.step}\n"
         f"Heat: {journey.heat_label}\n\n"
         f"Action: Take over the conversation and assist the client directly."
-        ),
     )
-    journey.flag_human_takeover("Client requested human agent via button")
+
     try:
-        from services.journey_orchestrator import _notify_human_takeover
         conversation = (
             client.conversations.filter(window_status="open")
             .order_by("-started_at").first()
         )
         if conversation:
-            _notify_human_takeover(client, conversation, reason="Client requested human agent")
+            _notify_human_takeover(
+                client,
+                conversation,
+                reason="Client requested human agent",
+                ai_suggestion=agent_message,
+            )
     except Exception as exc:
         logger.warning("Notification failed after talk_to_agent: %s", exc)
 
     send_text(to=from_number, message=_m(client, "talk_to_agent"))
     return "talk_to_agent_human_takeover"
-
 MAIN_MENU = {
     "en": {
         "text": (
