@@ -894,21 +894,57 @@ def _maybe_flag_payment_confirmation(journey, ai_response_text: str, conversatio
                     journey.client.wa_number,
                 )
                 # Envoie email notification
-                _send_payment_notification_email(journey.client, conversation)
+                _send_payment_notification_email(journey.client, conversation, journey = journey)
         except Exception as exc:
             logger.warning("Could not advance to payment_confirmation: %s", exc)
 
 
-def _send_payment_notification_email(client, conversation=None):
+def _send_payment_notification_email(client, conversation=None, journey=None):
     try:
         from django.core.mail import EmailMultiAlternatives
         from django.conf import settings
 
-        package_info = "See dashboard"
-        extras = "None"
+        # ── Récupérer les infos depuis journey.discovery_state (flow boutons)
         chosen = "Unknown"
+        extras = "None"
+        session_label = "Studio"
+        total_price = ""
 
-        if conversation:
+        if journey:
+            chosen = journey.selected_package or "Unknown"
+            state = journey.discovery_state or {}
+
+            session_type = state.get("session_type", "studio")
+            session_label = "Home" if session_type == "home" else "Studio"
+            frames = state.get("frames", False)
+            cake   = state.get("cake",   False)
+            video  = state.get("video",  False)
+
+            extras_list = []
+            extras_cost = 0
+            if frames:
+                extras_cost += 20000
+                extras_list.append("2 A5 Photo Frames")
+            if cake and video:
+                extras_cost += 50000
+                extras_list.append("Birthday Cake + Highlight Video")
+            elif cake:
+                extras_cost += 30000
+                extras_list.append("Birthday Cake")
+            elif video:
+                extras_cost += 29000
+                extras_list.append("Highlight Video")
+
+            home_fee = 69000 if session_type == "home" else 0
+            extras = ", ".join(extras_list) if extras_list else "None"
+
+            base_prices = {"Starter": 50000, "Silver": 70000, "Gold": 100000}
+            base = base_prices.get(chosen, 0)
+            total = base + extras_cost + home_fee
+            total_price = f"{total:,} RWF" if total else ""
+
+        # ── Fallback : chercher dans les messages DB (ancien flow IA)
+        elif conversation:
             last_client_msg = conversation.messages.filter(
                 direction="inbound"
             ).order_by("-timestamp").first()
@@ -929,7 +965,8 @@ def _send_payment_notification_email(client, conversation=None):
             f"Client ready to pay.\n\n"
             f"Name: {client.name or 'Unknown'}\n"
             f"Phone: {client.wa_number}\n\n"
-            f"Package chosen: {chosen}\n"
+            f"Package: {chosen} {total_price}\n"
+            f"Session: {session_label}\n"
             f"Extras: {extras}\n\n"
             f"Action: Verify MoMo on 798741 then approve in dashboard.\n"
             f"Dashboard: https://senior-madeleine-matabar-93648cd5.koyeb.app/"
@@ -948,14 +985,15 @@ def _send_payment_notification_email(client, conversation=None):
     .header p {{ color: #e2b96f; margin: 8px 0 0; font-size: 14px; letter-spacing: 1px; }}
     .badge {{ display: inline-block; background: #e2b96f; color: #1a1a2e; padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: bold; margin-top: 15px; letter-spacing: 1px; }}
     .body {{ padding: 35px 40px; }}
-    .section-title {{ font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #999; margin-bottom: 8px; }}
-    .info-block {{ background: #f9f6f2; border-left: 4px solid #e2b96f; border-radius: 6px; padding: 16px 20px; margin-bottom: 20px; }}
+    .section-title {{ font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #999; margin-bottom: 8px; margin-top: 24px; }}
+    .info-block {{ background: #f9f6f2; border-left: 4px solid #e2b96f; border-radius: 6px; padding: 16px 20px; margin-bottom: 16px; }}
     .info-block p {{ margin: 6px 0; color: #333; font-size: 15px; }}
     .info-block strong {{ color: #1a1a2e; }}
-    .package-block {{ background: linear-gradient(135deg, #1a1a2e, #0f3460); border-radius: 10px; padding: 20px 24px; margin-bottom: 20px; }}
+    .package-block {{ background: linear-gradient(135deg, #1a1a2e, #0f3460); border-radius: 10px; padding: 20px 24px; margin-bottom: 16px; }}
     .package-block p {{ margin: 6px 0; color: #fff; font-size: 15px; }}
-    .package-block .pkg-name {{ color: #e2b96f; font-size: 18px; font-weight: bold; margin-bottom: 10px; }}
-    .package-block .extras {{ color: #a8d8ea; font-size: 13px; }}
+    .pkg-name {{ color: #e2b96f; font-size: 20px; font-weight: bold; margin-bottom: 8px; }}
+    .pkg-price {{ color: #fff; font-size: 18px; font-weight: bold; }}
+    .pkg-detail {{ color: #a8d8ea; font-size: 13px; }}
     .action-btn {{ display: block; background: #e2b96f; color: #1a1a2e; text-align: center; padding: 16px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 16px; letter-spacing: 1px; margin: 25px 0; }}
     .footer {{ background: #1a1a2e; padding: 20px; text-align: center; }}
     .footer p {{ color: #666; font-size: 12px; margin: 4px 0; }}
@@ -970,6 +1008,7 @@ def _send_payment_notification_email(client, conversation=None):
       <span class="badge">💳 ACTION REQUIRED</span>
     </div>
     <div class="body">
+
       <div class="section-title">Client Details</div>
       <div class="info-block">
         <p><strong>Name:</strong> {client.name or 'Unknown'}</p>
@@ -978,20 +1017,23 @@ def _send_payment_notification_email(client, conversation=None):
 
       <div class="section-title">Package Selected</div>
       <div class="package-block">
-        <p class="pkg-name">📦 {chosen}</p>
-        <p class="extras">✨ Extras: {extras}</p>
+        <p class="pkg-name">📦 {chosen} Package</p>
+        <p class="pkg-price">{total_price}</p>
+        <p class="pkg-detail">📍 {session_label} Session</p>
+        <p class="pkg-detail">✨ Extras: {extras}</p>
       </div>
 
       <div class="section-title">Action Required</div>
       <div class="info-block">
         <p>1. Verify MoMo payment on <strong>798741</strong></p>
         <p>2. Approve the booking in the dashboard</p>
-        <p>3. Release Ai and continue discussing with the client</p>
+        <p>3. Send the booking form to the client</p>
       </div>
 
       <a href="https://senior-madeleine-matabar-93648cd5.koyeb.app/" class="action-btn">
         Open Dashboard →
       </a>
+
     </div>
     <div class="footer">
       <p>KP Kids Studio — Kigali, Rwanda</p>
@@ -1001,33 +1043,30 @@ def _send_payment_notification_email(client, conversation=None):
 </body>
 </html>
 """
-
         msg = EmailMultiAlternatives(
-            subject=f"💳 Payment pending — {client.name or client.wa_number}",
+            subject=f"💳 Payment pending — {client.name or client.wa_number} | {chosen} {total_price}",
             body=text_body,
             from_email=settings.DEFAULT_FROM_EMAIL,
             to=[settings.STUDIO_NOTIFICATION_EMAIL],
         )
         msg.attach_alternative(html_body, "text/html")
         msg.send(fail_silently=True)
-
         logger.info("Payment notification sent for %s", client.wa_number)
+
     except Exception as exc:
         logger.warning("Email notification failed: %s", exc)
 
-
-def _notify_human_takeover(client, conversation, reason: str):
-    """
-    Log and optionally notify dashboard that a client needs human handling.
-    In future: push notification to studio staff.
-    """
+def _notify_human_takeover(
+    client, conversation, reason: str,
+    ai_suggestion: str = "[AI silenced — human takeover required]"
+):
     from apps.conversations.models import ApprovalQueue, ApprovalAction
 
     ApprovalQueue.objects.create(
         client=client,
         conversation=conversation,
         action=ApprovalAction.ESCALATE,
-        ai_suggestion="[AI silenced — human takeover required]",
+        ai_suggestion=ai_suggestion,
         ai_reasoning=reason,
         heat_score_at_suggestion=getattr(
             getattr(client, "journey_state", None), "heat_score", 50
