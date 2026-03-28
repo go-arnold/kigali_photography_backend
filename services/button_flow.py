@@ -33,7 +33,7 @@ DISCOVERY_STEPS = {
         },
         {
             "key": "frames",
-            "message": "Would you like 2 A5 photo frames included? 🖼️\n(+20,000 RWF)",
+            "message": "Would you like 2 A5 photo frames included? 🖼️",
             "buttons": [
                 {"id": "disc_frames_yes", "title": "✅ Yes"},
                 {"id": "disc_frames_no",  "title": "❌ No"},
@@ -41,7 +41,7 @@ DISCOVERY_STEPS = {
         },
         {
             "key": "cake",
-            "message": "How about a birthday cake? 🎂\n(+30,000 RWF)",
+            "message": "How about a birthday cake? 🎂",
             "buttons": [
                 {"id": "disc_cake_yes", "title": "✅ Yes"},
                 {"id": "disc_cake_no",  "title": "❌ No"},
@@ -49,7 +49,7 @@ DISCOVERY_STEPS = {
         },
         {
             "key": "video",
-            "message": "Would you like a short highlight video? 🎬\n(15–30 sec, +29,000 RWF)",
+            "message": "Would you like a short highlight video? 🎬",
             "buttons": [
                 {"id": "disc_video_yes", "title": "✅ Yes"},
                 {"id": "disc_video_no",  "title": "❌ No"},
@@ -67,7 +67,7 @@ DISCOVERY_STEPS = {
         },
         {
             "key": "frames",
-            "message": "Mwifuza frames 2 za A5? 🖼️\n(+20,000 RWF)",
+            "message": "Mwifuza frames 2 za A5? 🖼️",
             "buttons": [
                 {"id": "disc_frames_yes", "title": "✅ Yego"},
                 {"id": "disc_frames_no",  "title": "❌ Oya"},
@@ -75,7 +75,7 @@ DISCOVERY_STEPS = {
         },
         {
             "key": "cake",
-            "message": "Mwifuza cake ya za birthday? 🎂\n(+30,000 RWF)",
+            "message": "Mwifuza cake ya za birthday? 🎂",
             "buttons": [
                 {"id": "disc_cake_yes", "title": "✅ Yego"},
                 {"id": "disc_cake_no",  "title": "❌ Oya"},
@@ -83,7 +83,7 @@ DISCOVERY_STEPS = {
         },
         {
             "key": "video",
-            "message": "Mwifuza video ngufi? 🎬\n(15–30 sec, +29,000 RWF)",
+            "message": "Mwifuza video ngufi? 🎬",
             "buttons": [
                 {"id": "disc_video_yes", "title": "✅ Yego"},
                 {"id": "disc_video_no",  "title": "❌ Oya"},
@@ -101,7 +101,7 @@ DISCOVERY_STEPS = {
         },
         {
             "key": "frames",
-            "message": "Souhaitez-vous 2 cadres photo A5? 🖼️\n(+20,000 RWF)",
+            "message": "Souhaitez-vous 2 cadres photo A5? 🖼️",
             "buttons": [
                 {"id": "disc_frames_yes", "title": "✅ Oui"},
                 {"id": "disc_frames_no",  "title": "❌ Non"},
@@ -109,7 +109,7 @@ DISCOVERY_STEPS = {
         },
         {
             "key": "cake",
-            "message": "Et un gâteau d'anniversaire? 🎂\n(+30,000 RWF)",
+            "message": "Et un gâteau d'anniversaire? 🎂",
             "buttons": [
                 {"id": "disc_cake_yes", "title": "✅ Oui"},
                 {"id": "disc_cake_no",  "title": "❌ Non"},
@@ -117,7 +117,7 @@ DISCOVERY_STEPS = {
         },
         {
             "key": "video",
-            "message": "Une courte vidéo souvenir? 🎬\n(15–30 sec, +29,000 RWF)",
+            "message": "Une courte vidéo souvenir? 🎬",
             "buttons": [
                 {"id": "disc_video_yes", "title": "✅ Oui"},
                 {"id": "disc_video_no",  "title": "❌ Non"},
@@ -204,7 +204,7 @@ def handle_button_click(interactive_id: str, from_number: str, journey, client) 
     mapping = BUTTON_MAP.get(interactive_id)
     if not mapping:
         logger.warning("Unknown button_id: %s from %s", interactive_id, from_number)
-        # Bouton inconnu → renvoyer le menu principal
+        send_text(to=from_number, message=_m(client, "unknown_button"))
         send_welcome(from_number)
         return "unknown_button_resent_welcome"
 
@@ -280,53 +280,28 @@ def _handle_action(action: str, from_number: str, journey, client) -> str:
             "set_language_fr": "fr",
         }
         lang = lang_map[action]
-        
-        # Sauvegarder la langue sur le client
         client.language = lang
         client.save(update_fields=["language", "updated_at"])
-        
-        # Envoyer le menu principal dans la langue choisie
         _send_main_menu(to=from_number, lang=lang)
         return f"language_set_{lang}"
-    
+
     if action == "start_booking":
         _set_flow_mode(journey, "booking")
         _reset_discovery(journey)
-        send_text(
-            to=from_number,
-            message=(
-                "Perfect! 🎉 To prepare your session, "
-                "I just need to ask you a few quick questions "
-                "so we can build the right package for you.\n\n"
-                "Let's start! 👇"
-            ),
-        )
-        _send_next_discovery_question(from_number, journey,client)
+        send_text(to=from_number, message=_m(client, "start_booking"))
+        _send_next_discovery_question(from_number, journey, client)
         return "started_booking_flow"
 
     if action == "start_prices":
         _set_flow_mode(journey, "prices")
         _reset_discovery(journey)
-        send_text(
-            to=from_number,
-            message=(
-                "Our prices depend on what's included in your package. 📦\n\n"
-                "Let me ask you a few quick questions "
-                "and I'll build your custom price right away!"
-            ),
-        )
-        _send_next_discovery_question(from_number,client, journey)
+        send_text(to=from_number, message=_m(client, "start_prices"))
+        _send_next_discovery_question(from_number, journey, client)
         return "started_prices_flow"
 
     if action == "start_question":
         _set_flow_mode(journey, "question")
-        send_text(
-            to=from_number,
-            message=(
-                "Of course! 😊 Feel free to type your question "
-                "and I'll do my best to help you."
-            ),
-        )
+        send_text(to=from_number, message=_m(client, "start_question"))
         return "started_question_mode"
 
     if action == "payment_confirmed":
@@ -337,7 +312,6 @@ def _handle_action(action: str, from_number: str, journey, client) -> str:
 
     logger.warning("Unhandled action: %s", action)
     return "unhandled_action"
-
 
 # ─── HANDLER DISCOVERY ───────────────────────────────────────────────────────
 
@@ -433,65 +407,35 @@ def _present_packages(from_number: str, journey, client) -> None:
 # ─── HANDLER CHOIX DE PACKAGE ────────────────────────────────────────────────
 
 def _handle_package_choice(package_name: str, from_number: str, journey, client) -> str:
-    """
-    Le client a choisi un package → envoyer les instructions de paiement
-    puis les boutons post-booking.
-    """
-    # Sauvegarder le choix
     journey.selected_package = package_name
     journey.save(update_fields=["selected_package", "updated_at"])
 
-    # Message de paiement
     send_text(
         to=from_number,
-        message=(
-            f"Great choice! 🎉 You selected the *{package_name} Package*.\n\n"
-            f"To secure your date, please send the booking fee of "
-            f"*20,000 RWF* to:\n\n"
-            f"📱 MTN MoMo: *798741*\n"
-            f"Name: *Kigali Photography Ltd*\n\n"
-            f"The rest is paid after the session. "
-            f"Just let us know once you're done! 🙏"
-        ),
+        message=_m(client, "package_chosen", package_name=package_name),
     )
-
-    # Boutons post-booking
     send_buttons(
         to=from_number,
-        body="What would you like to do next?",
+        body=_m(client, "package_choice_body"),
         buttons=[
-            {"id": "btn_paid",  "title": "✅ I've Sent Payment"},
-            {"id": "btn_agent", "title": "🧑 Talk to Agent"},
+            {"id": "btn_paid",  "title": _m(client, "btn_paid_title")},
+            {"id": "btn_agent", "title": _m(client, "btn_agent_title")},
         ],
     )
 
-    # Avancer le journey
     from apps.clients.models import JourneyPhase, JourneyStep
     journey.advance(JourneyPhase.BOOKING, JourneyStep.PAYMENT_CONFIRMATION)
-
     return f"package_chosen_{package_name.lower()}"
-
 
 # ─── HANDLER PAIEMENT CONFIRMÉ ───────────────────────────────────────────────
 
 def _handle_payment_confirmed(from_number: str, journey, client) -> str:
-    """
-    Client dit qu'il a payé → human takeover immédiat + email notification.
-    """
-    # Silencer l'IA
     journey.flag_human_takeover("Client confirmed payment via button")
-
-    # Notifier le dashboard
     try:
         from services.journey_orchestrator import _notify_human_takeover, _send_payment_notification_email
-        from apps.clients.models import JourneyPhase, JourneyStep
-
-        # Récupérer la conversation active
         conversation = (
-            client.conversations
-            .filter(window_status="open")
-            .order_by("-started_at")
-            .first()
+            client.conversations.filter(window_status="open")
+            .order_by("-started_at").first()
         )
         if conversation:
             _notify_human_takeover(client, conversation, reason="Payment confirmed by client via button")
@@ -499,46 +443,25 @@ def _handle_payment_confirmed(from_number: str, journey, client) -> str:
     except Exception as exc:
         logger.warning("Notification failed after payment_confirmed: %s", exc)
 
-    # Message de confirmation au client
-    send_text(
-        to=from_number,
-        message=(
-            "Thank you! 🙏 We've received your confirmation.\n\n"
-            "We're verifying your payment now and will confirm your booking shortly. "
-            "A team member will be with you in a moment! 😊"
-        ),
-    )
+    send_text(to=from_number, message=_m(client, "payment_confirmed"))
     return "payment_confirmed_human_takeover"
-
 
 # ─── HANDLER TALK TO AGENT ───────────────────────────────────────────────────
 
 def _handle_talk_to_agent(from_number: str, journey, client) -> str:
-    """
-    Client demande un agent humain → human takeover immédiat.
-    """
     journey.flag_human_takeover("Client requested human agent via button")
-
     try:
         from services.journey_orchestrator import _notify_human_takeover
         conversation = (
-            client.conversations
-            .filter(window_status="open")
-            .order_by("-started_at")
-            .first()
+            client.conversations.filter(window_status="open")
+            .order_by("-started_at").first()
         )
         if conversation:
             _notify_human_takeover(client, conversation, reason="Client requested human agent")
     except Exception as exc:
         logger.warning("Notification failed after talk_to_agent: %s", exc)
 
-    send_text(
-        to=from_number,
-        message=(
-            "Of course! 😊 One of our team members will be with you shortly.\n"
-            "Thank you for your patience! 🙏"
-        ),
-    )
+    send_text(to=from_number, message=_m(client, "talk_to_agent"))
     return "talk_to_agent_human_takeover"
 
 MAIN_MENU = {
@@ -579,6 +502,161 @@ MAIN_MENU = {
         ],
     },
 }
+
+MESSAGES = {
+    "en": {
+        # Actions
+        "start_booking": (
+            "Perfect! 🎉 To prepare your session, "
+            "I just need to ask you a few quick questions "
+            "so we can build the right package for you.\n\nLet's start! 👇"
+        ),
+        "start_prices": (
+            "Our prices depend on what's included in your package. 📦\n\n"
+            "Let me ask you a few quick questions "
+            "and I'll build your custom price right away!"
+        ),
+        "start_question": (
+            "Of course! 😊 Feel free to type your question "
+            "and I'll do my best to help you."
+        ),
+        # Package choice
+        "package_chosen": (
+            "Great choice! 🎉 You selected the *{package_name} Package*.\n\n"
+            "To secure your date, please send the booking fee of "
+            "*20,000 RWF* to:\n\n"
+            "📱 MTN MoMo: *798741*\n"
+            "Name: *Kigali Photography Ltd*\n\n"
+            "The rest is paid after the session. "
+            "Just let us know once you're done! 🙏"
+        ),
+        "package_choice_body": "What would you like to do next?",
+        "btn_paid_title":  "✅ I've Sent Payment",
+        "btn_agent_title": "🧑 Talk to Agent",
+        # Payment confirmed
+        "payment_confirmed": (
+            "Thank you! 🙏 We've received your confirmation.\n\n"
+            "We're verifying your payment now and will confirm your booking shortly. "
+            "A team member will be with you in a moment! 😊"
+        ),
+        # Talk to agent
+        "talk_to_agent": (
+            "Of course! 😊 One of our team members will be with you shortly.\n"
+            "Thank you for your patience! 🙏"
+        ),
+        # Text during discovery
+        "resend_options":    "No worries! 😊 Let me re-send the options:",
+        "fallback_question": "Great question! 😊 Our team will follow up on that.",
+        "fallback_recalc":   "Just let me know what you'd like to change and I'll recalculate! 😊",
+        "recalc_confirm":    "Got it! 😊 Let me recalculate your packages with {change}.",
+        "package_buttons_body": "Which package would you like?",
+        # Unknown button
+        "unknown_button": "No worries! 😊 Let me re-send the options:",
+    },
+    "rw": {
+        "start_booking": (
+            "Nziza! 🎉 Kugira ngo dutegure session yanyu, "
+            "ngomba kubabaza ibibazo bike kugira ngo "
+            "twubake package ikubahirije.\n\nTangirira! 👇"
+        ),
+        "start_prices": (
+            "Ibiciro byacu biterwa n'ibiri muri package. 📦\n\n"
+            "Ngomba kubabaza ibibazo bike "
+            "kugira ngo mbahe igiciro cyihariye!"
+        ),
+        "start_question": (
+            "Yego rwose! 😊 Baza ikibazo cyawe "
+            "kandi nzagerageza kukifashisha."
+        ),
+        "package_chosen": (
+            "Amahitamo nziza! 🎉 Mwahisemo *{package_name} Package*.\n\n"
+            "Kugira ngo twohereze itariki yanyu, "
+            "mwishyure booking fee ya *20,000 RWF* kuri:\n\n"
+            "📱 MTN MoMo: *798741*\n"
+            "Izina: *Kigali Photography Ltd*\n\n"
+            "Andi yishyurwa session irangiye. "
+            "Mutubanize murangije! 🙏"
+        ),
+        "package_choice_body": "Ni iki mushaka gukora?",
+        "btn_paid_title":  "✅ Nishyuye",
+        "btn_agent_title": "🧑 Vugana n'Umukozi",
+        "payment_confirmed": (
+            "Murakoze! 🙏 Twayakiriye inyandiko yanyu.\n\n"
+            "Turimo gusuzuma payment yanyu kandi tuzemeza "
+            "igaburo ryanyu vuba. "
+            "Umwe mu bakoze bacu azaza vuba! 😊"
+        ),
+        "talk_to_agent": (
+            "Yego rwose! 😊 Umwe mu bakoze bacu azaza vuba.\n"
+            "Murakoze kwihangana! 🙏"
+        ),
+        "resend_options":    "Ntakibazo! 😊 Reka nongere nohereze amahitamo:",
+        "fallback_question": "Ikibazo cyiza! 😊 Itsinda ryacu rizakurikira.",
+        "fallback_recalc":   "Mubwire ibyo mushaka guhindura kandi nzababara! 😊",
+        "recalc_confirm":    "Nkuwe! 😊 Reka nongere nbare packages na {change}.",
+        "package_buttons_body": "Ni iyihe package mushaka?",
+        "unknown_button": "Ntakibazo! 😊 Reka nongere nohereze amahitamo:",
+    },
+    "fr": {
+        "start_booking": (
+            "Parfait! 🎉 Pour préparer votre séance, "
+            "j'ai juste besoin de vous poser quelques questions rapides "
+            "pour créer le bon package pour vous.\n\nC'est parti! 👇"
+        ),
+        "start_prices": (
+            "Nos prix dépendent de ce qui est inclus dans votre package. 📦\n\n"
+            "Laissez-moi vous poser quelques questions rapides "
+            "et je construirai votre prix personnalisé!"
+        ),
+        "start_question": (
+            "Bien sûr! 😊 N'hésitez pas à poser votre question "
+            "et je ferai de mon mieux pour vous aider."
+        ),
+        "package_chosen": (
+            "Excellent choix! 🎉 Vous avez sélectionné le *{package_name} Package*.\n\n"
+            "Pour réserver votre date, veuillez envoyer les frais de réservation "
+            "de *20,000 RWF* à:\n\n"
+            "📱 MTN MoMo: *798741*\n"
+            "Nom: *Kigali Photography Ltd*\n\n"
+            "Le reste est payé après la séance. "
+            "Faites-nous signe une fois que c'est fait! 🙏"
+        ),
+        "package_choice_body": "Que souhaitez-vous faire ensuite?",
+        "btn_paid_title":  "✅ J'ai Envoyé",
+        "btn_agent_title": "🧑 Parler à un Agent",
+        "payment_confirmed": (
+            "Merci! 🙏 Nous avons reçu votre confirmation.\n\n"
+            "Nous vérifions votre paiement et confirmerons votre réservation "
+            "sous peu. Un membre de notre équipe sera avec vous bientôt! 😊"
+        ),
+        "talk_to_agent": (
+            "Bien sûr! 😊 Un membre de notre équipe sera avec vous bientôt.\n"
+            "Merci de votre patience! 🙏"
+        ),
+        "resend_options":    "Pas de souci! 😊 Je vous renvoie les options:",
+        "fallback_question": "Bonne question! 😊 Notre équipe vous répondra.",
+        "fallback_recalc":   "Dites-moi ce que vous souhaitez changer et je recalcule! 😊",
+        "recalc_confirm":    "Compris! 😊 Je recalcule vos packages avec {change}.",
+        "package_buttons_body": "Quel package souhaitez-vous?",
+        "unknown_button": "Pas de souci! 😊 Je vous renvoie les options:",
+    },
+}
+
+def _m(client_or_lang, key: str, **kwargs) -> str:
+    """
+    Récupère un message dans la bonne langue.
+    Accepte un objet client ou une string langue directement.
+    kwargs = variables à formater dans le message (ex: package_name="Gold")
+    """
+    if isinstance(client_or_lang, str):
+        lang = client_or_lang
+    else:
+        lang = getattr(client_or_lang, "language", "en") or "en"
+    
+    lang_msgs = MESSAGES.get(lang, MESSAGES["en"])
+    msg = lang_msgs.get(key, MESSAGES["en"].get(key, ""))
+    
+    return msg.format(**kwargs) if kwargs else msg
 
 def _send_main_menu(to: str, lang: str) -> None:
     menu = MAIN_MENU.get(lang, MAIN_MENU["en"])
@@ -642,7 +720,7 @@ def handle_text_during_discovery(
     # Texte trop court → renvoyer boutons
     MEANINGLESS = {"ok", "okay", "k", "hmm", "lol", "haha", "👍", "🙏"}
     if len(text_clean) <= 3 or text_clean in MEANINGLESS:
-        send_text(to=from_number, message="No worries! 😊 Let me re-send the options:")
+        send_text(to=from_number, message=_m(client, "resend_options"))
         _resend_current_step(from_number, journey, client)
         return "resent_buttons_short_text"
 
@@ -699,7 +777,7 @@ def handle_text_during_discovery(
         else:
             send_text(
                 to=from_number,
-                message="Great question! 😊 Our team will follow up on that.",
+                message=_m(client, "fallback_question"),
             )
 
         try:
@@ -713,7 +791,7 @@ def handle_text_during_discovery(
         logger.warning("AI response during discovery failed: %s", exc)
         send_text(
             to=from_number,
-            message="Good question! 😊 Our team will follow up on that.",
+            message=_m(client, "fallback_question"),
         )
 
     # Renvoyer l'étape courante (question OU packages selon où on en est)
@@ -796,7 +874,7 @@ def _handle_package_recalc(
 
         send_text(
             to=from_number,
-            message=f"Got it! 😊 Let me recalculate your packages with {change_description}.",
+            message=_m(client, "recalc_confirm"),
         )
         _present_packages(from_number, journey, client)
         return f"packages_recalculated_{change_description.replace(' ', '_')}"
@@ -827,7 +905,7 @@ def _handle_package_recalc(
         else:
             send_text(
                 to=from_number,
-                message="Just let me know what you'd like to change and I'll recalculate! 😊",
+                message=_m(client, "fallback_question"),
             )
 
         try:
@@ -865,11 +943,11 @@ def _resend_current_step(to: str, journey, client) -> None:
         _resend_package_buttons(to)
 
 
-def _resend_package_buttons(to: str) -> None:
-    """Renvoie uniquement les boutons de choix de package (sans recalculer les prix)."""
+def _resend_package_buttons(to: str, client=None) -> None:
+    body = _m(client, "package_buttons_body") if client else "Which package would you like?"
     send_buttons(
         to=to,
-        body="Which package would you like?",
+        body=body,
         buttons=[
             {"id": "pkg_starter", "title": "🥉 Starter"},
             {"id": "pkg_silver",  "title": "🥈 Silver"},
