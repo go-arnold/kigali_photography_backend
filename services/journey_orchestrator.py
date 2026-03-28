@@ -299,7 +299,12 @@ def handle_inbound_message(
         children_info = _format_children(client)
 
         assistant_count = sum(1 for m in recent_msgs if m.get("role") == "assistant")
-        is_first_message = assistant_count == 0
+        # Si flow_mode est défini, on n'est jamais au premier message
+        # (le welcome bouton a déjà été envoyé)
+        is_first_message = (
+            assistant_count == 0
+            and (flow_mode == "" or flow_mode is None)
+        )
 
         # Détecte les choix de discovery depuis l'historique
         session_type = "studio"
@@ -384,6 +389,7 @@ def handle_inbound_message(
             rag_context=rag_context,
             is_first_message=is_first_message,
             package_prices=package_prices,
+            flow_mode=flow_mode,
 
            
             # discovery_state=discovery_state, #cito cito
@@ -537,15 +543,19 @@ def handle_inbound_message(
 
         send_text(to=from_number, message=claude_response.text)
 
-        # En mode "question" → ajouter le bouton "Talk to Agent" après chaque réponse IA
+        # En mode "question" → bouton dans la bonne langue
         flow_mode = getattr(journey, "flow_mode", "")
         if flow_mode == "question":
+            lang = getattr(client, "language", "en") or "en"
+            bodies = {"en": "Need more help?", "rw": "Ikibazo kirindi?", "fr": "Autre question?"}
+            agent_titles = {"en": "🧑 Talk to Agent", "rw": "🧑 Vugana n'Umukozi", "fr": "🧑 Parler à un Agent"}
+            book_titles = {"en": "📸 Book a Session", "rw": "📸 Fata Igihe", "fr": "📸 Réserver"}
             send_buttons(
                 to=from_number,
-                body="Need more help?",
+                body=bodies.get(lang, bodies["en"]),
                 buttons=[
-                    {"id": "btn_agent",   "title": "🧑 Talk to Agent"},
-                    {"id": "btn_book",    "title": "📸 Book a Session"},
+                    {"id": "btn_agent", "title": agent_titles.get(lang, agent_titles["en"])},
+                    {"id": "btn_book",  "title": book_titles.get(lang, book_titles["en"])},
                 ],
             )
 
