@@ -67,7 +67,7 @@ DISCOVERY_STEPS = {
         },
         {
             "key": "frames",
-            "message": "Mwifuza frames 2 za A5? 🖼️",
+            "message": "Twabongereramo frame 2 za A5 muri package? 🖼️",
             "buttons": [
                 {"id": "disc_frames_yes", "title": "✅ Yego"},
                 {"id": "disc_frames_no",  "title": "❌ Oya"},
@@ -75,7 +75,7 @@ DISCOVERY_STEPS = {
         },
         {
             "key": "cake",
-            "message": "Mwifuza cake ya za birthday? 🎂",
+            "message": "Murifuzako Twabakorera na cake? 🎂",
             "buttons": [
                 {"id": "disc_cake_yes", "title": "✅ Yego"},
                 {"id": "disc_cake_no",  "title": "❌ Oya"},
@@ -83,7 +83,7 @@ DISCOVERY_STEPS = {
         },
         {
             "key": "video",
-            "message": "Mwifuza video ngufi? 🎬",
+            "message": "Twabakorera naka video kagufi? 🎬",
             "buttons": [
                 {"id": "disc_video_yes", "title": "✅ Yego"},
                 {"id": "disc_video_no",  "title": "❌ Oya"},
@@ -134,17 +134,17 @@ PACKAGE_MESSAGES = {
         "delivery": "Delivery: {photos} Edited Photos",
         "unedited": "All Other Unedited Photos",
         "includes": "Includes: {includes}",
-        "question": "Which one feels right for you? 😊",
+        "question": "And on behalf of Kigali Photography I'll personally include an *extra gift* for the child.\n Which one feels right for you? 😊",
         "body": "Choose your package:",
     },
     "rw": {
-        "intro": "Dore packages 3 zikwiye ibyo mushaka:\n",
+        "intro": "Dore packages 3 zikubiyemo ibyo mwadusabye\n",
         "session_studio": "Session muri Studio",
         "session_home": "Session mu Rugo",
         "delivery": "Gutangwa: Amafoto {photos} mwahisemo",
-        "unedited": "Ayandi Yose Adatunganijwe",
+        "unedited": "Ayandi amafoto Yose Adatunganijwe(unedited)",
         "includes": "Birimo: {includes}",
-        "question": "Ni iyihe muyifata? 😊",
+        "question": "Ku izina rya Kigali Photography, jye ubwanjye nzaha umwana impano y’inyongera.\n Ni iyihe muyifata? 😊",
         "body": "Hitamo package:",
     },
     "fr": {
@@ -252,10 +252,9 @@ def send_welcome(to: str) -> None:
     send_text(
         to=to,
         message=(
-            "Hello! 😊 Welcome to *KP Kids Studio*.\n\n"
-            "Muraho! Murakaza neza kuri *KP Kids Studio*.\n\n"
-            "Bonjour! Bienvenue chez *KP Kids Studio*.\n\n"
-            "Please choose your language / Hitamo ururimi / Choisissez votre langue:"
+            "Hello! 😊 Welcome to *KP Kids Studio*.\n"
+            "Muraho! Murakaza neza kuri *KP Kids Studio*.\n"
+            "Bonjour! Bienvenue chez *KP Kids Studio*.\n"
         ),
     )
     send_buttons(
@@ -726,6 +725,8 @@ def _send_main_menu(to: str, lang: str) -> None:
     menu = MAIN_MENU.get(lang, MAIN_MENU["en"])
     send_text(to=to, message=menu["text"])
     send_buttons(to=to, body=menu["body"], buttons=menu["buttons"])
+
+
 # ─── HELPERS DISCOVERY ───────────────────────────────────────────────────────
 
 def _get_next_unanswered_step(state: dict, lang: str = "en") -> dict | None:
@@ -909,21 +910,21 @@ def _handle_package_recalc(
         change_description = "frames added"
 
     # Détecter remove cake
-    elif any(w in text_lower for w in ["remove cake", "without cake", "no cake",
+    elif any(w in text_lower for w in ["remove cake","gukuraho cake", "without cake", "no cake",
                                         "sans gateau", "sans gâteau"]):
         state["cake"] = False
         changed = True
         change_description = "cake removed"
 
     # Détecter add cake
-    elif any(w in text_lower for w in ["add cake", "with cake", "include cake",
+    elif any(w in text_lower for w in ["add cake","kongeraho cake", "with cake", "include cake",
                                         "ajouter gateau", "ajouter gâteau"]):
         state["cake"] = True
         changed = True
         change_description = "cake added"
 
     # Détecter remove all extras
-    elif any(w in text_lower for w in ["remove all", "no extras", "just photos",
+    elif any(w in text_lower for w in ["remove all", "no extras", "just photos", "amafoto gusa", "amafoto niyonine"
                                         "base only", "nothing else"]):
         state["frames"] = False
         state["cake"] = False
