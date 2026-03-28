@@ -279,31 +279,6 @@ def handle_inbound_message(
                     client_id=str(client.pk),
                     conversation_id=conversation.pk,
                 )
-
-        
-
-        is_short_safe = len(text_words) <= 3 and all(w in SHORT_SAFE_WORDS for w in text_words)
-
-        if (
-            client.language not in ["en", "unknown"]
-            and not is_short_safe
-            and not journey.human_takeover
-        ):
-        #if client.language == "rw" and not journey.human_takeover:
-            journey.flag_human_takeover("Client writes in Kinyarwanda — human agent required")
-            _notify_human_takeover(client, conversation, reason="Kinyarwanda client — needs human agent")
-            # from services.whatsapp import send_text
-            # send_text(
-            #     to=from_number,
-            #     message="Muraho! Umwe mu bakoze bacu azabasubiza vuba. 🙏"
-            # )
-            return OrchestratorResult(
-                success=True,
-                action="human_takeover",
-                client_id=str(client.pk),
-                conversation_id=conversation.pk,
-            )
-
         
 
         # Step 7: Intent + objection analysis
