@@ -134,7 +134,7 @@ PACKAGE_MESSAGES = {
         "delivery": "Delivery: {photos} Edited Photos",
         "unedited": "All Other Unedited Photos",
         "includes": "Includes: {includes}",
-        "question": "And on behalf of Kigali Photography I'll personally include an *extra gift* for the child.\n Which one feels right for you? 😊",
+        "question": "And on behalf of Kigali Photography I'll personally include an *extra gift* for the child, Which one feels right for you? 😊",
         "body": "Choose your package:",
     },
     "rw": {
@@ -144,7 +144,7 @@ PACKAGE_MESSAGES = {
         "delivery": "Gutangwa: Amafoto {photos} mwahisemo",
         "unedited": "Ayandi amafoto Yose Adatunganijwe(unedited)",
         "includes": "Birimo: {includes}",
-        "question": "Ku izina rya Kigali Photography, jye ubwanjye nzaha umwana impano y’inyongera.\n Ni iyihe muyifata? 😊",
+        "question": "Ku izina rya Kigali Photography, jye ubwanjye nzaha umwana impano y’inyongera, Ni iyihe muyifata? 😊",
         "body": "Hitamo package:",
     },
     "fr": {
@@ -154,7 +154,7 @@ PACKAGE_MESSAGES = {
         "delivery": "Livraison: {photos} Photos traitées",
         "unedited": "Toutes les Autres Non traitées",
         "includes": "Inclus: {includes}",
-        "question": "Lequel vous convient? 😊",
+        "question": "AU nom de Kigali Photography, je veux personnellement ajouter un cadeau à l'enfant. Lequel vous convient? 😊",
         "body": "Choisissez votre packet:",
     },
 }
