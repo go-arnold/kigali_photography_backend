@@ -1293,17 +1293,29 @@ def handle_datetime_response(
     # ── Suggestion complète pour le dashboard ──
     booking_msg_for_client = booking_msgs.get(lang, booking_msgs["en"])
     
+#     dashboard_suggestion = (
+#     f"📅 AVAILABILITY CHECK NEEDED\n\n"
+#     f"Client: {client.name or client.wa_number}\n"
+#     f"Package: {pkg}\n"
+#     f"Session: {session_type.title()}\n"
+#     f"Extras: {extras_str}\n"
+#     f"Preferred date/time: {text}\n\n"
+#     f"{'─' * 30}\n"
+#     f"✅ IF AVAILABLE — approve to send this message:\n\n"
+#     f"{booking_msg_for_client}"
+# )
     dashboard_suggestion = (
     f"📅 AVAILABILITY CHECK NEEDED\n\n"
-    f"Client: {client.name or client.wa_number}\n"
-    f"Package: {pkg}\n"
-    f"Session: {session_type.title()}\n"
-    f"Extras: {extras_str}\n"
-    f"Preferred date/time: {text}\n\n"
-    f"{'─' * 30}\n"
-    f"✅ IF AVAILABLE — approve to send this message:\n\n"
-    f"{booking_msg_for_client}"
+    #f"Client: {client.name or client.wa_number}\n"
+    # f"Package: {pkg}\n"
+    # f"Session: {session_type.title()}\n"
+    # f"Extras: {extras_str}\n"
+    # f"Preferred date/time: {text}\n\n"
+    # f"{'─' * 30}\n"
+    # f"✅ IF AVAILABLE — approve to send this message:\n\n"
+    # f"{booking_msg_for_client}"
 )
+    
 
     # ── Répondre au client ──
     ack_msgs = {

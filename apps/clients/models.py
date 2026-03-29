@@ -242,7 +242,9 @@ class JourneyState(models.Model):
 
     def flag_human_takeover(self, reason: str):
         self.human_takeover = True
+        
         self.takeover_reason = reason
+        #self.takeover_reason = reason[:200]
         self.save(update_fields=["human_takeover", "takeover_reason", "updated_at"])
 
 
