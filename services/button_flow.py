@@ -1292,20 +1292,8 @@ def handle_datetime_response(
 
     # Ce que l'agent verra dans le dashboard
     dashboard_suggestion = (
-        f"📅 AVAILABILITY CHECK NEEDED\n\n"
-        f"Client: {client.name or client.wa_number}\n"
-        f"Phone: {client.wa_number}\n"
-        f"Package: {pkg}\n"
-        f"Session: {session_type.title()}\n"
-        f"Type: {photo_type.title()}\n"
-        f"Extras: {extras_str}\n"
-        f"Preferred date/time: {text}\n\n"
-        f"{'─' * 35}\n"
-        f"✅ IF AVAILABLE — approve to send:\n\n"
         f"{booking_msg_for_client}\n\n"
         f"[Buttons: I've Sent Payment | Talk to Agent]\n"
-        f"{'─' * 35}\n"
-        f"❌ IF NOT AVAILABLE — contact client manually."
     )
 
     # ── Étape 1 : Répondre au client immédiatement ──
@@ -1349,6 +1337,7 @@ def handle_datetime_response(
             ai_reasoning=(
                 f"Client chose {pkg} | "
                 f"Session: {session_type} | "
+                f"Type: {photo_type.title()} Photoshoot | "
                 f"Extras: {extras_str} | "
                 f"Preferred: {text}"
             ),

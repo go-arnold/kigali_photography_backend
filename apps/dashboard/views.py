@@ -126,9 +126,9 @@ class ApprovalApproveView(ApprovalObjectMixin, APIView):
                 is_booking_message = "798741" in (approval.ai_suggestion or "")
 
                 # ── Détecter si c'est la suggestion de disponibilité (contient le séparateur) ──
-                is_availability_suggestion = "CHECK BOOKING TABLE" in (approval.ai_suggestion or "")
+                #is_availability_suggestion = "CHECK BOOKING TABLE" in (approval.ai_suggestion or "")
 
-                if is_availability_suggestion:
+                if is_booking_message:
                     # Extraire uniquement le message client (après "MESSAGE TO SEND IF AVAILABLE:")
                     raw = approval.ai_suggestion
                     marker = "MESSAGE TO SEND IF AVAILABLE:\n\n"
