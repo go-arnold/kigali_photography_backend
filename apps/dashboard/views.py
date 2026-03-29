@@ -115,20 +115,76 @@ class ApprovalApproveView(ApprovalObjectMixin, APIView):
 
         approval.approve(request.user, notes=serializer.validated_data["notes"])
 
-        # Send the message if requested
         if serializer.validated_data["send_immediately"]:
             try:
-                from services.whatsapp import send_text
-                send_text(
-                    to=approval.client.wa_number,
-                    message=approval.ai_suggestion,
-                )
-                # Record the outbound message
-                _record_approved_outbound(approval, request.user)
+                from services.whatsapp import send_text, send_buttons
+
+                client = approval.client
+                lang = getattr(client, "language", "en") or "en"
+
+                # ── Détecter si c'est un booking message (contient MTN MoMo) ──
+                is_booking_message = "798741" in (approval.ai_suggestion or "")
+
+                # ── Détecter si c'est la suggestion de disponibilité (contient le séparateur) ──
+                is_availability_suggestion = "CHECK BOOKING TABLE" in (approval.ai_suggestion or "")
+
+                if is_availability_suggestion:
+                    # Extraire uniquement le message client (après "MESSAGE TO SEND IF AVAILABLE:")
+                    raw = approval.ai_suggestion
+                    marker = "MESSAGE TO SEND IF AVAILABLE:\n\n"
+                    if marker in raw:
+                        client_message = raw.split(marker, 1)[1].strip()
+                    else:
+                        client_message = raw
+
+                    # Envoyer le booking message au client
+                    send_text(to=client.wa_number, message=client_message)
+
+                    # Envoyer les boutons de paiement
+                    paid_titles  = {"en": "✅ I've Sent Payment", "rw": "✅ Nishyuye", "fr": "✅ J'ai Envoyé"}
+                    agent_titles = {"en": "🧑 Talk to Agent", "rw": "🧑 Vugana n'Umukozi", "fr": "🧑 Parler à un Agent"}
+                    bodies       = {"en": "What would you like to do next?", "rw": "Ni iki mushaka gukora?", "fr": "Que souhaitez-vous faire ensuite?"}
+
+                    send_buttons(
+                        to=client.wa_number,
+                        body=bodies.get(lang, bodies["en"]),
+                        buttons=[
+                            {"id": "btn_paid",  "title": paid_titles.get(lang,  paid_titles["en"])},
+                            {"id": "btn_agent", "title": agent_titles.get(lang, agent_titles["en"])},
+                        ],
+                    )
+
+                    # ── Désactiver le human takeover → l'IA reprend si besoin ──
+                    # Mais on met flow_mode = "awaiting_payment" pour que
+                    # les boutons btn_paid/btn_agent fonctionnent normalement
+                    try:
+                        journey = client.journey_state
+                        journey.human_takeover = False
+                        journey.takeover_reason = ""
+                        journey.flow_mode = "awaiting_payment"
+                        journey.save(update_fields=[
+                            "human_takeover", "takeover_reason",
+                            "flow_mode", "updated_at"
+                        ])
+                        logger.info(
+                            "Human takeover released after availability confirmed | client=%s",
+                            client.wa_number,
+                        )
+                    except Exception as exc:
+                        logger.warning("Could not release human takeover: %s", exc)
+
+                    _record_approved_outbound(approval, request.user)
+
+                else:
+                    # Message normal (pas un booking avec disponibilité)
+                    send_text(to=client.wa_number, message=approval.ai_suggestion)
+                    _record_approved_outbound(approval, request.user)
+
                 logger.info(
                     "Approved + sent | approval=%s client=%s by=%s",
-                    pk, approval.client.wa_number, request.user.username,
+                    pk, client.wa_number, request.user.username,
                 )
+
             except Exception as exc:
                 logger.error("Failed to send approved message: %s", exc)
                 return Response(

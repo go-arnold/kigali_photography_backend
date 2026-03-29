@@ -148,6 +148,7 @@ def handle_inbound_message(
             # Mode question → pipeline IA directement, skip tout le reste
             pass  # continue vers Step 3
 
+
         elif flow_mode == "" and not conversation.messages.filter(direction="outbound").exists():
             # Premier contact → welcome
             send_welcome(from_number)
@@ -172,6 +173,25 @@ def handle_inbound_message(
                 conversation_id=conversation.pk,
                 tokens_used=0,
             )
+        
+        elif flow_mode == "awaiting_datetime" and text and msg_type != "interactive":
+            # Client répond avec sa date/heure préférée → human takeover
+            from services.button_flow import handle_datetime_response
+            handle_datetime_response(
+                text=text,
+                from_number=from_number,
+                journey=journey,
+                client=client,
+                conversation=conversation,
+            )
+            conversation.touch()
+            return OrchestratorResult(
+                success=True,
+                action="human_takeover",
+                client_id=str(client.pk),
+                conversation_id=conversation.pk,
+                tokens_used=0,
+            )
 
         elif flow_mode in ("booking", "prices") and text:
             # Texte pendant discovery → répondre + renvoyer boutons
@@ -187,6 +207,24 @@ def handle_inbound_message(
             return OrchestratorResult(
                 success=True,
                 action="sent",
+                client_id=str(client.pk),
+                conversation_id=conversation.pk,
+                tokens_used=0,
+            )
+        elif flow_mode == "awaiting_payment" and msg_type != "interactive":
+            # Client tape du texte pendant qu'il attend de payer
+            # Les boutons btn_paid / btn_agent gèrent tout → on ne répond pas
+            _save_inbound(
+                client=client,
+                conversation=conversation,
+                message_id=message_id,
+                text=text or f"[{msg_type}]",
+                msg_type=msg_type,
+            )
+            conversation.touch()
+            return OrchestratorResult(
+                success=True,
+                action="human_takeover",
                 client_id=str(client.pk),
                 conversation_id=conversation.pk,
                 tokens_used=0,

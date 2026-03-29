@@ -24,16 +24,24 @@ logger = logging.getLogger(__name__)
 DISCOVERY_STEPS = {
     "en": [
         {
+            "key": "photo_type",
+            "message": "First, what type of photoshoot is this for? 😊",
+            "buttons": [
+                {"id": "disc_child",  "title": "👶 Child Photoshoot"},
+                {"id": "disc_family", "title": "👨‍👩‍👧 Family Photoshoot"},
+            ],
+        },
+        {
             "key": "session_type",
             "message": "Where would you prefer your session? 📸",
             "buttons": [
-                {"id": "disc_studio", "title": "🎨 In Studio"},
+                {"id": "disc_studio", "title": "🎨 At the Studio"},
                 {"id": "disc_home",   "title": "🏠 At Home"},
             ],
         },
         {
             "key": "frames",
-            "message": "Would you like 2 A5 photo frames included? 🖼️",
+            "message": "Would you like 2 A5 photo frames added to your package? 🖼️",
             "buttons": [
                 {"id": "disc_frames_yes", "title": "✅ Yes"},
                 {"id": "disc_frames_no",  "title": "❌ No"},
@@ -49,7 +57,7 @@ DISCOVERY_STEPS = {
         },
         {
             "key": "video",
-            "message": "Would you like a short highlight video? 🎬",
+            "message": "Would you like a short highlight video included in your package? 🎬",
             "buttons": [
                 {"id": "disc_video_yes", "title": "✅ Yes"},
                 {"id": "disc_video_no",  "title": "❌ No"},
@@ -57,6 +65,14 @@ DISCOVERY_STEPS = {
         },
     ],
     "rw": [
+        {
+            "key": "photo_type",
+            "message": "Mbere, ni ubwoko bwubuhe bwa photoshoot mushaka? 😊",
+            "buttons": [
+                {"id": "disc_child",  "title": "👶 Gufotora Umwana"},
+                {"id": "disc_family", "title": "👨‍👩‍👧 Gufotora Umuryango"},
+            ],
+        },
         {
             "key": "session_type",
             "message": "Murifuzako mufotorwe he? 📸",
@@ -92,16 +108,24 @@ DISCOVERY_STEPS = {
     ],
     "fr": [
         {
+            "key": "photo_type",
+            "message": "Tout d'abord, quel type de séance souhaitez-vous? 😊",
+            "buttons": [
+                {"id": "disc_child",  "title": "👶 Séance Enfant"},
+                {"id": "disc_family", "title": "👨‍👩‍👧 Séance Famille"},
+            ],
+        },
+        {
             "key": "session_type",
             "message": "Où préférez-vous votre séance? 📸",
             "buttons": [
-                {"id": "disc_studio", "title": "🎨 En Studio"},
+                {"id": "disc_studio", "title": "🎨 Au Studio"},
                 {"id": "disc_home",   "title": "🏠 À Domicile"},
             ],
         },
         {
             "key": "frames",
-            "message": "Souhaitez-vous 2 cadres photo A5? 🖼️",
+            "message": "Souhaitez-vous 2 cadres photo A5 inclus dans le paquet? 🖼️",
             "buttons": [
                 {"id": "disc_frames_yes", "title": "✅ Oui"},
                 {"id": "disc_frames_no",  "title": "❌ Non"},
@@ -117,7 +141,7 @@ DISCOVERY_STEPS = {
         },
         {
             "key": "video",
-            "message": "Une courte vidéo souvenir? 🎬",
+            "message": "Voulez-vous qu'on inclut une courte vidéo souvenir? 🎬",
             "buttons": [
                 {"id": "disc_video_yes", "title": "✅ Oui"},
                 {"id": "disc_video_no",  "title": "❌ Non"},
@@ -186,6 +210,8 @@ BUTTON_MAP = {
     "btn_question":      ("action", "start_question"),
 
     # Discovery
+    "disc_child":  ("discovery", "photo_type", "child"),
+    "disc_family": ("discovery", "photo_type", "family"),
     "disc_studio":       ("discovery", "session_type", "studio"),
     "disc_home":         ("discovery", "session_type", "home"),
     "disc_frames_yes":   ("discovery", "frames", True),
@@ -361,19 +387,14 @@ def _present_packages(from_number: str, journey, client) -> None:
     state = journey.discovery_state or {}
     lang = getattr(client, "language", "en") or "en"
     msgs = PACKAGE_MESSAGES.get(lang, PACKAGE_MESSAGES["en"])
-
-    session_type = state.get("session_type", "studio")
-    session_label = (
-        msgs["session_home"] if session_type == "home" 
-        else msgs["session_studio"]
-    )
-    frames  = state.get("frames", False)
-    cake    = state.get("cake",   False)
-    video   = state.get("video",  False)
-
-    # Récupérer les labels dans la bonne langue
     labels = EXTRAS_LABELS.get(lang, EXTRAS_LABELS["en"])
 
+    session_type = state.get("session_type", "studio")
+    frames = state.get("frames", False)
+    cake   = state.get("cake",   False)
+    video  = state.get("video",  False)
+
+    # Calcul extras (identique pour studio et home)
     extras_cost = 0
     extras_lines = []
     if frames:
@@ -390,21 +411,33 @@ def _present_packages(from_number: str, journey, client) -> None:
         extras_cost += 29000
         extras_lines.append(labels["video"])
 
-    home_fee = 69000 if session_type == "home" else 0
-    session_label = msgs["session_home"] if session_type == "home" else msgs["session_studio"]
     includes_line = ", ".join(extras_lines) if extras_lines else None
 
+    if session_type == "home":
+        _present_premium_package(from_number, journey, client,
+                                  extras_cost, includes_line, msgs, lang)
+    else:
+        _present_studio_packages(from_number, extras_cost, includes_line, msgs)
+
+
+def _present_studio_packages(
+    from_number: str,
+    extras_cost: int,
+    includes_line,
+    msgs: dict,
+) -> None:
+    """Présente les 3 packages studio (Starter, Silver, Gold)."""
     packages = [
-        {"name": "Starter", "base": 50000, "duration": "1h",   "photos": 8,  "emoji": "🥉"},
-        {"name": "Silver",  "base": 70000, "duration": "1h",   "photos": 12, "emoji": "🥈"},
-        {"name": "Gold",    "base": 100000,"duration": "1.5h", "photos": 18, "emoji": "🥇"},
+        {"name": "Starter", "base": 50000,  "duration": "1h",   "photos": 8,  "emoji": "🥉"},
+        {"name": "Silver",  "base": 70000,  "duration": "1h",   "photos": 12, "emoji": "🥈"},
+        {"name": "Gold",    "base": 100000, "duration": "1.5h", "photos": 18, "emoji": "🥇"},
     ]
 
     lines = [msgs["intro"]]
     for pkg in packages:
-        total = pkg["base"] + extras_cost + home_fee
+        total = pkg["base"] + extras_cost
         lines.append(f"{pkg['emoji']} *{pkg['name']} Package* — {total:,} RWF")
-        lines.append(f"{pkg['duration']} {session_label}")
+        lines.append(f"{pkg['duration']} {msgs['session_studio']}")
         lines.append(msgs["delivery"].format(photos=pkg["photos"]))
         lines.append(msgs["unedited"])
         if includes_line:
@@ -412,7 +445,6 @@ def _present_packages(from_number: str, journey, client) -> None:
         lines.append("")
 
     lines.append(msgs["question"])
-
     send_text(to=from_number, message="\n".join(lines))
     send_buttons(
         to=from_number,
@@ -424,28 +456,139 @@ def _present_packages(from_number: str, journey, client) -> None:
         ],
     )
 
-# ─── HANDLER CHOIX DE PACKAGE ────────────────────────────────────────────────
 
-def _handle_package_choice(package_name: str, from_number: str, journey, client) -> str:
-    journey.selected_package = package_name
-    journey.save(update_fields=["selected_package", "updated_at"])
+def _present_premium_package(
+    from_number: str,
+    journey,
+    client,
+    extras_cost: int,
+    includes_line,
+    msgs: dict,
+    lang: str,
+) -> None:
+    """Home session = un seul package Premium 200k."""
+    base = 200000
+    total = base + extras_cost
 
-    send_text(
-        to=from_number,
-        message=_m(client, "package_chosen", package_name=package_name),
-    )
+    premium_texts = {
+        "en": {
+            "header": f"🏆 *Premium Package* — {total:,} RWF",
+            "session": "2h Home Session",
+            "delivery": "Delivery: [30] Edited Photos",
+            "unedited": "All Other Unedited Photos",
+            "question": (
+                "This is our Home Session package, tailored just for you! 😊\n\n"
+                "What date and time would you prefer? 📅\n"
+                "We'll check our availability right away!"
+            ),
+        },
+        "rw": {
+            "header": f"🏆 *Premium Package* — {total:,} RWF",
+            "session": "Amasaha 2 mu Rugo",
+            "delivery": "Gutangwa: Amafoto [30] mwahisemo",
+            "unedited": "Ayandi Yose Adatunganijwe",
+            "question": (
+                "Iyi ni package yacu yo mu rugo, yakozwe ku bwanyu! 😊\n\n"
+                "Ni ryari na ni saa zingahe mushaka session yanyu? 📅\n"
+                "Tuzasuzuma gahunda yacu vuba!"
+            ),
+        },
+        "fr": {
+            "header": f"🏆 *Premium Package* — {total:,} RWF",
+            "session": "2h Séance à Domicile",
+            "delivery": "Livraison: [30] Photos Éditées",
+            "unedited": "Toutes les Autres Non Éditées",
+            "question": (
+                "Voici notre package Séance à Domicile, fait pour vous! 😊\n\n"
+                "Quelle date et heure préférez-vous? 📅\n"
+                "Nous vérifierons notre disponibilité immédiatement!"
+            ),
+        },
+    }
+
+    pt = premium_texts.get(lang, premium_texts["en"])
+
+    lines = [
+        pt["header"],
+        pt["session"],
+        pt["delivery"],
+        pt["unedited"],
+    ]
+    if includes_line:
+        lines.append(msgs["includes"].format(includes=includes_line))
+    lines.append("")
+    lines.append(pt["question"])
+
+    send_text(to=from_number, message="\n".join(lines))
+
+    # Sauvegarder directement — pas de choix à faire pour home
+    journey.selected_package = f"Premium — {total:,} RWF"
+    journey.flow_mode = "awaiting_datetime"
+    journey.save(update_fields=["selected_package", "flow_mode", "updated_at"])
+
+    # Bouton Talk to Agent uniquement
+    agent_bodies = {"en": "Need help?", "rw": "Ufite ikibazo?", "fr": "Besoin d'aide?"}
+    agent_titles = {
+        "en": "🧑 Talk to Agent",
+        "rw": "🧑 Vugana n'Umukozi",
+        "fr": "🧑 Parler à un Agent",
+    }
     send_buttons(
         to=from_number,
-        body=_m(client, "package_choice_body"),
+        body=agent_bodies.get(lang, agent_bodies["en"]),
         buttons=[
-            {"id": "btn_paid",  "title": _m(client, "btn_paid_title")},
-            {"id": "btn_agent", "title": _m(client, "btn_agent_title")},
+            {"id": "btn_agent", "title": agent_titles.get(lang, agent_titles["en"])},
         ],
     )
 
-    from apps.clients.models import JourneyPhase, JourneyStep
-    journey.advance(JourneyPhase.BOOKING, JourneyStep.PAYMENT_CONFIRMATION)
-    return f"package_chosen_{package_name.lower()}"
+# ─── HANDLER CHOIX DE PACKAGE ────────────────────────────────────────────────
+
+def _handle_package_choice(package_name: str, from_number: str, journey, client) -> str:
+    """Package studio choisi → demander date/heure préférée."""
+    journey.selected_package = package_name
+    journey.flow_mode = "awaiting_datetime"
+    journey.save(update_fields=["selected_package", "flow_mode", "updated_at"])
+
+    lang = getattr(client, "language", "en") or "en"
+
+    datetime_msgs = {
+        "en": (
+            f"Great choice! 🎉 You selected the *{package_name} Package*.\n\n"
+            f"What date and time would you prefer for your session? 📅\n"
+            f"We'll check our availability right away!"
+        ),
+        "rw": (
+            f"Amahitamo nziza! 🎉 Mwahisemo *{package_name} Package*.\n\n"
+            f"Ni ryari na ni saa zingahe mushaka session yanyu? 📅\n"
+            f"Tuzasuzuma gahunda yacu vuba!"
+        ),
+        "fr": (
+            f"Excellent choix! 🎉 Vous avez sélectionné le *{package_name} Package*.\n\n"
+            f"Quelle date et heure préférez-vous pour votre séance? 📅\n"
+            f"Nous vérifierons notre disponibilité immédiatement!"
+        ),
+    }
+    agent_bodies = {
+        "en": "Need help?",
+        "rw": "Ufite ikibazo?",
+        "fr": "Besoin d'aide?",
+    }
+    agent_titles = {
+        "en": "🧑 Talk to Agent",
+        "rw": "🧑 Vugana n'Umukozi",
+        "fr": "🧑 Parler à un Agent",
+    }
+
+    send_text(to=from_number, message=datetime_msgs.get(lang, datetime_msgs["en"]))
+    send_buttons(
+        to=from_number,
+        body=agent_bodies.get(lang, agent_bodies["en"]),
+        buttons=[
+            {"id": "btn_agent", "title": agent_titles.get(lang, agent_titles["en"])},
+        ],
+    )
+
+    return f"package_chosen_{package_name.lower()}_awaiting_datetime"
 
 # ─── HANDLER PAIEMENT CONFIRMÉ ───────────────────────────────────────────────
 
@@ -778,6 +921,7 @@ def _send_discovery_question(to: str, step: dict) -> None:
 def _reset_discovery(journey) -> None:
     """Réinitialise l'état discovery pour un nouveau flow."""
     journey.discovery_state = {
+        "photo_type":   None, 
         "session_type": None,
         "frames":       None,
         "cake":         None,
@@ -1097,3 +1241,123 @@ def _build_packages_context_for_prompt(journey) -> str:
     ]
 
     return "\n".join(lines)
+
+#Gerer la partie demande de date et heure pour la reservation
+def handle_datetime_response(
+    text: str,
+    from_number: str,
+    journey,
+    client,
+    conversation,
+) -> str:
+    """
+    Le client a répondu avec sa date/heure préférée.
+    On confirme, on prépare le dashboard et on active le human takeover.
+    """
+    from services.journey_orchestrator import _notify_human_takeover
+
+    lang = getattr(client, "language", "en") or "en"
+    pkg  = journey.selected_package or "?"
+
+    # Récupérer le contexte discovery pour le dashboard
+    state = journey.discovery_state or {}
+    session_type = state.get("session_type", "studio")
+    photo_type   = state.get("photo_type", "child")
+
+    extras_list = []
+    if state.get("frames"):
+        extras_list.append("2 A5 Photo Frames")
+    if state.get("cake") and state.get("video"):
+        extras_list.append("Birthday Cake + Highlight Video")
+    elif state.get("cake"):
+        extras_list.append("Birthday Cake")
+    elif state.get("video"):
+        extras_list.append("Highlight Video")
+    extras_str = ", ".join(extras_list) if extras_list else "None"
+
+    # ── Booking message (ce que l'agent enverra après vérification) ──
+    booking_msgs = {
+        "en": (
+            f"Great news! 🎉 Your preferred date is available!\n\n"
+            f"To secure your booking, please send the booking fee of "
+            f"*20,000 RWF* to:\n\n"
+            f"📱 MTN MoMo: *798741*\n"
+            f"Name: *Kigali Photography Ltd*\n\n"
+            f"The rest is paid after the session. "
+            f"Just let us know once you're done! 🙏"
+        ),
+        "rw": (
+            f"Amakuru meza! 🎉 Itariki mushaka iraboneka!\n\n"
+            f"Kugira ngo twohereze itariki yanyu, "
+            f"mwishyure booking fee ya *20,000 RWF* kuri:\n\n"
+            f"📱 MTN MoMo: *798741*\n"
+            f"Izina: *Kigali Photography Ltd*\n\n"
+            f"Andi yishyurwa session irangiye. "
+            f"Mutubanize murangije! 🙏"
+        ),
+        "fr": (
+            f"Bonne nouvelle! 🎉 Votre date préférée est disponible!\n\n"
+            f"Pour réserver votre date, veuillez envoyer les frais de réservation "
+            f"de *20,000 RWF* à:\n\n"
+            f"📱 MTN MoMo: *798741*\n"
+            f"Nom: *Kigali Photography Ltd*\n\n"
+            f"Le reste est payé après la séance. "
+            f"Faites-nous signe une fois que c'est fait! 🙏"
+        ),
+    }
+
+    # ── Suggestion complète pour le dashboard ──
+    booking_msg_for_client = booking_msgs.get(lang, booking_msgs["en"])
+    
+    dashboard_suggestion = (
+        f"📋 CLIENT BOOKING REQUEST\n"
+        f"{'─' * 30}\n"
+        f"Package: {pkg}\n"
+        f"Session: {session_type.title()}\n"
+        f"Type: {photo_type.title()} Photoshoot\n"
+        f"Extras: {extras_str}\n"
+        f"Preferred date/time: {text}\n"
+        f"Language: {lang}\n"
+        f"{'─' * 30}\n\n"
+        f"⚠️  CHECK BOOKING TABLE FOR AVAILABILITY\n"
+        f"If available → Approve & Send (message below + payment buttons)\n"
+        f"If not available → Contact client manually via 'Send Message'\n\n"
+        f"{'─' * 30}\n"
+        f"MESSAGE TO SEND IF AVAILABLE:\n\n"
+        f"{booking_msg_for_client}"
+    )
+
+    # ── Répondre au client ──
+    ack_msgs = {
+        "en": (
+            "Thank you! 😊 We're checking our availability for your preferred date.\n"
+            "A team member will get back to you very shortly! 🙏"
+        ),
+        "rw": (
+            "Murakoze! 😊 Turimo gusuzuma gahunda yacu ku itariki mushaka.\n"
+            "Umwe mu bakoze bacu azababwira vuba cyane! 🙏"
+        ),
+        "fr": (
+            "Merci! 😊 Nous vérifions notre disponibilité pour votre date préférée.\n"
+            "Un membre de notre équipe vous répondra très bientôt! 🙏"
+        ),
+    }
+    send_text(to=from_number, message=ack_msgs.get(lang, ack_msgs["en"]))
+
+    # ── Human takeover + notification dashboard ──
+    journey.flag_human_takeover("Client provided preferred date/time — availability check needed")
+    journey.flow_mode = "awaiting_booking_confirmation"
+    journey.save(update_fields=["flow_mode", "updated_at"])
+
+    try:
+        from apps.conversations.models import ApprovalAction
+        _notify_human_takeover(
+            client,
+            conversation,
+            reason=f"Availability check needed — {pkg} — preferred: {text}",
+            ai_suggestion=dashboard_suggestion,
+        )
+    except Exception as exc:
+        logger.warning("Notification failed after datetime response: %s", exc)
+
+    return "datetime_received_human_takeover"
