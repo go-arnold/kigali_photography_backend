@@ -208,7 +208,7 @@ class JourneyState(models.Model):
         help_text='{"session_type":"studio","frames":true,"cake":false,"video":null}'
     )
     flow_mode = models.CharField(
-        max_length=20,
+        max_length=50,
         blank=True,
         default="",
         help_text="booking | prices | question | '' (aucun flow actif)"

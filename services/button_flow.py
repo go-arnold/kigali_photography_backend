@@ -1293,28 +1293,28 @@ def handle_datetime_response(
     # ── Suggestion complète pour le dashboard ──
     booking_msg_for_client = booking_msgs.get(lang, booking_msgs["en"])
     
-#     dashboard_suggestion = (
-#     f"📅 AVAILABILITY CHECK NEEDED\n\n"
-#     f"Client: {client.name or client.wa_number}\n"
-#     f"Package: {pkg}\n"
-#     f"Session: {session_type.title()}\n"
-#     f"Extras: {extras_str}\n"
-#     f"Preferred date/time: {text}\n\n"
-#     f"{'─' * 30}\n"
-#     f"✅ IF AVAILABLE — approve to send this message:\n\n"
-#     f"{booking_msg_for_client}"
-# )
     dashboard_suggestion = (
-    f"AVAAAAAAAAJ\n\n"
-    #f"Client: {client.name or client.wa_number}\n"
-    # f"Package: {pkg}\n"
-    # f"Session: {session_type.title()}\n"
-    # f"Extras: {extras_str}\n"
-    # f"Preferred date/time: {text}\n\n"
-    # f"{'─' * 30}\n"
-    # f"✅ IF AVAILABLE — approve to send this message:\n\n"
-    # f"{booking_msg_for_client}"
+    f"📅 AVAILABILITY CHECK NEEDED\n\n"
+    f"Client: {client.name or client.wa_number}\n"
+    f"Package: {pkg}\n"
+    f"Session: {session_type.title()}\n"
+    f"Extras: {extras_str}\n"
+    f"Preferred date/time: {text}\n\n"
+    f"{'─' * 30}\n"
+    f"✅ IF AVAILABLE — approve to send this message:\n\n"
+    f"{booking_msg_for_client}"
 )
+#     dashboard_suggestion = (
+#     f"AVAAAAAAAAJ\n\n"
+#     #f"Client: {client.name or client.wa_number}\n"
+#     # f"Package: {pkg}\n"
+#     # f"Session: {session_type.title()}\n"
+#     # f"Extras: {extras_str}\n"
+#     # f"Preferred date/time: {text}\n\n"
+#     # f"{'─' * 30}\n"
+#     # f"✅ IF AVAILABLE — approve to send this message:\n\n"
+#     # f"{booking_msg_for_client}"
+# )
     
 
     # ── Répondre au client ──
@@ -1337,7 +1337,7 @@ def handle_datetime_response(
     # ── Human takeover + notification dashboard ──
     # ── Human takeover + notification dashboard ──────────────────────────────
     journey.flag_human_takeover("Client provided preferred date/time — availability check needed")
-    journey.flow_mode = "awaiting_booking_confirmation"
+    journey.flow_mode = "await_book_confirm"
     journey.save(update_fields=["flow_mode", "updated_at"])
 
     # Récupérer la conversation active — nécessaire pour ApprovalQueue
