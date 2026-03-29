@@ -527,21 +527,21 @@ class BookingListCreateView(APIView):
         
         try:
             booking = Booking.objects.create(
-                parent_name=d.get("parent_name", ""),
-                phone=d.get("phone", ""),
-                child_name=d.get("child_name", ""),
-                child_gender=d.get("child_gender", ""),
-                child_age=d.get("child_age", ""),
-                child_birthday=_parse_date(d.get("child_birthday")), 
-                occasion=d.get("occasion", "birthday"),
-                package=d.get("package", "starter"),
-                extras=d.get("extras", ""),
-                preferred_outfit=d.get("preferred_outfit", ""),
-                notes=d.get("notes", ""),
-                booking_day=_parse_date(d["booking_day"]),
-                booking_time=_parse_time(d["booking_time"]),
-                created_by=request.user,
-            )
+            parent_name      = d.get("parent_name", ""),
+            phone            = d.get("phone", ""),
+            booking_day      = _parse_date(d["booking_day"]),
+            booking_time     = _parse_time(d["booking_time"]),
+            package          = d.get("package", "starter"),
+            extras           = d.get("extras", ""),
+            occasion         = d.get("occasion", "child_celebration"),
+            photo_type       = d.get("photo_type", "child"),   # ← NEW
+            child_name       = d.get("child_name", ""),
+            child_birthday   = _parse_date(d.get("child_birthday")),
+            child_gender     = d.get("child_gender", ""),
+            preferred_outfit = d.get("preferred_outfit", ""),
+            notes            = d.get("notes", ""),
+            created_by       = request.user,
+        )
             # Auto-schedule birthday messages if birthday provided
             if booking.child_birthday:
                 _schedule_birthday_messages(booking)
@@ -620,22 +620,22 @@ class BookingDetailView(APIView):
 
 def _serialize_booking(b):
     return {
-        "id": b.pk,
-        "parent_name": b.parent_name,
-        "phone": b.phone,
-        "child_name": b.child_name,
-        "child_gender": b.child_gender,
-        "child_age": b.child_age,
-        "child_birthday": b.child_birthday.isoformat() if b.child_birthday else None,
-        "occasion": b.occasion,
-        "package": b.package,
-        "extras": b.extras,
+        "id":              b.pk,
+        "parent_name":     b.parent_name,
+        "phone":           b.phone,
+        "booking_day":     b.booking_day.isoformat(),
+        "booking_time":    b.booking_time.strftime("%H:%M"),
+        "package":         b.package,
+        "extras":          b.extras,
+        "occasion":        b.occasion,
+        "photo_type":      b.photo_type,       # ← NOUVEAU
+        "child_name":      b.child_name,
+        "child_birthday":  b.child_birthday.isoformat() if b.child_birthday else None,
+        "child_gender":    b.child_gender,
         "preferred_outfit": b.preferred_outfit,
-        "notes": b.notes,
-        "booking_day": b.booking_day.isoformat(),
-        "booking_time": b.booking_time.strftime("%H:%M"),  # ← Fix ici
-        "created_at": b.created_at.isoformat(),
-        "created_by": b.created_by.username if b.created_by else "—",
+        "notes":           b.notes,
+        "created_at":      b.created_at.isoformat(),
+        "created_by":      b.created_by.username if b.created_by else "—",
     }
 
 

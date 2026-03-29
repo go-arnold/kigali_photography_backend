@@ -82,6 +82,11 @@ let S = {
   bookingFilter: "upcoming",
   clientSearch: "", clientFilter: "all",
   modal: null, detail: null, detailLoading: false, detailTab: "info",
+  bookingSearch: "",
+  bookingDateFrom: "",
+  bookingDateTo: "",
+  bookingTimeFrom: "",
+  bookingTimeTo: "",
 };
 
 function set(patch) { Object.assign(S, patch); render(); }
@@ -409,7 +414,26 @@ function pageClients() {
 }
 
 function pageBookings() {
-  const list = S.bookings;
+  let list = S.bookings;
+
+  // Recherche
+  if (S.bookingSearch) {
+    const q = S.bookingSearch.toLowerCase();
+    list = list.filter((b) =>
+      (b.parent_name || "").toLowerCase().includes(q) ||
+      (b.phone || "").includes(q) ||
+      (b.child_name || "").toLowerCase().includes(q)
+    );
+  }
+
+  // Filtre date
+  if (S.bookingDateFrom) list = list.filter((b) => b.booking_day >= S.bookingDateFrom);
+  if (S.bookingDateTo)   list = list.filter((b) => b.booking_day <= S.bookingDateTo);
+
+  // Filtre heure
+  if (S.bookingTimeFrom) list = list.filter((b) => b.booking_time >= S.bookingTimeFrom);
+  if (S.bookingTimeTo)   list = list.filter((b) => b.booking_time <= S.bookingTimeTo);
+
   const today = new Date().toISOString().split("T")[0];
 
   return `
@@ -419,93 +443,75 @@ function pageBookings() {
     <h2>Bookings</h2>
     <span class="count">${list.length}</span>
     <div class="panel-actions">
-      <div class="flex aic gap1">
-        <select class="f-input" style="width:130px;padding:4px 8px;font-size:12px"
+      <div class="flex aic gap1" style="flex-wrap:wrap">
+        <select class="f-input" style="width:120px;padding:4px 8px;font-size:12px"
           onchange="set({bookingFilter:this.value});fetchBookings()">
-          <option value="upcoming" ${S.bookingFilter === "upcoming" ? "selected" : ""}>Upcoming</option>
-          <option value="past" ${S.bookingFilter === "past" ? "selected" : ""}>Past</option>
-          <option value="all" ${S.bookingFilter === "all" ? "selected" : ""}>All</option>
+          <option value="upcoming" ${S.bookingFilter==="upcoming"?"selected":""}>Upcoming</option>
+          <option value="past"     ${S.bookingFilter==="past"?"selected":""}>Past</option>
+          <option value="all"      ${S.bookingFilter==="all"?"selected":""}>All</option>
         </select>
-        <button class="refresh" onclick="fetchBookings()">↻ Refresh</button>
-        <button class="btn btn-accent btn-sm" onclick="openBookingForm(null)">+ Add Booking</button>
+        <input class="f-input" type="text" placeholder="Search name / phone…" style="width:180px;padding:4px 8px;font-size:12px"
+          value="${esc(S.bookingSearch||"")}" oninput="set({bookingSearch:this.value})">
+        <input class="f-input" type="date" title="From date" style="width:130px;padding:4px 8px;font-size:12px"
+          value="${esc(S.bookingDateFrom||"")}" onchange="set({bookingDateFrom:this.value})">
+        <input class="f-input" type="date" title="To date" style="width:130px;padding:4px 8px;font-size:12px"
+          value="${esc(S.bookingDateTo||"")}" onchange="set({bookingDateTo:this.value})">
+        <input class="f-input" type="time" title="From time" style="width:100px;padding:4px 8px;font-size:12px"
+          value="${esc(S.bookingTimeFrom||"")}" onchange="set({bookingTimeFrom:this.value})">
+        <input class="f-input" type="time" title="To time" style="width:100px;padding:4px 8px;font-size:12px"
+          value="${esc(S.bookingTimeTo||"")}" onchange="set({bookingTimeTo:this.value})">
+        <button class="btn btn-ghost btn-sm" onclick="set({bookingSearch:'',bookingDateFrom:'',bookingDateTo:'',bookingTimeFrom:'',bookingTimeTo:''})">✕ Clear</button>
+        <button class="refresh" onclick="fetchBookings()">↻</button>
+        <button class="btn btn-accent btn-sm" onclick="openBookingForm(null)">+ Add</button>
       </div>
     </div>
   </div>
-
   ${S.bookingsLoading
     ? '<div class="loading"><span class="spin"></span>Loading…</div>'
     : list.length === 0
-      ? `<div class="empty">
-          <div class="empty-icon">📅</div>
-          <h3>No bookings yet</h3>
-          <p>Click <strong>+ Add Booking</strong> to register a confirmed session</p>
-        </div>`
+      ? `<div class="empty"><div class="empty-icon">📅</div><h3>No bookings</h3></div>`
       : `<div class="table-wrap"><table>
-        <thead>
-          <tr>
-            <th>Child</th>
-            <th>Parent</th>
-            <th>Phone</th>
-            <th>Package</th>
-            <th>Occasion</th>
-            <th>Booking Date</th>
-            <th>Time</th>
-            <th>Birthday</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${list.map((b) => {
-            const days = daysUntil(b.booking_day);
-            const isToday = b.booking_day === today;
-            const isSoon = days !== null && days >= 0 && days <= 3;
-            const rowClass = isToday ? "style='background:rgba(255,200,0,0.08)'" : isSoon ? "style='background:rgba(255,150,0,0.05)'" : "";
-            return `<tr ${rowClass}>
-              <td>
-                <div class="flex aic gap1">
-                  <span>${genderIcon(b.child_gender)}</span>
-                  <div>
-                    <div class="name">${esc(b.child_name)}</div>
-                    <div class="muted" style="font-size:11px">${esc(b.child_age)}</div>
-                  </div>
-                </div>
-              </td>
-              <td><div class="name">${esc(b.parent_name)}</div></td>
-              <td class="phone">${esc(b.phone)}</td>
-              <td>
-                ${packageBadge(b.package)}
-                ${b.extras ? `<div class="muted" style="font-size:11px;margin-top:3px">${esc(b.extras)}</div>` : ""}
-              </td>
-              <td><span class="badge bn">${esc(b.occasion)}</span></td>
-              <td>
-                <div class="mono" style="font-size:13px">${fmtDate(b.booking_day)}</div>
-                ${isToday
-                  ? `<span class="badge ba" style="font-size:10px;margin-top:3px">TODAY</span>`
-                  : isSoon
-                    ? `<span class="badge bd" style="font-size:10px;margin-top:3px">in ${days}d</span>`
-                    : ""
-                }
-              </td>
-              <td class="mono">${esc(b.booking_time)}</td>
-              <td class="mono muted" style="font-size:11px">
-                ${b.child_birthday
-                  ? `🎂 ${fmtDate(b.child_birthday)}`
-                  : '<span class="muted">—</span>'
-                }
-              </td>
-              <td>
-                <div class="flex aic gap1">
-                  <button class="btn btn-ghost btn-xs" onclick="openBookingFormById(${b.id})">
-                    ✏ Edit
-                  </button>
-                  <button class="btn btn-red btn-xs" onclick="deleteBooking(${b.id},'${esc(b.child_name)}')">
-                    🗑 Delete
-                  </button>
-                </div>
-              </td>
-            </tr>`;
-          }).join("")}
-        </tbody>
+        <thead><tr>
+          <th>Client</th><th>Date & Time</th><th>Package</th>
+          <th>Occasion</th><th>Child</th><th>Actions</th>
+        </tr></thead>
+        <tbody>${list.map((b) => {
+          const days = daysUntil(b.booking_day);
+          const isToday = b.booking_day === today;
+          const isSoon = days !== null && days >= 0 && days <= 3;
+          const isChild = b.occasion === "child_celebration";
+          return `<tr ${isToday?"style='background:rgba(255,200,0,0.08)'":(isSoon?"style='background:rgba(255,150,0,0.05)'":'')}>
+            <td>
+              <div class="name">${esc(b.parent_name)}</div>
+              <div class="phone muted" style="font-size:11px">${esc(b.phone)}</div>
+            </td>
+            <td>
+              <div class="mono" style="font-size:13px">${fmtDate(b.booking_day)}</div>
+              <div class="mono muted" style="font-size:11px">${esc(b.booking_time)}</div>
+              ${isToday?`<span class="badge ba" style="font-size:10px">TODAY</span>`:(isSoon?`<span class="badge bd" style="font-size:10px">in ${days}d</span>`:"")}
+            </td>
+            <td>
+              ${packageBadge(b.package)}
+              ${b.extras?`<div class="muted" style="font-size:11px;margin-top:2px">${esc(b.extras)}</div>`:""}
+            </td>
+            <td>
+              <span class="badge bn">${isChild?"👶 Child":"📋 Other"}</span>
+              ${isChild&&b.photo_type?`<div class="muted" style="font-size:11px;margin-top:2px">${b.photo_type==="family"?"👨‍👩‍👧 Family":"👶 Child"}</div>`:""}
+            </td>
+            <td>
+              ${isChild
+                ? `<div class="name">${b.child_gender?genderIcon(b.child_gender):""} ${esc(b.child_name||"—")}</div>
+                   ${b.child_birthday?`<div class="muted" style="font-size:11px">🎂 ${fmtDate(b.child_birthday)}</div>`:"<div class='muted' style='font-size:11px'>—</div>"}`
+                : `<span class="muted">—</span>`
+              }
+            </td>
+            <td><div class="flex aic gap1">
+              <button class="btn btn-ghost btn-xs" onclick="openBookingDetail(${b.id})">🔍 Details</button>
+              <button class="btn btn-ghost btn-xs" onclick="openBookingFormById(${b.id})">✏ Edit</button>
+              <button class="btn btn-red btn-xs" onclick="deleteBooking(${b.id},'${esc(b.parent_name)}')">🗑</button>
+            </div></td>
+          </tr>`;
+        }).join("")}</tbody>
       </table></div>`
   }
 </div>`;
@@ -548,153 +554,167 @@ function openBookingFormById(id) {
 function renderBookingForm(booking) {
   const b = booking || {};
   const isEdit = !!b.id;
-  const title = isEdit ? `Edit Booking — ${esc(b.child_name)}` : "Add New Booking";
+  const isChild = !b.occasion || b.occasion === "child_celebration";
 
   return `
 <div class="modal modal-lg">
   <div class="modal-head">
-    <h3>${title}</h3>
+    <h3>${isEdit ? `Edit — ${esc(b.parent_name||"")}` : "Add New Booking"}</h3>
     <button class="btn btn-ghost btn-icon btn-sm" onclick="closeModal()">✕</button>
   </div>
   <div class="modal-body">
 
-    <div class="section-hd" style="margin-bottom:12px">👤 Parent / Contact</div>
+    <div class="section-hd" style="margin-bottom:12px">👤 Client</div>
     <div class="f-row">
       <div class="f-group">
-        <label class="f-label">Parent Name *</label>
-        <input class="f-input" id="bk-parent" type="text" value="${esc(b.parent_name || "")}" placeholder="Full name">
+        <label class="f-label">Client Name *</label>
+        <input class="f-input" id="bk-parent" type="text" value="${esc(b.parent_name||"")}" placeholder="Full name">
       </div>
       <div class="f-group">
         <label class="f-label">Phone *</label>
-        <input class="f-input" id="bk-phone" type="text" value="${esc(b.phone || "")}" placeholder="250...">
+        <input class="f-input" id="bk-phone" type="text" value="${esc(b.phone||"")}" placeholder="250...">
       </div>
     </div>
 
-    <div class="section-hd" style="margin:16px 0 12px">👶 Child Info</div>
-    <div class="f-row">
-      <div class="f-group">
-        <label class="f-label">Child Name *</label>
-        <input class="f-input" id="bk-child" type="text" value="${esc(b.child_name || "")}" placeholder="First name">
-      </div>
-      <div class="f-group">
-        <label class="f-label">Gender</label>
-        <select class="f-input" id="bk-gender">
-          <option value="girl" ${b.child_gender === "girl" ? "selected" : ""}>👧 Girl</option>
-          <option value="boy" ${b.child_gender === "boy" ? "selected" : ""}>👦 Boy</option>
-          <option value="other" ${b.child_gender === "other" ? "selected" : ""}>🧒 Other</option>
-        </select>
-      </div>
-    </div>
-    <div class="f-row">
-      <div class="f-group">
-        <label class="f-label">Age</label>
-        <input class="f-input" id="bk-age" type="text" value="${esc(b.child_age || "")}" placeholder="e.g. 2 years, 6 months">
-      </div>
-      <div class="f-group">
-        <label class="f-label">Birthday <span class="muted" style="font-weight:400">(auto-schedules wishes)</span></label>
-        <input class="f-input" id="bk-birthday" type="date" value="${esc(b.child_birthday || "")}">
-      </div>
-    </div>
-
-    <div class="section-hd" style="margin:16px 0 12px">📸 Session Details</div>
-    <div class="f-row">
-      <div class="f-group">
-        <label class="f-label">Occasion</label>
-        <select class="f-input" id="bk-occasion">
-          <option value="birthday" ${(b.occasion || "birthday") === "birthday" ? "selected" : ""}>🎂 Birthday</option>
-          <option value="milestone" ${b.occasion === "milestone" ? "selected" : ""}>🏆 Milestone</option>
-          <option value="family" ${b.occasion === "family" ? "selected" : ""}>👨‍👩‍👧 Family Portrait</option>
-          <option value="graduation" ${b.occasion === "graduation" ? "selected" : ""}>🎓 Graduation</option>
-          <option value="other" ${b.occasion === "other" ? "selected" : ""}>Other</option>
-        </select>
-      </div>
-      <div class="f-group">
-        <label class="f-label">Package *</label>
-        <select class="f-input" id="bk-package">
-          <option value="starter" ${(b.package || "starter") === "starter" ? "selected" : ""}>🥉 Starter</option>
-          <option value="silver" ${b.package === "silver" ? "selected" : ""}>🥈 Silver</option>
-          <option value="gold" ${b.package === "gold" ? "selected" : ""}>🥇 Gold</option>
-        </select>
-      </div>
-    </div>
-    <div class="f-row">
-      <div class="f-group">
-        <label class="f-label">Extras</label>
-        <input class="f-input" id="bk-extras" type="text" value="${esc(b.extras || "")}" placeholder="e.g. Birthday Cake, 2 A5 Frames, Highlight Video">
-      </div>
-      <div class="f-group">
-        <label class="f-label">Preferred Outfit</label>
-        <input class="f-input" id="bk-outfit" type="text" value="${esc(b.preferred_outfit || "")}" placeholder="e.g. Pink dress, casual">
-      </div>
-    </div>
-
-    <div class="section-hd" style="margin:16px 0 12px">📅 Booking Date & Time</div>
+    <div class="section-hd" style="margin:16px 0 12px">📅 Session</div>
     <div class="f-row">
       <div class="f-group">
         <label class="f-label">Booking Day *</label>
-        <input class="f-input" id="bk-day" type="date" value="${esc(b.booking_day || "")}">
+        <input class="f-input" id="bk-day" type="date" value="${esc(b.booking_day||"")}">
       </div>
       <div class="f-group">
         <label class="f-label">Booking Time *</label>
-        <input class="f-input" id="bk-time" type="time" value="${esc(b.booking_time || "")}">
+        <input class="f-input" id="bk-time" type="time" value="${esc(b.booking_time||"")}">
+      </div>
+    </div>
+    <div class="f-row">
+      <div class="f-group">
+        <label class="f-label">Package *</label>
+        <select class="f-input" id="bk-package">
+          <option value="starter" ${(b.package||"starter")==="starter"?"selected":""}>🥉 Starter</option>
+          <option value="silver"  ${b.package==="silver"?"selected":""}>🥈 Silver</option>
+          <option value="gold"    ${b.package==="gold"?"selected":""}>🥇 Gold</option>
+          <option value="premium" ${b.package==="premium"?"selected":""}>🏆 Premium (Home)</option>
+        </select>
+      </div>
+      <div class="f-group">
+        <label class="f-label">Extras</label>
+        <input class="f-input" id="bk-extras" type="text" value="${esc(b.extras||"")}"
+          placeholder="Cake, Frames, Video…">
       </div>
     </div>
 
-    <div class="f-group">
-      <label class="f-label">Notes</label>
-      <textarea class="f-input" id="bk-notes" rows="2" placeholder="Any additional notes…">${esc(b.notes || "")}</textarea>
+    <div class="section-hd" style="margin:16px 0 12px">🎉 Occasion</div>
+    <div class="f-row">
+      <div class="f-group">
+        <label class="f-label">Type *</label>
+        <select class="f-input" id="bk-occasion" onchange="updateBookingOccasion()">
+          <option value="child_celebration" ${isChild?"selected":""}>👶 Children's Celebration</option>
+          <option value="other" ${b.occasion==="other"?"selected":""}>📋 Other</option>
+        </select>
+      </div>
     </div>
 
-    ${b.child_birthday ? `
-    <div style="background:rgba(99,199,99,0.08);border:1px solid rgba(99,199,99,0.2);border-radius:8px;padding:12px;margin-top:8px;font-size:13px;color:#aaa">
-      🎂 Birthday messages will be auto-scheduled: 1 week before, 1 day before, day-of, and next year.
-    </div>` : `
-    <div style="background:rgba(255,200,0,0.06);border:1px solid rgba(255,200,0,0.15);border-radius:8px;padding:12px;margin-top:8px;font-size:13px;color:#aaa">
-      💡 Add a birthday date to automatically schedule birthday wishes for this child.
-    </div>`}
+    <div id="bk-child-section" style="display:${isChild?"block":"none"}">
+      <div class="section-hd" style="margin:16px 0 12px">👶 Child Info</div>
+      <div class="f-row">
+        <div class="f-group">
+          <label class="f-label">Session Type</label>
+          <select class="f-input" id="bk-photo-type">
+            <option value="child"  ${(!b.photo_type||b.photo_type==="child")?"selected":""}>👶 Child Photoshoot</option>
+            <option value="family" ${b.photo_type==="family"?"selected":""}>👨‍👩‍👧 Family Photoshoot</option>
+          </select>
+        </div>
+        <div class="f-group">
+          <label class="f-label">Child Name</label>
+          <input class="f-input" id="bk-child" type="text" value="${esc(b.child_name||"")}" placeholder="First name">
+        </div>
+      </div>
+      <div class="f-row">
+        <div class="f-group">
+          <label class="f-label">Birthday <span class="muted" style="font-weight:400">(auto-schedules wishes 🎂)</span></label>
+          <input class="f-input" id="bk-birthday" type="date" value="${esc(b.child_birthday||"")}">
+        </div>
+        <div class="f-group">
+          <label class="f-label">Gender</label>
+          <select class="f-input" id="bk-gender">
+            <option value="girl"  ${b.child_gender==="girl"?"selected":""}>👧 Girl</option>
+            <option value="boy"   ${b.child_gender==="boy"?"selected":""}>👦 Boy</option>
+            <option value="other" ${b.child_gender==="other"?"selected":""}>🧒 Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="f-group">
+        <label class="f-label">Preferred Outfit</label>
+        <input class="f-input" id="bk-outfit" type="text" value="${esc(b.preferred_outfit||"")}"
+          placeholder="e.g. Pink dress, casual">
+      </div>
+    </div>
+
+    <div class="f-group" style="margin-top:12px">
+      <label class="f-label">Notes</label>
+      <textarea class="f-input" id="bk-notes" rows="2"
+        placeholder="Any additional notes…">${esc(b.notes||"")}</textarea>
+    </div>
+
+    <div id="bk-birthday-hint" style="display:${isChild&&b.child_birthday?"block":"none"};
+      background:rgba(99,199,99,0.08);border:1px solid rgba(99,199,99,0.2);
+      border-radius:8px;padding:12px;margin-top:8px;font-size:13px;color:#aaa">
+      🎂 Birthday messages will auto-schedule: 1 week before, day before, day-of, and next year.
+    </div>
 
   </div>
   <div class="modal-foot">
     <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
-    <button class="btn btn-accent" onclick="submitBookingForm(${b.id || "null"})">
-      ${isEdit ? "💾 Save Changes" : "✓ Create Booking"}
+    <button class="btn btn-accent" onclick="submitBookingForm(${b.id||"null"})">
+      ${isEdit?"💾 Save Changes":"✓ Create Booking"}
     </button>
   </div>
 </div>`;
 }
 
+function updateBookingOccasion() {
+  const val = document.getElementById("bk-occasion")?.value;
+  const section = document.getElementById("bk-child-section");
+  if (section) section.style.display = val === "child_celebration" ? "block" : "none";
+}
+
 function submitBookingForm(editId) {
   const get = (id) => document.getElementById(id)?.value?.trim() || "";
 
-  // Validation
-  const required = {
-    "bk-parent": "Parent name",
-    "bk-phone": "Phone",
-    "bk-child": "Child name",
-    "bk-day": "Booking day",
-    "bk-time": "Booking time",
-  };
+  const required = { "bk-parent": "Client name", "bk-phone": "Phone",
+                     "bk-day": "Booking day", "bk-time": "Booking time" };
   for (const [id, label] of Object.entries(required)) {
     if (!get(id)) { toast(`${label} is required`, "err"); return; }
   }
 
+  const occasion = get("bk-occasion");
+  const isChild = occasion === "child_celebration";
+
   const data = {
-    parent_name: get("bk-parent"),
-    phone: get("bk-phone"),
-    child_name: get("bk-child"),
-    child_gender: get("bk-gender"),
-    child_age: get("bk-age"),
-    child_birthday: get("bk-birthday") || null,
-    occasion: get("bk-occasion"),
-    package: get("bk-package"),
-    extras: get("bk-extras"),
-    preferred_outfit: get("bk-outfit"),
-    notes: get("bk-notes"),
-    booking_day: get("bk-day"),
-    booking_time: get("bk-time"),
+    parent_name:      get("bk-parent"),
+    phone:            get("bk-phone"),
+    booking_day:      get("bk-day"),
+    booking_time:     get("bk-time"),
+    package:          get("bk-package"),
+    extras:           get("bk-extras"),
+    occasion,
+    notes:            get("bk-notes"),
+    // Child fields — envoyés seulement si occasion = child_celebration
+    photo_type:       isChild ? get("bk-photo-type") : "",
+    child_name:       isChild ? get("bk-child")      : "",
+    child_birthday:   isChild ? (get("bk-birthday") || null) : null,
+    child_gender:     isChild ? get("bk-gender")     : "",
+    preferred_outfit: isChild ? get("bk-outfit")     : "",
   };
 
   saveBooking(data, editId);
+}
+
+function openBookingDetail(id) {
+  const b = S.bookings.find((x) => x.id === id);
+  if (!b) return;
+  set({ modal: { type: "bookingDetail", data: b } });
 }
 
 function renderModal() {
@@ -866,6 +886,48 @@ function renderModal() {
   if (m.type === "booking") {
     inner = renderBookingForm(m.booking);
   }
+  
+  if (m.type === "bookingDetail") {
+  const b = m.data;
+  const isChild = b.occasion === "child_celebration";
+  inner = `
+  <div class="modal modal-lg">
+    <div class="modal-head">
+      <h3>Booking Details</h3>
+      <button class="btn btn-ghost btn-icon btn-sm" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="section-hd">👤 Client</div>
+      <div class="d-grid mb4">
+        <div class="d-item"><div class="d-label">Name</div><div class="d-val">${esc(b.parent_name)}</div></div>
+        <div class="d-item"><div class="d-label">Phone</div><div class="d-val phone">${esc(b.phone)}</div></div>
+      </div>
+      <div class="section-hd">📅 Session</div>
+      <div class="d-grid mb4">
+        <div class="d-item"><div class="d-label">Date</div><div class="d-val mono">${fmtDate(b.booking_day)}</div></div>
+        <div class="d-item"><div class="d-label">Time</div><div class="d-val mono">${esc(b.booking_time)}</div></div>
+        <div class="d-item"><div class="d-label">Package</div><div class="d-val">${packageBadge(b.package)}</div></div>
+        <div class="d-item"><div class="d-label">Extras</div><div class="d-val">${esc(b.extras||"—")}</div></div>
+        <div class="d-item"><div class="d-label">Occasion</div><div class="d-val">${isChild?"👶 Children's Celebration":"📋 Other"}</div></div>
+        ${isChild?`<div class="d-item"><div class="d-label">Type</div><div class="d-val">${b.photo_type==="family"?"👨‍👩‍👧 Family":"👶 Child"} Photoshoot</div></div>`:""}
+      </div>
+      ${isChild?`
+      <div class="section-hd">👶 Child</div>
+      <div class="d-grid mb4">
+        <div class="d-item"><div class="d-label">Name</div><div class="d-val">${b.child_gender?genderIcon(b.child_gender):""} ${esc(b.child_name||"—")}</div></div>
+        <div class="d-item"><div class="d-label">Birthday</div><div class="d-val mono">${b.child_birthday?`🎂 ${fmtDate(b.child_birthday)}`:"—"}</div></div>
+        <div class="d-item"><div class="d-label">Outfit</div><div class="d-val">${esc(b.preferred_outfit||"—")}</div></div>
+      </div>`:``}
+      ${b.notes?`
+      <div class="section-hd">📝 Notes</div>
+      <div style="background:#f9f6f2;border-radius:8px;padding:12px;font-size:14px;color:#555">${esc(b.notes)}</div>`:``}
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal()">Close</button>
+      <button class="btn btn-accent" onclick="openBookingFormById(${b.id});closeModal()">✏ Edit</button>
+    </div>
+  </div>`;
+}
 
   return `<div class="overlay" onclick="if(event.target===this)closeModal()">${inner}</div>`;
 }

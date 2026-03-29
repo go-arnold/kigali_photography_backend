@@ -83,14 +83,11 @@ def build_system_prompt(
     studio = settings.STUDIO
 
     lang_instruction = (
-    "Respond ENTIRELY in Kinyarwanda. Never switch to English." 
-    if language == "rw" 
-    else (
+    
         "Detect the language of the client's message and respond in that exact language. "
         "If client writes in Kinyarwanda → respond in Kinyarwanda. "
         "If client writes in French → respond in French. "
         "If client mixes → match their mix exactly."
-    )
 )
 
     heat_strategy = {

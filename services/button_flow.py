@@ -971,13 +971,19 @@ def handle_text_during_discovery(
         if discovery_done:
             packages_context = _build_packages_context_for_prompt(journey)
 
+        back_to_options = {
+            "en": "Now, back to your options 👇",
+            "rw": "Noneho, turgaruke ku mahitamo yanyu 👇",
+            "fr": "Maintenant, revenons à vos options 👇",
+        }
+
         system_prompt = (
             "You are Julie, WhatsApp assistant for KP Kids Studio, Kigali. "
             "Answer the client's question briefly (2-3 sentences max, WhatsApp style). "
             "Be warm and helpful. "
             f"{packages_context}"
             f"{'Knowledge base: ' + rag_context if rag_context else ''}\n\n"
-            "After your answer, end with: 'Now, back to your options 👇'"
+            f"After your answer, end with: '{back_to_options.get(client.language or 'en', back_to_options['en'])}'"
         )
 
         response = call_openai(
@@ -1292,8 +1298,7 @@ def handle_datetime_response(
 
     # Ce que l'agent verra dans le dashboard
     dashboard_suggestion = (
-        f"{booking_msg_for_client}\n\n"
-        f"[Buttons: I've Sent Payment | Talk to Agent]\n"
+        f"{booking_msg_for_client}\n"
     )
 
     # ── Étape 1 : Répondre au client immédiatement ──

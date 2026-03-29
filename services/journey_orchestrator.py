@@ -974,7 +974,10 @@ def _send_payment_notification_email(client, conversation=None, journey=None):
             state = journey.discovery_state or {}
 
             session_type = state.get("session_type", "studio")
+            photo_type   = state.get("photo_type", "child")   # ← AJOUTE
             session_label = "Home" if session_type == "home" else "Studio"
+            photo_label   = "Family Photoshoot" if photo_type == "family" else "Child Photoshoot"  # ← AJOUTE
+
             frames = state.get("frames", False)
             cake   = state.get("cake",   False)
             video  = state.get("video",  False)
@@ -994,12 +997,18 @@ def _send_payment_notification_email(client, conversation=None, journey=None):
                 extras_cost += 29000
                 extras_list.append("Highlight Video")
 
-            home_fee = 69000 if session_type == "home" else 0
+            home_fee = 200000 if session_type == "home" else 0   # ← CORRIGE (était 69000)
             extras = ", ".join(extras_list) if extras_list else "None"
 
-            base_prices = {"Starter": 50000, "Silver": 70000, "Gold": 100000}
-            base = base_prices.get(chosen, 0)
-            total = base + extras_cost + home_fee
+            # Pour home session, il n'y a qu'un seul package "Premium"
+            if session_type == "home":
+                base = 200000
+                total = base + extras_cost
+                chosen = "Premium"
+            else:
+                base_prices = {"Starter": 50000, "Silver": 70000, "Gold": 100000}
+                base = base_prices.get(chosen, 0)
+                total = base + extras_cost
             total_price = f"{total:,} RWF" if total else ""
 
         # ── Fallback : chercher dans les messages DB (ancien flow IA)
@@ -1079,6 +1088,7 @@ def _send_payment_notification_email(client, conversation=None, journey=None):
         <p class="pkg-name">📦 {chosen} Package</p>
         <p class="pkg-price">{total_price}</p>
         <p class="pkg-detail">📍 {session_label} Session</p>
+        <p class="pkg-detail">📸 {photo_label}</p>
         <p class="pkg-detail">✨ Extras: {extras}</p>
       </div>
 
@@ -1114,7 +1124,7 @@ def _send_payment_notification_email(client, conversation=None, journey=None):
 
     except Exception as exc:
         logger.warning("Email notification failed: %s", exc)
-
+ 
 def _notify_human_takeover(
     client, conversation, reason: str,
     ai_suggestion: str = "[AI silenced — human takeover required]"
