@@ -113,7 +113,7 @@ def build_system_prompt(
             f"- NEVER ask discovery questions (studio/home, frames, cake, video).\n"
             f"- NEVER present packages or prices unless the client explicitly asks.\n"
             f"- NEVER send a greeting ('Hello, my name is Julie...').\n"
-            f"- If client asks about location(or where we work from): In Kicukiro, opposite IPRC, BRGD Plaza, next to SAWA CITY Supermarket.\n"
+            f"- If client asks about location(or where we work from, or where they can find us): In Kicukiro, opposite IPRC, BRGD Plaza, next to SAWA CITY Supermarket.\n"
             f"- If client asks about discount: explain there's no discount,Use objection handling from knowledge base (we offer great value, good quality service, 24h delivery,...).\n"
             f"- If client asks the cost or price of one picture : say you can't tell you the price for exacly one picture but suggest clicking on booking or view prices buttons to get a custom price based on the options chosen\n"
             f"- If client asks about prices: say prices depend on options chosen, "

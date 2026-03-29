@@ -708,15 +708,32 @@ def _save_outbound(client, conversation, text, model, tokens_input, tokens_outpu
     return msg
 
 
-def _update_language(client, text: str):
-    from utils.language import detect_language
+# def _update_language(client, text: str):
+#     from utils.language import detect_language
 
+#     detected = detect_language(text)
+
+#     # # Not switch RW → EN on a short message
+#     # if client.language == "rw" and detected == "en":
+#     #     if len(text.strip().split()) < 5:
+#     #         return  # "ok", "yes", "Silver", "no" → We keep RW
+
+#     if detected != client.language:
+#         client.language = detected
+#         client.save(update_fields=["language", "updated_at"])
+#nexplit
+def _update_language(client, text: str):
+    # Si la langue a été choisie explicitement via bouton → ne jamais changer
+    if getattr(client, "language_locked", False):
+        return
+
+    from utils.language import detect_language
     detected = detect_language(text)
 
-    # # Not switch RW → EN on a short message
-    # if client.language == "rw" and detected == "en":
-    #     if len(text.strip().split()) < 5:
-    #         return  # "ok", "yes", "Silver", "no" → We keep RW
+    # Ne pas dégrader sur message court
+    if client.language == "rw" and detected == "en":
+        if len(text.strip().split()) < 5:
+            return
 
     if detected != client.language:
         client.language = detected

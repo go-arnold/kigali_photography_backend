@@ -43,6 +43,7 @@ class Client(models.Model):
     language = models.CharField(
         max_length=5, choices=PreferredLanguage.choices, default=PreferredLanguage.EN
     )
+    language_locked = models.BooleanField(default=False) #nexplit
 
     # Relationship tracking
     referral_source = models.CharField(

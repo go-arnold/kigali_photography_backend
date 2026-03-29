@@ -324,7 +324,9 @@ def _handle_action(action: str, from_number: str, journey, client) -> str:
         }
         lang = lang_map[action]
         client.language = lang
-        client.save(update_fields=["language", "updated_at"])
+        client.language_locked = True #nexplit
+        client.save(update_fields=["language", "language_locked", "updated_at"]) #nexplit
+        #client.save(update_fields=["language", "updated_at"]) #nexplit
         _send_main_menu(to=from_number, lang=lang)
         return f"language_set_{lang}"
 
