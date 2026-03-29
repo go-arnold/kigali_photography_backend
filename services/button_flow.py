@@ -526,20 +526,20 @@ def _present_premium_package(
     journey.flow_mode = "awaiting_datetime"
     journey.save(update_fields=["selected_package", "flow_mode", "updated_at"])
 
-    # Bouton Talk to Agent uniquement
-    agent_bodies = {"en": "Need help?", "rw": "Ufite ikibazo?", "fr": "Besoin d'aide?"}
-    agent_titles = {
-        "en": "🧑 Talk to Agent",
-        "rw": "🧑 Vugana n'Umukozi",
-        "fr": "🧑 Parler à un Agent",
-    }
-    send_buttons(
-        to=from_number,
-        body=agent_bodies.get(lang, agent_bodies["en"]),
-        buttons=[
-            {"id": "btn_agent", "title": agent_titles.get(lang, agent_titles["en"])},
-        ],
-    )
+    # # Bouton Talk to Agent uniquement
+    # agent_bodies = {"en": "Need help?", "rw": "Ufite ikibazo?", "fr": "Besoin d'aide?"}
+    # agent_titles = {
+    #     "en": "🧑 Talk to Agent",
+    #     "rw": "🧑 Vugana n'Umukozi",
+    #     "fr": "🧑 Parler à un Agent",
+    # }
+    # send_buttons(
+    #     to=from_number,
+    #     body=agent_bodies.get(lang, agent_bodies["en"]),
+    #     buttons=[
+    #         {"id": "btn_agent", "title": agent_titles.get(lang, agent_titles["en"])},
+    #     ],
+    # )
 
 # ─── HANDLER CHOIX DE PACKAGE ────────────────────────────────────────────────
 
@@ -568,25 +568,9 @@ def _handle_package_choice(package_name: str, from_number: str, journey, client)
             f"Nous vérifierons notre disponibilité immédiatement!"
         ),
     }
-    agent_bodies = {
-        "en": "Need help?",
-        "rw": "Ufite ikibazo?",
-        "fr": "Besoin d'aide?",
-    }
-    agent_titles = {
-        "en": "🧑 Talk to Agent",
-        "rw": "🧑 Vugana n'Umukozi",
-        "fr": "🧑 Parler à un Agent",
-    }
-
+    
     send_text(to=from_number, message=datetime_msgs.get(lang, datetime_msgs["en"]))
-    send_buttons(
-        to=from_number,
-        body=agent_bodies.get(lang, agent_bodies["en"]),
-        buttons=[
-            {"id": "btn_agent", "title": agent_titles.get(lang, agent_titles["en"])},
-        ],
-    )
+
 
     return f"package_chosen_{package_name.lower()}_awaiting_datetime"
 
@@ -1345,19 +1329,56 @@ def handle_datetime_response(
     send_text(to=from_number, message=ack_msgs.get(lang, ack_msgs["en"]))
 
     # ── Human takeover + notification dashboard ──
+    # ── Human takeover + notification dashboard ──────────────────────────────
     journey.flag_human_takeover("Client provided preferred date/time — availability check needed")
     journey.flow_mode = "awaiting_booking_confirmation"
     journey.save(update_fields=["flow_mode", "updated_at"])
 
-    try:
-        from apps.conversations.models import ApprovalAction
-        _notify_human_takeover(
-            client,
-            conversation,
-            reason=f"Availability check needed — {pkg} — preferred: {text}",
-            ai_suggestion=dashboard_suggestion,
+    # Récupérer la conversation active — nécessaire pour ApprovalQueue
+    active_conversation = conversation
+    if active_conversation is None:
+        active_conversation = (
+            client.conversations
+            .filter(window_status="open")
+            .order_by("-started_at")
+            .first()
         )
-    except Exception as exc:
-        logger.warning("Notification failed after datetime response: %s", exc)
+
+    if active_conversation:
+        try:
+            from apps.conversations.models import ApprovalQueue, ApprovalAction
+            from django.utils import timezone
+
+            ApprovalQueue.objects.create(
+                client=client,
+                conversation=active_conversation,
+                action=ApprovalAction.SEND_MESSAGE,  # ← SEND_MESSAGE, pas ESCALATE
+                ai_suggestion=dashboard_suggestion,
+                ai_reasoning=(
+                    f"Client chose {pkg} | "
+                    f"Session: {session_type} | "
+                    f"Type: {photo_type} | "
+                    f"Extras: {extras_str} | "
+                    f"Preferred: {text}"
+                ),
+                heat_score_at_suggestion=getattr(
+                    getattr(client, "journey_state", None), "heat_score", 50
+                ),
+                expires_at=timezone.now() + timezone.timedelta(hours=72),
+            )
+            logger.info(
+                "ApprovalQueue created for datetime check | client=%s preferred=%s",
+                client.wa_number, text,
+            )
+        except Exception as exc:
+            logger.error(
+                "Failed to create ApprovalQueue for %s: %s",
+                client.wa_number, exc,
+            )
+    else:
+        logger.error(
+            "No active conversation found for %s — ApprovalQueue not created",
+            client.wa_number,
+        )
 
     return "datetime_received_human_takeover"
