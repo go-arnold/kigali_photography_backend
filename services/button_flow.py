@@ -1305,7 +1305,7 @@ def handle_datetime_response(
 #     f"{booking_msg_for_client}"
 # )
     dashboard_suggestion = (
-    f"📅 AVAILABILITY CHECK NEEDED\n\n"
+    f"AVAAAAAAAAJ\n\n"
     #f"Client: {client.name or client.wa_number}\n"
     # f"Package: {pkg}\n"
     # f"Session: {session_type.title()}\n"
