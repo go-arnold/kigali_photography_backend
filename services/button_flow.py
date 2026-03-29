@@ -1349,6 +1349,12 @@ def handle_datetime_response(
             from apps.conversations.models import ApprovalQueue, ApprovalAction
             from django.utils import timezone
 
+            #TEST VOIR
+            logger.info(
+                "About to create ApprovalQueue | client=%s conv=%s",
+                client.wa_number,
+                active_conversation.pk if active_conversation else "NONE",
+            )
             ApprovalQueue.objects.create(
                 client=client,
                 conversation=active_conversation,
