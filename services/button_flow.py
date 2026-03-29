@@ -1294,22 +1294,16 @@ def handle_datetime_response(
     booking_msg_for_client = booking_msgs.get(lang, booking_msgs["en"])
     
     dashboard_suggestion = (
-        f"📋 CLIENT BOOKING REQUEST\n"
-        f"{'─' * 30}\n"
-        f"Package: {pkg}\n"
-        f"Session: {session_type.title()}\n"
-        f"Type: {photo_type.title()} Photoshoot\n"
-        f"Extras: {extras_str}\n"
-        f"Preferred date/time: {text}\n"
-        f"Language: {lang}\n"
-        f"{'─' * 30}\n\n"
-        f"⚠️  CHECK BOOKING TABLE FOR AVAILABILITY\n"
-        f"If available → Approve & Send (message below + payment buttons)\n"
-        f"If not available → Contact client manually via 'Send Message'\n\n"
-        f"{'─' * 30}\n"
-        f"MESSAGE TO SEND IF AVAILABLE:\n\n"
-        f"{booking_msg_for_client}"
-    )
+    f"📅 AVAILABILITY CHECK NEEDED\n\n"
+    f"Client: {client.name or client.wa_number}\n"
+    f"Package: {pkg}\n"
+    f"Session: {session_type.title()}\n"
+    f"Extras: {extras_str}\n"
+    f"Preferred date/time: {text}\n\n"
+    f"{'─' * 30}\n"
+    f"✅ IF AVAILABLE — approve to send this message:\n\n"
+    f"{booking_msg_for_client}"
+)
 
     # ── Répondre au client ──
     ack_msgs = {
@@ -1335,6 +1329,7 @@ def handle_datetime_response(
     journey.save(update_fields=["flow_mode", "updated_at"])
 
     # Récupérer la conversation active — nécessaire pour ApprovalQueue
+    # Récupérer OU créer une conversation active
     active_conversation = conversation
     if active_conversation is None:
         active_conversation = (
@@ -1343,47 +1338,20 @@ def handle_datetime_response(
             .order_by("-started_at")
             .first()
         )
+    if active_conversation is None:
+        # Créer une conversation si vraiment aucune n'existe
+        from apps.conversations.models import Conversation
+        from django.utils import timezone
 
-    if active_conversation:
-        try:
-            from apps.conversations.models import ApprovalQueue, ApprovalAction
-            from django.utils import timezone
-
-            #TEST VOIR
-            logger.info(
-                "About to create ApprovalQueue | client=%s conv=%s",
-                client.wa_number,
-                active_conversation.pk if active_conversation else "NONE",
-            )
-            ApprovalQueue.objects.create(
-                client=client,
-                conversation=active_conversation,
-                action=ApprovalAction.SEND_MESSAGE,  # ← SEND_MESSAGE, pas ESCALATE
-                ai_suggestion=dashboard_suggestion,
-                ai_reasoning=(
-                    f"Client chose {pkg} | "
-                    f"Session: {session_type} | "
-                    f"Type: {photo_type} | "
-                    f"Extras: {extras_str} | "
-                    f"Preferred: {text}"
-                ),
-                heat_score_at_suggestion=getattr(
-                    getattr(client, "journey_state", None), "heat_score", 50
-                ),
-                expires_at=timezone.now() + timezone.timedelta(hours=72),
-            )
-            logger.info(
-                "ApprovalQueue created for datetime check | client=%s preferred=%s",
-                client.wa_number, text,
-            )
-        except Exception as exc:
-            logger.error(
-                "Failed to create ApprovalQueue for %s: %s",
-                client.wa_number, exc,
-            )
-    else:
-        logger.error(
-            "No active conversation found for %s — ApprovalQueue not created",
+        active_conversation = Conversation.objects.create(
+            client=client,
+            window_status=Conversation.WindowStatus.OPEN,
+            window_expires_at=timezone.now() + timezone.timedelta(hours=24),
+            entry_phase=getattr(journey, "phase", "booking"),
+            entry_heat=getattr(journey, "heat_score", 50),
+        )
+        logger.warning(
+            "Created new conversation for datetime approval | client=%s",
             client.wa_number,
         )
 
