@@ -1234,17 +1234,14 @@ def handle_datetime_response(
     client,
     conversation,
 ) -> str:
-    """
-    Le client a répondu avec sa date/heure préférée.
-    On confirme, on prépare le dashboard et on active le human takeover.
-    """
     from services.journey_orchestrator import _notify_human_takeover
+    from apps.conversations.models import ApprovalQueue, ApprovalAction, Conversation
+    from django.utils import timezone
 
     lang = getattr(client, "language", "en") or "en"
     pkg  = journey.selected_package or "?"
-
-    # Récupérer le contexte discovery pour le dashboard
     state = journey.discovery_state or {}
+
     session_type = state.get("session_type", "studio")
     photo_type   = state.get("photo_type", "child")
 
@@ -1259,10 +1256,9 @@ def handle_datetime_response(
         extras_list.append("Highlight Video")
     extras_str = ", ".join(extras_list) if extras_list else "None"
 
-    # ── Booking message (ce que l'agent enverra après vérification) ──
     booking_msgs = {
         "en": (
-            f"Great news! 🎉 Your preferred date is available!\n\n"
+            f"Great news! 🎉 Your preferred slot is available!\n\n"
             f"To secure your booking, please send the booking fee of "
             f"*20,000 RWF* to:\n\n"
             f"📱 MTN MoMo: *798741*\n"
@@ -1280,68 +1276,47 @@ def handle_datetime_response(
             f"Mutubanize murangije! 🙏"
         ),
         "fr": (
-            f"Bonne nouvelle! 🎉 Votre date préférée est disponible!\n\n"
-            f"Pour réserver votre date, veuillez envoyer les frais de réservation "
-            f"de *20,000 RWF* à:\n\n"
+            f"Bonne nouvelle! 🎉 Votre créneau est disponible!\n\n"
+            f"Pour réserver, veuillez envoyer *20,000 RWF* à:\n\n"
             f"📱 MTN MoMo: *798741*\n"
             f"Nom: *Kigali Photography Ltd*\n\n"
             f"Le reste est payé après la séance. "
-            f"Faites-nous signe une fois que c'est fait! 🙏"
+            f"Faites-nous signe! 🙏"
         ),
     }
-
-    # ── Suggestion complète pour le dashboard ──
     booking_msg_for_client = booking_msgs.get(lang, booking_msgs["en"])
-    
-    dashboard_suggestion = (
-    f"📅 AVAILABILITY CHECK NEEDED\n\n"
-    f"Client: {client.name or client.wa_number}\n"
-    f"Package: {pkg}\n"
-    f"Session: {session_type.title()}\n"
-    f"Extras: {extras_str}\n"
-    f"Preferred date/time: {text}\n\n"
-    f"{'─' * 30}\n"
-    f"✅ IF AVAILABLE — approve to send this message:\n\n"
-    f"{booking_msg_for_client}"
-)
-#     dashboard_suggestion = (
-#     f"AVAAAAAAAAJ\n\n"
-#     #f"Client: {client.name or client.wa_number}\n"
-#     # f"Package: {pkg}\n"
-#     # f"Session: {session_type.title()}\n"
-#     # f"Extras: {extras_str}\n"
-#     # f"Preferred date/time: {text}\n\n"
-#     # f"{'─' * 30}\n"
-#     # f"✅ IF AVAILABLE — approve to send this message:\n\n"
-#     # f"{booking_msg_for_client}"
-# )
-    
 
-    # ── Répondre au client ──
+    paid_titles  = {"en": "✅ I've Sent Payment", "rw": "✅ Nishyuye", "fr": "✅ J'ai Envoyé"}
+    agent_titles = {"en": "🧑 Talk to Agent",    "rw": "🧑 Vugana n'Umukozi", "fr": "🧑 Parler à un Agent"}
+    bodies       = {"en": "What would you like to do next?", "rw": "Ni iki mushaka gukora?", "fr": "Que faire ensuite?"}
+
+    # Ce que l'agent verra dans le dashboard
+    dashboard_suggestion = (
+        f"📅 AVAILABILITY CHECK NEEDED\n\n"
+        f"Client: {client.name or client.wa_number}\n"
+        f"Phone: {client.wa_number}\n"
+        f"Package: {pkg}\n"
+        f"Session: {session_type.title()}\n"
+        f"Type: {photo_type.title()}\n"
+        f"Extras: {extras_str}\n"
+        f"Preferred date/time: {text}\n\n"
+        f"{'─' * 35}\n"
+        f"✅ IF AVAILABLE — approve to send:\n\n"
+        f"{booking_msg_for_client}\n\n"
+        f"[Buttons: I've Sent Payment | Talk to Agent]\n"
+        f"{'─' * 35}\n"
+        f"❌ IF NOT AVAILABLE — contact client manually."
+    )
+
+    # ── Étape 1 : Répondre au client immédiatement ──
     ack_msgs = {
-        "en": (
-            "Thank you! 😊 We're checking our availability for your preferred date.\n"
-            "A team member will get back to you very shortly! 🙏"
-        ),
-        "rw": (
-            "Murakoze! 😊 Turimo gusuzuma gahunda yacu ku itariki mushaka.\n"
-            "Umwe mu bakoze bacu azababwira vuba cyane! 🙏"
-        ),
-        "fr": (
-            "Merci! 😊 Nous vérifions notre disponibilité pour votre date préférée.\n"
-            "Un membre de notre équipe vous répondra très bientôt! 🙏"
-        ),
+        "en": "Thank you! 😊 We're checking availability for your preferred date. A team member will get back to you shortly! 🙏",
+        "rw": "Murakoze! 😊 Turimo gusuzuma gahunda yacu. Umwe mu bakoze bacu azababwira vuba! 🙏",
+        "fr": "Merci! 😊 Nous vérifions notre disponibilité. Un membre de notre équipe vous répondra bientôt! 🙏",
     }
     send_text(to=from_number, message=ack_msgs.get(lang, ack_msgs["en"]))
 
-    # ── Human takeover + notification dashboard ──
-    # ── Human takeover + notification dashboard ──────────────────────────────
-    journey.flag_human_takeover("Client provided preferred date/time — availability check needed")
-    journey.flow_mode = "await_book_confirm"
-    journey.save(update_fields=["flow_mode", "updated_at"])
-
-    # Récupérer la conversation active — nécessaire pour ApprovalQueue
-    # Récupérer OU créer une conversation active
+    # ── Étape 2 : Récupérer/créer la conversation AVANT tout le reste ──
     active_conversation = conversation
     if active_conversation is None:
         active_conversation = (
@@ -1352,9 +1327,6 @@ def handle_datetime_response(
         )
     if active_conversation is None:
         # Créer une conversation si vraiment aucune n'existe
-        from apps.conversations.models import Conversation
-        from django.utils import timezone
-
         active_conversation = Conversation.objects.create(
             client=client,
             window_status=Conversation.WindowStatus.OPEN,
@@ -1363,8 +1335,44 @@ def handle_datetime_response(
             entry_heat=getattr(journey, "heat_score", 50),
         )
         logger.warning(
-            "Created new conversation for datetime approval | client=%s",
+            "Created fallback conversation for ApprovalQueue | client=%s",
             client.wa_number,
         )
+
+    # ── Étape 3 : Créer l'ApprovalQueue ──
+    try:
+        ApprovalQueue.objects.create(
+            client=client,
+            conversation=active_conversation,
+            action=ApprovalAction.SEND_MESSAGE,
+            ai_suggestion=dashboard_suggestion,
+            ai_reasoning=(
+                f"Client chose {pkg} | "
+                f"Session: {session_type} | "
+                f"Extras: {extras_str} | "
+                f"Preferred: {text}"
+            ),
+            heat_score_at_suggestion=getattr(
+                getattr(client, "journey_state", None), "heat_score", 50
+            ),
+            expires_at=timezone.now() + timezone.timedelta(hours=72),
+        )
+        logger.info(
+            "ApprovalQueue created ✅ | client=%s preferred=%s",
+            client.wa_number, text,
+        )
+    except Exception as exc:
+        logger.error(
+            "ApprovalQueue creation FAILED | client=%s error=%s",
+            client.wa_number, exc,
+        )
+
+    # ── Étape 4 : Activer human takeover ET mettre à jour flow_mode ──
+    try:
+        journey.flag_human_takeover("Client provided date — availability check needed")
+        journey.flow_mode = "await_confirm"
+        journey.save(update_fields=["flow_mode", "updated_at"])
+    except Exception as exc:
+        logger.error("Could not save journey state: %s", exc)
 
     return "datetime_received_human_takeover"
