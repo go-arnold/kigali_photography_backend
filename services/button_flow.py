@@ -481,7 +481,7 @@ def _present_premium_package(
             "question": (
                 "This is our Home Session package, tailored just for you! 😊\n\n"
                 "What date and time would you prefer? 📅\n"
-                Kindly allow us to check our availability right away!"
+                "Kindly allow us to check our availability right away!"
             ),
         },
         "rw": {
