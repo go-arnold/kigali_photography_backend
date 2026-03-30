@@ -67,15 +67,15 @@ DISCOVERY_STEPS = {
     "rw": [
         {
             "key": "photo_type",
-            "message": "Mbere, ni ubwoko bwubuhe bwa photoshoot mushaka? 😊",
+            "message": "Mbere na mbere, ni ubuhe bwoko bwa photoshoot mwifuzako twabakorera? 😊",
             "buttons": [
-                {"id": "disc_child",  "title": "👶 Gufotora Umwana"},
-                {"id": "disc_family", "title": "👨‍👩‍👧 Gufotora Umuryango"},
+                {"id": "disc_child",  "title": "👶 Gufotoza Umwana"},
+                {"id": "disc_family", "title": "👨‍👩‍👧 Gufotoza Umuryango"},
             ],
         },
         {
             "key": "session_type",
-            "message": "Murifuzako mufotorwe he? 📸",
+            "message": "Murifuzako twabafotorera he? 📸",
             "buttons": [
                 {"id": "disc_studio", "title": "🎨 Muri Studio"},
                 {"id": "disc_home",   "title": "🏠 Mu Rugo"},
@@ -83,10 +83,10 @@ DISCOVERY_STEPS = {
         },
         {
             "key": "frames",
-            "message": "Twabongereramo frame 2 za A5 muri package? 🖼️",
+            "message": "Murifuzako Twabongereramo frame 2 za A5 muri package yanyu? 🖼️",
             "buttons": [
                 {"id": "disc_frames_yes", "title": "✅ Yego"},
-                {"id": "disc_frames_no",  "title": "❌ Oya"},
+                {"id": "disc_frames_no",  "title": "❌ Hoya"},
             ],
         },
         {
@@ -94,7 +94,7 @@ DISCOVERY_STEPS = {
             "message": "Murifuzako Twabakorera na cake? 🎂",
             "buttons": [
                 {"id": "disc_cake_yes", "title": "✅ Yego"},
-                {"id": "disc_cake_no",  "title": "❌ Oya"},
+                {"id": "disc_cake_no",  "title": "❌ Hoya"},
             ],
         },
         {
@@ -102,7 +102,7 @@ DISCOVERY_STEPS = {
             "message": "Twabakorera naka video kagufi? 🎬",
             "buttons": [
                 {"id": "disc_video_yes", "title": "✅ Yego"},
-                {"id": "disc_video_no",  "title": "❌ Oya"},
+                {"id": "disc_video_no",  "title": "❌ Hoya"},
             ],
         },
     ],
@@ -165,10 +165,10 @@ PACKAGE_MESSAGES = {
         "intro": "Dore packages 3 zikubiyemo ibyo mwadusabye\n",
         "session_studio": "Session muri Studio",
         "session_home": "Session mu Rugo",
-        "delivery": "Gutangwa: Amafoto {photos} mwahisemo",
+        "delivery": "Hakubiyemo: Amafoto {photos} mwahisemo atunganijwe",
         "unedited": "Ayandi amafoto Yose Adatunganijwe(unedited)",
-        "includes": "Birimo: {includes}",
-        "question": "Ku izina rya Kigali Photography, jye ubwanjye nzaha umwana impano y’inyongera, Ni iyihe muyifata? 😊",
+        "includes": "Harimo: {includes}",
+        "question": "Kandi mu izina rya Kigali Photography, Tuzabongereramo impano yihariye y'umwana, murifuzako ari iyihe package twabakorera? 😊",
         "body": "Hitamo package:",
     },
     "fr": {
@@ -191,8 +191,8 @@ EXTRAS_LABELS = {
         "video":     "Highlight Video (15–30 sec)",
     },
     "rw": {
-        "frames":    "Ama frames 2 ya A5",
-        "cake":      "Cake ya Birthday",
+        "frames":    "Ama cadre 2 y'amafoto ya A5",
+        "cake":      "Cake ya Aniverseri",
         "video":     "Video Ngufi (15–30 sec)",
     },
     "fr": {
@@ -481,18 +481,18 @@ def _present_premium_package(
             "question": (
                 "This is our Home Session package, tailored just for you! 😊\n\n"
                 "What date and time would you prefer? 📅\n"
-                "We'll check our availability right away!"
+                Kindly allow us to check our availability right away!"
             ),
         },
         "rw": {
             "header": f"🏆 *Premium Package* — {total:,} RWF",
-            "session": "Amasaha 2 mu Rugo",
-            "delivery": "Gutangwa: Amafoto [30] mwahisemo",
-            "unedited": "Ayandi Yose Adatunganijwe",
+            "session": "Amasaha 2 yo kwifotoza mu Rugo",
+            "delivery": "Tubatunganiriza: Amafoto [30] mwahisemo",
+            "unedited": "Tukabaha nandi Yose Adatunganijwe",
             "question": (
-                "Iyi ni package yacu yo mu rugo, yakozwe ku bwanyu! 😊\n\n"
-                "Ni ryari na ni saa zingahe mushaka session yanyu? 📅\n"
-                "Tuzasuzuma gahunda yacu vuba!"
+                "Iyi ni package yo mu rugo ibabereye! 😊\n\n"
+                "Mwatubwira umunsi nisaha mwifuzako twabafotora? 📅\n"
+                "Mutwihanganire akanya gato mugihe tugisuzuma ubusabe bwanyu!"
             ),
         },
         "fr": {
@@ -557,12 +557,12 @@ def _handle_package_choice(package_name: str, from_number: str, journey, client)
         "en": (
             f"Great choice! 🎉 You selected the *{package_name} Package*.\n\n"
             f"What date and time would you prefer for your session? 📅\n"
-            f"We'll check our availability right away!"
+            f"Kindly allow us to check our availability right away!"
         ),
         "rw": (
-            f"Amahitamo nziza! 🎉 Mwahisemo *{package_name} Package*.\n\n"
-            f"Ni ryari na ni saa zingahe mushaka session yanyu? 📅\n"
-            f"Tuzasuzuma gahunda yacu vuba!"
+            f"Murakoze! 🎉 Mwahisemo *{package_name} Package*.\n\n"
+            f"Ni uwuhe munsi/itariki n'isaha mwifuzaho session yanyu? 📅\n"
+            f"Mutwihanganire akanya gato mugihe tugisuzuma ubusabe bwanyu!"
         ),
         "fr": (
             f"Excellent choix! 🎉 Vous avez sélectionné le *{package_name} Package*.\n\n"
@@ -594,13 +594,13 @@ def _handle_payment_confirmed(from_number: str, journey, client) -> str:
     if lang == "rw":
         booking_form = (
             f"Twayakiriye! Murakoze.\n\n"
-            f"Mwuzuze amakuru yanyu:\n\n"
+            f"Murakoze! Mwatwuzuriza iyi myirondoro:\n\n"
             f"Izina:\n"
             f"Igitsina cy'umwana:\n"
             f"Imyaka y'umwana:\n"
             f"Package: {pkg}\n"
-            f"Umunsi w'isoko:\n"
-            f"Isaha y'isoko:"
+            f"Umunsi wo kwifotoza:\n"
+            f"Isaha yo kwifotoza:"
         )
     elif lang == "fr":
         booking_form = (
@@ -768,48 +768,48 @@ MESSAGES = {
     },
     "rw": {
         "start_booking": (
-            "Nziza! 🎉 Kugira ngo dutegure session yanyu, "
-            "ngomba kubabaza ibibazo bike kugira ngo "
-            "twubake package ikubahirije.\n\nTangirira! 👇"
+            "Murakoze! 🎉 Kugira ngo dutegure session yanyu, "
+            "twababaza ibibazo bike byoroshye kugira ngo "
+            "tubakorere package ibanogeye.?\n\nTwatangia! 👇"
         ),
         "start_prices": (
             "Ibiciro byacu biterwa n'ibiri muri package. 📦\n\n"
-            "Ngomba kubabaza ibibazo bike "
-            "kugira ngo mbahe igiciro cyihariye!"
+            "twababaza ibibazo bike byoroshye "
+            "kugira ngo tubahe igiciro cyihariye?"
         ),
         "start_question": (
             "Yego rwose! 😊 Baza ikibazo cyawe "
-            "kandi nzagerageza kukifashisha."
+            "kandi ndagerageza kubafasha."
         ),
         "package_chosen": (
-            "Amahitamo nziza! 🎉 Mwahisemo *{package_name} Package*.\n\n"
-            "Kugira ngo twohereze itariki yanyu, "
-            "mwishyure booking fee ya *20,000 RWF* kuri:\n\n"
+            "Murakoze! 🎉 Mwahisemo *{package_name} Package*.\n\n"
+            "Kugira ngo tubafatire itariki yanyu, "
+            "mwakora booking ya *20,000 RWF* kuri:\n\n"
             "📱 MTN MoMo: *798741*\n"
             "Izina: *Kigali Photography Ltd*\n\n"
-            "Andi yishyurwa session irangiye. "
-            "Mutubanize murangije! 🙏"
+            "Andi yishyurwa Kwifotoza birangiye. "
+            "Mwatubwira musoje kwishyura, Murakoze! 🙏"
         ),
-        "package_choice_body": "Ni iki mushaka gukora?",
+        "package_choice_body": "Twakomeza dute?",
         "btn_paid_title":  "✅ Nishyuye",
         "btn_agent_title": "🧑 Vugana n'Umukozi",
         "payment_confirmed": (
-            "Murakoze! 🙏 Twayakiriye inyandiko yanyu.\n\n"
-            "Turimo gusuzuma payment yanyu kandi tuzemeza "
-            "igaburo ryanyu vuba. "
-            "Umwe mu bakoze bacu azaza vuba! 😊"
+            "Murakoze! 🙏Mutwihanganire gato mugihe.\n\n"
+            "Tukiri gusuzuma booking yanyu, "
+            "Umwe mu bakozi bacu aragufasha bitarambiranye! 😊"
         ),
         "talk_to_agent": (
-            "Yego rwose! 😊 Umwe mu bakoze bacu azaza vuba.\n"
+            "Yego rwose! 😊 Umwe mu bakozi bacu aragufasha vuba.\n"
             "Murakoze kwihangana! 🙏"
         ),
         "resend_options":    "Ntakibazo! 😊 Reka nongere nohereze amahitamo:",
-        "fallback_question": "Ikibazo cyiza! 😊 Itsinda ryacu rizakurikira.",
-        "fallback_recalc":   "Mubwire ibyo mushaka guhindura kandi nzababara! 😊",
-        "recalc_confirm":    "Nkuwe! 😊 Reka nongere nbare packages na {change}.",
-        "package_buttons_body": "Ni iyihe package mushaka?",
+        "fallback_question": "Ntakibazo! 😊 turabafasha bitarambiranye.",
+        "fallback_recalc":   "Mwatubwira ibyo mwifuza guhindura tukabafasha ntakibazo! 😊",
+        "recalc_confirm":    "Ntakibazo! 😊 Reka nongere mbakorere packages na {change}.",
+        "package_buttons_body": "Ni iyihe package mwifuza?",
         "unknown_button": "Ntakibazo! 😊 Reka nongere nohereze amahitamo:",
     },
+    
     "fr": {
         "start_booking": (
             "Parfait! 🎉 Pour préparer votre séance, "
@@ -949,7 +949,9 @@ def handle_text_during_discovery(
         "remove", "add", "without", "with", "instead",
         "if i", "what if", "how much if", "price without",
         "enlever", "ajouter", "sans", "avec",
-        "gukuraho", "kongeraho", "nta",
+        "gukuraho", "kongeraho", "nta", "kuramo","ongeramo",
+        "vanamo","shyiramo","vanaho","shyiraho","simbuza",
+        "simbura","hindura","hinduranya",
     ]
     is_recalc_request = any(kw in text_clean for kw in RECALC_KEYWORDS)
 
