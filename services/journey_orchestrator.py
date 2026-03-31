@@ -95,6 +95,14 @@ def handle_inbound_message(
         #     wa_number=from_number,
         #     name=from_name,
         # )
+        from django.utils import timezone as tz
+        last_conv = client.conversations.order_by("-started_at").first()
+        if last_conv:
+            days_since = (tz.now() - last_conv.started_at).days
+            if days_since > 30 and flow_mode not in ("", None):
+                journey.flow_mode = ""
+                journey.save(update_fields=["flow_mode", "updated_at"])
+                flow_mode = ""
 
         # Step 2: Onboard client
         from services.client_service import onboard_client
@@ -142,17 +150,25 @@ def handle_inbound_message(
             )
 
         # ── ROUTING TEXTE LIBRE ───────────────────────────────────────────────────────
-        flow_mode = getattr(journey, "flow_mode", "") or ""
+        #flow_mode = getattr(journey, "flow_mode", "") or ""
+        flow_mode = getattr(journey, "flow_mode", None) or ""
 
         if flow_mode == "question" and text:
             # Mode question → pipeline IA directement, skip tout le reste
             pass  # continue vers Step 3
 
-
-        elif flow_mode == "" and not conversation.messages.filter(direction="outbound").exists():
-            # Premier contact → welcome
+        elif not flow_mode:
+            # Toujours envoyer le welcome + choix de langue au premier contact
             send_welcome(from_number)
             _set_flow_mode_on_journey(journey, "welcome_sent")
+            # Sauvegarder le message inbound avant de partir
+            _save_inbound(
+                client=client,
+                conversation=conversation,
+                message_id=message_id,
+                text=text or f"[{msg_type}]",
+                msg_type=msg_type,
+            )
             conversation.touch()
             return OrchestratorResult(
                 success=True,
@@ -162,54 +178,98 @@ def handle_inbound_message(
                 tokens_used=0,
             )
 
-        elif flow_mode == "welcome_sent" and text:
-            # Client tape du texte après le welcome sans cliquer un bouton
-            # → répondre en mode question + renvoyer le menu
-            from services.button_flow import handle_text_during_discovery
-            # Temporairement mettre flow_mode = "question" pour que le prompt soit correct
-            journey.flow_mode = "question"
-            journey.save(update_fields=["flow_mode", "updated_at"])
 
-            # Appel IA direct avec prompt question
-            from services.openai_service import build_system_prompt, build_messages_context, call_openai
-            from services.rag_service import retrieve_context
-
-            rag_context = retrieve_context(query=text, journey_phase="entry", language=client.language)
-
-            system_prompt = build_system_prompt(
-                journey_phase=journey.phase,
-                journey_step=journey.step,
-                heat_label=journey.heat_label,
-                language=client.language,
-                client_name=client.name or from_number,
-                children_info="",
-                rag_context=rag_context,
-                flow_mode="question",
-            )
-            messages = build_messages_context(
-                conversation_summary=None,
-                recent_messages=[],
-                new_message=text,
-            )
-            response = call_openai(system_prompt=system_prompt, messages=messages)
-
-            if response.ok:
-                from services.whatsapp import send_text, send_buttons
-                send_text(to=from_number, message=response.text)
-                # Bouton Talk to Agent
-                lang = client.language or "en"
-                agent_titles = {"en": "🧑 Talk to Agent", "rw": "🧑 Vugana n'Umukozi", "fr": "🧑 Parler à un Agent"}
-                send_buttons(
-                    to=from_number,
-                    body={"en": "Need human help?", "rw": "Ukeneye umuntu?", "fr": "Besoin d'aide ?"}.get(lang, "Need human help?"),
-                    buttons=[{"id": "btn_agent", "title": agent_titles.get(lang, agent_titles["en"])}],
-                )
+        elif flow_mode == "welcome_sent":
+            # Le client a écrit du texte AVANT de choisir sa langue
+            # → Répondre à sa question en détectant sa langue + renvoyer choix de langue
             
-            # Remettre flow_mode à welcome_sent pour que le menu reste actif
-            journey.flow_mode = "welcome_sent"
-            journey.save(update_fields=["flow_mode", "updated_at"])
+            _save_inbound(
+                client=client,
+                conversation=conversation,
+                message_id=message_id,
+                text=text or f"[{msg_type}]",
+                msg_type=msg_type,
+            )
+
+            if text and msg_type == "text":
+                # Détecter la langue depuis le texte
+                from utils.language import detect_language
+                detected_lang = detect_language(text)
+                
+                # Répondre brièvement à la question si c'est une question reconnaissable
+                GREETING_WORDS = {
+                    "hello", "hi", "hey", "bonjour", "bonsoir", "muraho",
+                    "mwaramutse", "mwiriwe", "salut", "hola", "good morning",
+                    "good afternoon", "good evening", "👋", "🙏"
+                }
+                text_lower = text.lower().strip().rstrip("!")
+                
+                is_greeting = (
+                    text_lower in GREETING_WORDS or
+                    any(text_lower.startswith(w) for w in GREETING_WORDS) or
+                    len(text.split()) <= 2
+                )
+
+                if not is_greeting:
+                    # C'est une vraie question → répondre en mode question
+                    from services.openai_service import build_system_prompt, build_messages_context, call_openai
+                    from services.rag_service import retrieve_context
+                    from services.whatsapp import send_text as _send_text
+
+                    rag_context = retrieve_context(
+                        query=text,
+                        journey_phase="entry",
+                        language=detected_lang,
+                    )
+                    system_prompt = build_system_prompt(
+                        journey_phase=journey.phase,
+                        journey_step=journey.step,
+                        heat_label=journey.heat_label,
+                        language=detected_lang,
+                        client_name=client.name or from_number,
+                        children_info="",
+                        rag_context=rag_context,
+                        flow_mode="question",
+                    )
+                    messages_ctx = build_messages_context(
+                        conversation_summary=None,
+                        recent_messages=[],
+                        new_message=text,
+                    )
+                    response = call_openai(
+                        system_prompt=system_prompt,
+                        messages=messages_ctx,
+                    )
+                    if response.ok:
+                        _send_text(to=from_number, message=response.text)
+
+                # Dans tous les cas → renvoyer le choix de langue
+                # avec un message adapté selon si c'était une salutation ou une question
+                from services.whatsapp import send_text as _send_text, send_buttons as _send_buttons
+
+                if is_greeting:
+                    # Salutation → juste renvoyer le choix de langue
+                    pass  # send_welcome a déjà été envoyé, on renvoie juste les boutons
+                
+                # Renvoyer les boutons de langue dans tous les cas
+                _send_buttons(
+                    to=from_number,
+                    body="Please select your language to continue / Hitamo ururimi / Choisissez votre langue:",
+                    buttons=[
+                        {"id": "lang_en", "title": "🇬🇧 English"},
+                        {"id": "lang_rw", "title": "🇷🇼 Kinyarwanda"},
+                        {"id": "lang_fr", "title": "🇫🇷 Français"},
+                    ],
+                )
+
             conversation.touch()
-            return OrchestratorResult(success=True, action="sent", client_id=str(client.pk), conversation_id=conversation.pk)
+            return OrchestratorResult(
+                success=True,
+                action="sent",
+                client_id=str(client.pk),
+                conversation_id=conversation.pk,
+                tokens_used=0,
+            )
         
         elif flow_mode == "awaiting_datetime" and text and msg_type != "interactive":
             # Client répond avec sa date/heure préférée → human takeover
