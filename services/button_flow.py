@@ -984,11 +984,11 @@ def handle_text_during_discovery(
             "fr": "Maintenant, revenons à vos options 👇",
         }.get(lang, "Now, back to your options 👇")
 
-        still_need_help = {
-            "en": "Still need help? Talk or call a real person — we've got you 😊",
-            "rw": "Ukeneye ubufasha bwisumbuye? Vugana cyangwa uhamagare umuntu wa nyawe agufashe — turi hano kubwanyu 😊",
-            "fr": "Besoin d'aide ? Discutez ou appelez une vraie personne — nous sommes là pour vous 😊",
-        }.get(lang, "Still need help? Talk or call a real person — we've got you 😊")
+        # still_need_help = {
+        #     "en": "Still need help? Talk or call a real person — we've got you 😊",
+        #     "rw": "Ukeneye ubufasha bwisumbuye? Vugana cyangwa uhamagare umuntu wa nyawe agufashe — turi hano kubwanyu 😊",
+        #     "fr": "Besoin d'aide ? Discutez ou appelez une vraie personne — nous sommes là pour vous 😊",
+        # }.get(lang, "Still need help? Talk or call a real person — we've got you 😊")
 
         system_prompt = (
             f"You are Julie, WhatsApp assistant for KP Kids Studio, Kigali.\n"
@@ -1005,7 +1005,7 @@ def handle_text_during_discovery(
             f"{packages_context}"
             f"{'Knowledge base:\\n' + rag_context if rag_context else ''}\n\n"
             f"After your answer, append exactly:\n{back_to_options}\n"
-            f"Then on a new line: {still_need_help}"
+            #f"Then on a new line: {still_need_help}"
         )
 
         response = call_openai(
@@ -1022,9 +1022,10 @@ def handle_text_during_discovery(
                 "rw": "🧑 Vugana n'Umukozi",
                 "fr": "🧑 Parler à un Agent",
             }
+            _resend_current_step(from_number, journey, client)
             send_buttons(
                 to=from_number,
-                body={"en": "Need human help?", "rw": "Ukeneye umuntu?", "fr": "Besoin d'aide ?"}.get(lang, "Need human help?"),
+                body={"en": "Still need help? Talk or call a real person, We've got you", "rw": "Ukeneye ubufasha bwisumbuye? Vugana cyangwa uhamagare umuntu wa nyawe agufashe, Turi hano kubwanyu", "fr": "Besoin d'aide ? Discutez ou appelez une vraie personne, nous sommes là pour vous"}.get(lang, "Still need help? Talk or call a real person, We've got you", "rw"),
                 buttons=[
                     {"id": "btn_agent", "title": agent_titles.get(lang, agent_titles["en"])},
                 ],
@@ -1050,7 +1051,7 @@ def handle_text_during_discovery(
         )
 
     # Renvoyer l'étape courante (question OU packages selon où on en est)
-    _resend_current_step(from_number, journey, client)
+    #_resend_current_step(from_number, journey, client)
     return "answered_text_resent_step"
 
 
