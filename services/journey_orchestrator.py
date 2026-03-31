@@ -180,6 +180,8 @@ def handle_inbound_message(
 
 
         elif flow_mode == "welcome_sent":
+            from utils.language import detect_language
+            from services.whatsapp import send_text as _send_text, send_buttons as _send_buttons
             _save_inbound(
                 client=client,
                 conversation=conversation,
@@ -189,9 +191,7 @@ def handle_inbound_message(
             )
 
             if text and msg_type == "text":
-                from utils.language import detect_language
-                from services.whatsapp import send_text as _send_text, send_buttons as _send_buttons
-
+                
                 # Si la langue est déjà verrouillée (bouton cliqué) → renvoyer le menu principal
                 if getattr(client, "language_locked", False):
                     _send_main_menu(to=from_number, lang=client.language)
@@ -256,10 +256,10 @@ def handle_inbound_message(
         elif flow_mode == "menu_shown" and text:
             # Client tape du texte après avoir choisi la langue mais sans cliquer un bouton menu
             # → répondre en mode question + renvoyer le menu dans sa langue
+            from services.button_flow import _send_main_menu
             from services.openai_service import build_system_prompt, build_messages_context, call_openai
             from services.rag_service import retrieve_context
             from services.whatsapp import send_text as _send_text
-            from services.button_flow import _send_main_menu
 
             _save_inbound(
                 client=client, conversation=conversation,
