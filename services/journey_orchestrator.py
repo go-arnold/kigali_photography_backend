@@ -95,14 +95,14 @@ def handle_inbound_message(
         #     wa_number=from_number,
         #     name=from_name,
         # )
-        from django.utils import timezone as tz
-        last_conv = client.conversations.order_by("-started_at").first()
-        if last_conv:
-            days_since = (tz.now() - last_conv.started_at).days
-            if days_since > 30 and flow_mode not in ("", None):
-                journey.flow_mode = ""
-                journey.save(update_fields=["flow_mode", "updated_at"])
-                flow_mode = ""
+        # from django.utils import timezone as tz
+        # last_conv = client.conversations.order_by("-started_at").first()
+        # if last_conv:
+        #     days_since = (tz.now() - last_conv.started_at).days
+        #     if days_since > 30 and flow_mode not in ("", None):
+        #         journey.flow_mode = ""
+        #         journey.save(update_fields=["flow_mode", "updated_at"])
+        #         flow_mode = ""
 
         # Step 2: Onboard client
         from services.client_service import onboard_client
