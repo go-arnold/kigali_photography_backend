@@ -180,6 +180,7 @@ def handle_inbound_message(
 
 
         elif flow_mode == "welcome_sent":
+            from services.button_flow import _send_main_menu
             from utils.language import detect_language
             from services.whatsapp import send_text as _send_text, send_buttons as _send_buttons
             _save_inbound(
