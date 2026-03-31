@@ -154,8 +154,8 @@ def build_system_prompt(
             f"  EN: 'We don\\'t offer discounts, but our pricing already reflects top quality — professional editing, 24h delivery, and child specialists who make every session special.'\n"
             f"  RW: 'Ntidutanga discount, ariko ibiciro byacu biragaragaza ubwiza bw\\'akazi — gutunganya amafoto neza, gutanga mu masaha 24, n\\'inzobere mu gufotora abana.'\n"
             f"  FR: 'Nous ne faisons pas de réductions, mais nos prix reflètent déjà une qualité supérieure — retouche professionnelle, livraison en 24h, et des spécialistes de la photo enfant.'\n\n"
-            f"END OF EVERY ANSWER — always append this line:\n"
-            f"  {still_need_help}\n\n"
+            # f"END OF EVERY ANSWER — always append this line:\n"
+            # f"  {still_need_help}\n\n"
             f"{rag_block}\n\n"
             f"Studio: {studio['LOCATION']} | {studio['HOURS']}\n"
         )

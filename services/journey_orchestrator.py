@@ -713,7 +713,7 @@ def handle_inbound_message(
         flow_mode = getattr(journey, "flow_mode", "")
         if flow_mode == "question":
             lang = getattr(client, "language", "en") or "en"
-            bodies = {"en": "Need more help?", "rw": "Ikibazo kirindi?", "fr": "Autre question?"}
+            bodies = {"en": "Still need help? Talk or call a real person — we've got you 😊", "rw": "Ukeneye ubufasha bwisumbuye? Vugana cyangwa uhamagare umuntu wa nyawe agufashe — turi hano kubwanyu 😊", "fr": "Besoin d'aide ? Discutez ou appelez une vraie personne — nous sommes là pour vous 😊"}
             agent_titles = {"en": "🧑 Talk to Agent", "rw": "🧑 Vugana n'Umukozi", "fr": "🧑 Parler à un Agent"}
             book_titles = {"en": "📸 Book a Session", "rw": "📸 Fata Igihe", "fr": "📸 Réserver"}
             send_buttons(
