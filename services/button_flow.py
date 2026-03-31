@@ -1012,9 +1012,7 @@ def handle_text_during_discovery(
             system_prompt=system_prompt,
             messages=[{"role": "user", "content": text}],
             escalate=False,
-        )
-        _resend_current_step(from_number, journey, client)
-        
+        )        
         if response.ok:
             send_text(to=from_number, message=response.text)
             # Bouton Talk to Agent après réponse IA textuelle
@@ -1042,6 +1040,8 @@ def handle_text_during_discovery(
                          response.input_tokens, response.output_tokens)
         except Exception:
             pass
+        _resend_current_step(from_number, journey, client)
+    
 
     except Exception as exc:
         logger.warning("AI response during discovery failed: %s", exc)
