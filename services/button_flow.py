@@ -326,6 +326,7 @@ def _handle_action(action: str, from_number: str, journey, client) -> str:
         client.language = lang
         client.language_locked = True #nexplit
         client.save(update_fields=["language", "language_locked", "updated_at"]) #nexplit
+        journey.flow_mode = "menu_shown"
         #client.save(update_fields=["language", "updated_at"]) #nexplit
         _send_main_menu(to=from_number, lang=lang)
         return f"language_set_{lang}"
@@ -933,33 +934,33 @@ def handle_text_during_discovery(
     conversation,
 ) -> str:
     text_clean = text.strip().lower()
+    lang = getattr(client, "language", "en") or "en"
 
-    # Texte trop court → renvoyer boutons
+    # Texte trop court → renvoyer boutons directement
     MEANINGLESS = {"ok", "okay", "k", "hmm", "lol", "haha", "👍", "🙏"}
     if len(text_clean) <= 3 or text_clean in MEANINGLESS:
         send_text(to=from_number, message=_m(client, "resend_options"))
         _resend_current_step(from_number, journey, client)
         return "resent_buttons_short_text"
 
-    # Vérifier si discovery complète ou non
     state = journey.discovery_state or {}
     discovery_done = _get_next_unanswered_step(state) is None
 
-    # Détecter si c'est une demande de recalcul des packages
     RECALC_KEYWORDS = [
         "remove", "add", "without", "with", "instead",
         "if i", "what if", "how much if", "price without",
         "enlever", "ajouter", "sans", "avec",
-        "gukuraho", "kongeraho", "nta", "kuramo","ongeramo",
-        "vanamo","shyiramo","vanaho","shyiraho","simbuza",
-        "simbura","hindura","hinduranya",
+        "gukuraho", "kongeraho", "nta", "kuramo", "ongeramo",
+        "vanamo", "shyiramo", "vanaho", "shyiraho", "simbuza",
+        "simbura", "hindura", "hinduranya",
     ]
     is_recalc_request = any(kw in text_clean for kw in RECALC_KEYWORDS)
 
     if discovery_done and is_recalc_request:
         return _handle_package_recalc(text, from_number, journey, client, conversation)
 
-    # Question normale → réponse IA + renvoyer l'étape courante
+    # ── Réponse IA ────────────────────────────────────────────────────────────
+    ai_responded = False
     try:
         from services.rag_service import retrieve_context
         from services.openai_service import call_openai
@@ -967,28 +968,16 @@ def handle_text_during_discovery(
         rag_context = retrieve_context(
             query=text,
             journey_phase="booking",
-            language=client.language,
+            language=lang,
             top_k=2,
         )
-
-        # Construire le contexte packages si discovery terminée
-        packages_context = ""
-        if discovery_done:
-            packages_context = _build_packages_context_for_prompt(journey)
-
-        lang = getattr(client, "language", "en") or "en"
+        packages_context = _build_packages_context_for_prompt(journey) if discovery_done else ""
 
         back_to_options = {
             "en": "Now, back to your options 👇",
             "rw": "Noneho, turgaruke ku mahitamo yanyu 👇",
             "fr": "Maintenant, revenons à vos options 👇",
         }.get(lang, "Now, back to your options 👇")
-
-        # still_need_help = {
-        #     "en": "Still need help? Talk or call a real person — we've got you 😊",
-        #     "rw": "Ukeneye ubufasha bwisumbuye? Vugana cyangwa uhamagare umuntu wa nyawe agufashe — turi hano kubwanyu 😊",
-        #     "fr": "Besoin d'aide ? Discutez ou appelez une vraie personne — nous sommes là pour vous 😊",
-        # }.get(lang, "Still need help? Talk or call a real person — we've got you 😊")
 
         system_prompt = (
             f"You are Julie, WhatsApp assistant for KP Kids Studio, Kigali.\n"
@@ -1004,55 +993,76 @@ def handle_text_during_discovery(
             f"DISCOUNT: No discounts — quality service, 24h delivery, child specialists.\n\n"
             f"{packages_context}"
             f"{'Knowledge base:\\n' + rag_context if rag_context else ''}\n\n"
-            f"After your answer, append exactly:\n{back_to_options}\n"
-            #f"Then on a new line: {still_need_help}"
+            f"After your answer, end with EXACTLY this sentence on its own line:\n"
+            f"{back_to_options}"
         )
 
         response = call_openai(
             system_prompt=system_prompt,
             messages=[{"role": "user", "content": text}],
             escalate=False,
-        )        
-        if response.ok:
-            send_text(to=from_number, message=response.text)
-            # Bouton Talk to Agent après réponse IA textuelle
-            agent_titles = {
-                "en": "🧑 Talk to Agent",
-                "rw": "🧑 Vugana n'Umukozi",
-                "fr": "🧑 Parler à un Agent",
-            }
-            send_buttons(
-                to=from_number,
-                body={"en": "Still need help? Talk or call a real person, We've got you", "rw": "Ukeneye ubufasha bwisumbuye? Vugana cyangwa uhamagare umuntu wa nyawe agufashe, Turi hano kubwanyu", "fr": "Besoin d'aide ? Discutez ou appelez une vraie personne, nous sommes là pour vous"}.get(lang, "Still need help? Talk or call a real person, We've got you", "rw"),
-                buttons=[
-                    {"id": "btn_agent", "title": agent_titles.get(lang, agent_titles["en"])},
-                ],
-            )
-        else:
-            send_text(
-                to=from_number,
-                message=_m(client, "fallback_question"),
-            )
+        )
 
-        try:
-            from services.client_service import record_tokens
-            record_tokens(client, conversation,
-                         response.input_tokens, response.output_tokens)
-        except Exception:
-            pass
-    
+        if response.ok:
+            # 1. Réponse IA (contient déjà "back to your options" à la fin)
+            send_text(to=from_number, message=response.text)
+            ai_responded = True
+
+            try:
+                from services.client_service import record_tokens
+                record_tokens(client, conversation, response.input_tokens, response.output_tokens)
+            except Exception:
+                pass
+        else:
+            send_text(to=from_number, message=_m(client, "fallback_question"))
 
     except Exception as exc:
         logger.warning("AI response during discovery failed: %s", exc)
-        send_text(
+        send_text(to=from_number, message=_m(client, "fallback_question"))
+
+    # ── Toujours envoyer dans cet ordre exact ─────────────────────────────────
+    # 2. Boutons de l'étape courante (discovery question OU package buttons)
+    _resend_current_step(from_number, journey, client)
+
+    # 3. Bouton "Talk to Agent" seulement si l'IA a répondu (pas sur fallback)
+    if ai_responded:
+        agent_titles = {
+            "en": "🧑 Talk to Agent",
+            "rw": "🧑 Vugana n'Umukozi",
+            "fr": "🧑 Parler à un Agent",
+        }
+        still_need_help_body = {
+            "en": "Still need help? Talk or call a real person — we've got you 😊",
+            "rw": "Ukeneye ubufasha bwisumbuye? Vugana cyangwa uhamagare umuntu wa nyawe 😊",
+            "fr": "Besoin d'aide ? Discutez ou appelez une vraie personne 😊",
+        }.get(lang, "Still need help? Talk or call a real person — we've got you 😊")
+
+        send_buttons(
             to=from_number,
-            message=_m(client, "fallback_question"),
+            body=still_need_help_body,
+            buttons=[
+                {"id": "btn_agent", "title": agent_titles.get(lang, agent_titles["en"])},
+            ],
         )
 
-    # Renvoyer l'étape courante (question OU packages selon où on en est)
-    _resend_current_step(from_number, journey, client)
     return "answered_text_resent_step"
+# ```
 
+# ---
+
+# ## Résultat visuel sur WhatsApp
+# # ```
+# Client: "What size are the frames?"
+
+# Julie: "We include 2 A5-format framed photos — beautiful
+#         quality, perfect to display at home as a keepsake.
+#         Now, back to your options 👇"
+
+# [Would you like 2 A5 photo frames?]
+# [✅ Yes]  [❌ No]
+
+# [Still need help? Talk or call a real person — we've got you 😊]
+# [🧑 Talk to Agent]
 
 def _handle_package_recalc(
     text: str,

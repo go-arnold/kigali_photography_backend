@@ -180,9 +180,6 @@ def handle_inbound_message(
 
 
         elif flow_mode == "welcome_sent":
-            # Le client a écrit du texte AVANT de choisir sa langue
-            # → Répondre à sa question en détectant sa langue + renvoyer choix de langue
-            
             _save_inbound(
                 client=client,
                 conversation=conversation,
@@ -192,35 +189,36 @@ def handle_inbound_message(
             )
 
             if text and msg_type == "text":
-                # Détecter la langue depuis le texte
                 from utils.language import detect_language
+                from services.whatsapp import send_text as _send_text, send_buttons as _send_buttons
+
+                # Si la langue est déjà verrouillée (bouton cliqué) → renvoyer le menu principal
+                if getattr(client, "language_locked", False):
+                    _send_main_menu(to=from_number, lang=client.language)
+                    conversation.touch()
+                    return OrchestratorResult(
+                        success=True, action="sent",
+                        client_id=str(client.pk), conversation_id=conversation.pk,
+                    )
+
+                # Langue pas encore choisie → détecter + répondre + renvoyer langue
                 detected_lang = detect_language(text)
-                
-                # Répondre brièvement à la question si c'est une question reconnaissable
+
                 GREETING_WORDS = {
                     "hello", "hi", "hey", "bonjour", "bonsoir", "muraho",
-                    "mwaramutse", "mwiriwe", "salut", "hola", "good morning",
+                    "mwaramutse", "mwiriwe", "salut", "good morning",
                     "good afternoon", "good evening", "👋", "🙏"
                 }
-                text_lower = text.lower().strip().rstrip("!")
-                
                 is_greeting = (
-                    text_lower in GREETING_WORDS or
-                    any(text_lower.startswith(w) for w in GREETING_WORDS) or
+                    text.lower().strip().rstrip("!") in GREETING_WORDS or
                     len(text.split()) <= 2
                 )
 
                 if not is_greeting:
-                    # C'est une vraie question → répondre en mode question
                     from services.openai_service import build_system_prompt, build_messages_context, call_openai
                     from services.rag_service import retrieve_context
-                    from services.whatsapp import send_text as _send_text
 
-                    rag_context = retrieve_context(
-                        query=text,
-                        journey_phase="entry",
-                        language=detected_lang,
-                    )
+                    rag_context = retrieve_context(query=text, journey_phase="entry", language=detected_lang)
                     system_prompt = build_system_prompt(
                         journey_phase=journey.phase,
                         journey_step=journey.step,
@@ -231,27 +229,14 @@ def handle_inbound_message(
                         rag_context=rag_context,
                         flow_mode="question",
                     )
-                    messages_ctx = build_messages_context(
-                        conversation_summary=None,
-                        recent_messages=[],
-                        new_message=text,
-                    )
                     response = call_openai(
                         system_prompt=system_prompt,
-                        messages=messages_ctx,
+                        messages=[{"role": "user", "content": text}],
                     )
                     if response.ok:
                         _send_text(to=from_number, message=response.text)
 
-                # Dans tous les cas → renvoyer le choix de langue
-                # avec un message adapté selon si c'était une salutation ou une question
-                from services.whatsapp import send_text as _send_text, send_buttons as _send_buttons
-
-                if is_greeting:
-                    # Salutation → juste renvoyer le choix de langue
-                    pass  # send_welcome a déjà été envoyé, on renvoie juste les boutons
-                
-                # Renvoyer les boutons de langue dans tous les cas
+                # Renvoyer SEULEMENT les boutons de langue (pas encore choisi)
                 _send_buttons(
                     to=from_number,
                     body="Please select your language to continue / Hitamo ururimi / Choisissez votre langue:",
@@ -264,13 +249,58 @@ def handle_inbound_message(
 
             conversation.touch()
             return OrchestratorResult(
-                success=True,
-                action="sent",
-                client_id=str(client.pk),
-                conversation_id=conversation.pk,
-                tokens_used=0,
+                success=True, action="sent",
+                client_id=str(client.pk), conversation_id=conversation.pk,
             )
         
+        elif flow_mode == "menu_shown" and text:
+            # Client tape du texte après avoir choisi la langue mais sans cliquer un bouton menu
+            # → répondre en mode question + renvoyer le menu dans sa langue
+            from services.openai_service import build_system_prompt, build_messages_context, call_openai
+            from services.rag_service import retrieve_context
+            from services.whatsapp import send_text as _send_text
+            from services.button_flow import _send_main_menu
+
+            _save_inbound(
+                client=client, conversation=conversation,
+                message_id=message_id, text=text, msg_type=msg_type,
+            )
+
+            rag_context = retrieve_context(query=text, journey_phase="entry", language=client.language)
+            system_prompt = build_system_prompt(
+                journey_phase=journey.phase,
+                journey_step=journey.step,
+                heat_label=journey.heat_label,
+                language=client.language,
+                client_name=client.name or from_number,
+                children_info="",
+                rag_context=rag_context,
+                flow_mode="question",
+            )
+            response = call_openai(
+                system_prompt=system_prompt,
+                messages=[{"role": "user", "content": text}],
+            )
+            if response.ok:
+                _send_text(to=from_number, message=response.text)
+                # Bouton Talk to Agent
+                lang = client.language or "en"
+                from services.whatsapp import send_buttons as _send_buttons
+                agent_titles = {"en": "🧑 Talk to Agent", "rw": "🧑 Vugana n'Umukozi", "fr": "🧑 Parler à un Agent"}
+                _send_buttons(
+                    to=from_number,
+                    body={"en": "Still need help?", "rw": "Ukeneye ubufasha?", "fr": "Besoin d'aide?"}.get(lang, "Still need help?"),
+                    buttons=[{"id": "btn_agent", "title": agent_titles.get(lang, agent_titles["en"])}],
+                )
+
+            # Renvoyer le menu principal (pas les boutons de langue)
+            _send_main_menu(to=from_number, lang=client.language)
+            conversation.touch()
+            return OrchestratorResult(
+                success=True, action="sent",
+                client_id=str(client.pk), conversation_id=conversation.pk,
+            )
+
         elif flow_mode == "awaiting_datetime" and text and msg_type != "interactive":
             # Client répond avec sa date/heure préférée → human takeover
             from services.button_flow import handle_datetime_response
