@@ -1013,7 +1013,8 @@ def handle_text_during_discovery(
             messages=[{"role": "user", "content": text}],
             escalate=False,
         )
-
+        _resend_current_step(from_number, journey, client)
+        
         if response.ok:
             send_text(to=from_number, message=response.text)
             # Bouton Talk to Agent après réponse IA textuelle
@@ -1022,7 +1023,6 @@ def handle_text_during_discovery(
                 "rw": "🧑 Vugana n'Umukozi",
                 "fr": "🧑 Parler à un Agent",
             }
-            _resend_current_step(from_number, journey, client)
             send_buttons(
                 to=from_number,
                 body={"en": "Still need help? Talk or call a real person, We've got you", "rw": "Ukeneye ubufasha bwisumbuye? Vugana cyangwa uhamagare umuntu wa nyawe agufashe, Turi hano kubwanyu", "fr": "Besoin d'aide ? Discutez ou appelez une vraie personne, nous sommes là pour vous"}.get(lang, "Still need help? Talk or call a real person, We've got you", "rw"),
