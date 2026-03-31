@@ -716,3 +716,200 @@ def _parse_time(val):
     if isinstance(val, time):
         return val
     return time.fromisoformat(str(val)[:5])
+
+#STATS
+
+class AnalyticsView(APIView):
+    """
+    GET /dashboard/analytics/?period=7d
+    GET /dashboard/analytics/?period=30d  
+    GET /dashboard/analytics/?from=2026-01-01&to=2026-03-31
+    """
+    permission_classes = [IsStudioStaff]
+
+    def get(self, request):
+        from apps.clients.models import Client, JourneyState
+        from apps.conversations.models import Conversation, Message, ApprovalQueue
+        from django.db.models import Count, Avg, Q
+        import json
+
+        # ── Période ──────────────────────────────────────────────────────────
+        period = request.query_params.get("period", "30d")
+        date_from_str = request.query_params.get("from")
+        date_to_str   = request.query_params.get("to")
+
+        now = timezone.now()
+        if date_from_str and date_to_str:
+            try:
+                from datetime import datetime
+                date_from = timezone.make_aware(datetime.strptime(date_from_str, "%Y-%m-%d"))
+                date_to   = timezone.make_aware(datetime.strptime(date_to_str,   "%Y-%m-%d").replace(hour=23, minute=59))
+            except ValueError:
+                return Response({"error": "Invalid date format. Use YYYY-MM-DD."}, status=400)
+        elif period == "7d":
+            date_from = now - timezone.timedelta(days=7)
+            date_to   = now
+        elif period == "90d":
+            date_from = now - timezone.timedelta(days=90)
+            date_to   = now
+        else:  # 30d default
+            date_from = now - timezone.timedelta(days=30)
+            date_to   = now
+
+        # ── Clients dans la période ──────────────────────────────────────────
+        clients_qs = Client.objects.filter(created_at__gte=date_from, created_at__lte=date_to)
+        total_clients = clients_qs.count()
+
+        # ── Funnel ───────────────────────────────────────────────────────────
+        # Clients avec au moins un message inbound
+        started = clients_qs.filter(messages__direction="inbound").distinct().count()
+
+        # Clients qui ont complété discovery (discovery_state a les 4 champs non-null)
+        journeys_in_period = JourneyState.objects.filter(
+            client__created_at__gte=date_from,
+            client__created_at__lte=date_to,
+        )
+
+        completed_discovery = 0
+        saw_packages = 0
+        chose_package = 0
+        confirmed_payment = 0
+
+        discovery_studio = 0
+        discovery_home   = 0
+        discovery_frames_yes = 0
+        discovery_frames_no  = 0
+        discovery_cake_yes   = 0
+        discovery_cake_no    = 0
+        discovery_video_yes  = 0
+        discovery_video_no   = 0
+
+        # Combos populaires
+        combo_counts = {}
+
+        for j in journeys_in_period:
+            state = j.discovery_state or {}
+
+            # Discovery complète si session_type est défini
+            if state.get("session_type"):
+                completed_discovery += 1
+
+                # Session type
+                if state.get("session_type") == "home":
+                    discovery_home += 1
+                else:
+                    discovery_studio += 1
+
+                # Extras
+                f = state.get("frames", False)
+                c = state.get("cake",   False)
+                v = state.get("video",  False)
+
+                if f:  discovery_frames_yes += 1
+                else:  discovery_frames_no  += 1
+                if c:  discovery_cake_yes   += 1
+                else:  discovery_cake_no    += 1
+                if v:  discovery_video_yes  += 1
+                else:  discovery_video_no   += 1
+
+                # Combo
+                combo = f"{'Frames ' if f else ''}{'Cake ' if c else ''}{'Video' if v else ''}".strip() or "No extras"
+                combo_counts[combo] = combo_counts.get(combo, 0) + 1
+
+            # Packages présentés = flow_mode a dépassé discovery
+            if j.flow_mode in ("awaiting_datetime", "awaiting_payment", "await_confirm", "question") \
+               or j.selected_package:
+                saw_packages += 1
+
+            if j.selected_package:
+                chose_package += 1
+
+            if j.step == "payment_confirmation":
+                confirmed_payment += 1
+
+        # ── Talk to Agent ────────────────────────────────────────────────────
+        talk_to_agent_count = ApprovalQueue.objects.filter(
+            created_at__gte=date_from,
+            created_at__lte=date_to,
+            ai_reasoning__icontains="requested human agent",
+        ).count()
+
+        # ── Abandons par phase ───────────────────────────────────────────────
+        phase_counts = {}
+        for j in journeys_in_period:
+            phase = j.phase or "entry"
+            phase_counts[phase] = phase_counts.get(phase, 0) + 1
+
+        # ── Langues ──────────────────────────────────────────────────────────
+        lang_counts = dict(
+            clients_qs.values("language")
+            .annotate(count=Count("id"))
+            .values_list("language", "count")
+        )
+
+        # ── Tokens & coût ────────────────────────────────────────────────────
+        convs_in_period = Conversation.objects.filter(
+            started_at__gte=date_from, started_at__lte=date_to
+        )
+        token_agg = convs_in_period.aggregate(
+            total=models_F_sum("tokens_used"),
+            avg=models_F_avg("tokens_used"),
+        )
+        total_tokens = token_agg["total"] or 0
+        avg_tokens   = round(token_agg["avg"] or 0)
+        estimated_cost = round(
+            (total_tokens * 0.6 / 1_000_000) * 0.80 +
+            (total_tokens * 0.4 / 1_000_000) * 4.00, 4
+        )
+
+        # ── Human takeover ───────────────────────────────────────────────────
+        takeover_count = journeys_in_period.filter(human_takeover=True).count()
+
+        # ── Top combos (sorted) ──────────────────────────────────────────────
+        top_combos = sorted(combo_counts.items(), key=lambda x: x[1], reverse=True)[:6]
+
+        return Response({
+            "period": {
+                "from": date_from.strftime("%Y-%m-%d"),
+                "to":   date_to.strftime("%Y-%m-%d"),
+            },
+            "funnel": {
+                "total_clients":        total_clients,
+                "started_conversation": started,
+                "completed_discovery":  completed_discovery,
+                "saw_packages":         saw_packages,
+                "chose_package":        chose_package,
+                "confirmed_payment":    confirmed_payment,
+            },
+            "discovery": {
+                "session": {
+                    "studio": discovery_studio,
+                    "home":   discovery_home,
+                },
+                "frames": {"yes": discovery_frames_yes, "no": discovery_frames_no},
+                "cake":   {"yes": discovery_cake_yes,   "no": discovery_cake_no},
+                "video":  {"yes": discovery_video_yes,  "no": discovery_video_no},
+                "top_combos": [{"combo": k, "count": v} for k, v in top_combos],
+            },
+            "behavior": {
+                "talk_to_agent":    talk_to_agent_count,
+                "human_takeovers":  takeover_count,
+                "languages":        lang_counts,
+                "phase_distribution": phase_counts,
+            },
+            "ai_performance": {
+                "total_tokens":    total_tokens,
+                "avg_tokens_per_conv": avg_tokens,
+                "estimated_cost_usd":  estimated_cost,
+                "total_conversations": convs_in_period.count(),
+            },
+        })
+
+
+def models_F_sum(field):
+    from django.db.models import Sum
+    return Sum(field)
+
+def models_F_avg(field):
+    from django.db.models import Avg
+    return Avg(field)

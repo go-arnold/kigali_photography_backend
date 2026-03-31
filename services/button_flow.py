@@ -1040,7 +1040,6 @@ def handle_text_during_discovery(
                          response.input_tokens, response.output_tokens)
         except Exception:
             pass
-        _resend_current_step(from_number, journey, client)
     
 
     except Exception as exc:
@@ -1051,7 +1050,7 @@ def handle_text_during_discovery(
         )
 
     # Renvoyer l'étape courante (question OU packages selon où on en est)
-    #_resend_current_step(from_number, journey, client)
+    _resend_current_step(from_number, journey, client)
     return "answered_text_resent_step"
 
 

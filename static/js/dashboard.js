@@ -87,6 +87,11 @@ let S = {
   bookingDateTo: "",
   bookingTimeFrom: "",
   bookingTimeTo: "",
+  analytics: null,
+  analyticsLoading: false,
+  analyticsPeriod: "30d",
+  analyticsFrom: "",
+  analyticsTo: "",
 };
 
 function set(patch) { Object.assign(S, patch); render(); }
@@ -132,6 +137,7 @@ function nav(page) {
   if (page === "approvals") fetchApprovals();
   if (page === "clients") fetchClients();
   if (page === "bookings") fetchBookings();
+  if (page === "analytics") fetchAnalytics();
 }
 
 // ─── Actions ─────────────────────────────────────────────────────────────────
@@ -1003,6 +1009,7 @@ function render() {
     { id: "approvals", icon: "🔔", label: "Approvals", badge: pendingCount || "" },
     { id: "clients", icon: "👥", label: "Clients" },
     { id: "bookings", icon: "📸", label: "Bookings" },
+    { id: "analytics", icon: "📊", label: "Analytics" },
   ];
 
   const pageContent = {
@@ -1017,6 +1024,7 @@ function render() {
     approvals: "Approval Queue",
     clients: "Clients",
     bookings: "Bookings",
+    analytics: "Analytics",
   };
 
   root.innerHTML = `
@@ -1081,3 +1089,223 @@ function startDashboard() {
     document.getElementById("root").innerHTML = renderLogin();
   }
 })();
+
+//____________________________________________________________________________________STATS
+
+async function fetchAnalytics() {
+  set({ analyticsLoading: true });
+  try {
+    let path = `/analytics/?period=${S.analyticsPeriod}`;
+    if (S.analyticsPeriod === "custom" && S.analyticsFrom && S.analyticsTo) {
+      path = `/analytics/?from=${S.analyticsFrom}&to=${S.analyticsTo}`;
+    }
+    set({ analytics: await req("GET", path), analyticsLoading: false });
+  } catch (e) {
+    set({ analyticsLoading: false });
+    toast(e.message, "err");
+  }
+}
+
+function pageAnalytics() {
+  const d = S.analytics;
+  const L = S.analyticsLoading;
+
+  function pct(a, b) {
+    if (!b) return "0%";
+    return Math.round((a / b) * 100) + "%";
+  }
+  function bar(val, max, color) {
+    const w = max ? Math.round((val / max) * 100) : 0;
+    return `<div style="background:#eee;border-radius:4px;height:8px;flex:1">
+      <div style="background:${color};width:${w}%;height:8px;border-radius:4px;transition:width .4s"></div>
+    </div>`;
+  }
+
+  return `
+<div class="flex aic gap2 mb4" style="flex-wrap:wrap">
+  <select class="f-input" style="width:140px;padding:5px 10px"
+    onchange="set({analyticsPeriod:this.value});if(this.value!=='custom')fetchAnalytics()">
+    <option value="7d"    ${S.analyticsPeriod==="7d"?"selected":""}>Last 7 days</option>
+    <option value="30d"   ${S.analyticsPeriod==="30d"?"selected":""}>Last 30 days</option>
+    <option value="90d"   ${S.analyticsPeriod==="90d"?"selected":""}>Last 90 days</option>
+    <option value="custom"${S.analyticsPeriod==="custom"?"selected":""}>Custom range</option>
+  </select>
+  ${S.analyticsPeriod === "custom" ? `
+    <input class="f-input" type="date" style="width:140px;padding:5px 10px"
+      value="${esc(S.analyticsFrom)}" onchange="set({analyticsFrom:this.value})">
+    <span class="muted">→</span>
+    <input class="f-input" type="date" style="width:140px;padding:5px 10px"
+      value="${esc(S.analyticsTo)}" onchange="set({analyticsTo:this.value})">
+    <button class="btn btn-accent btn-sm" onclick="fetchAnalytics()">Apply</button>
+  ` : ""}
+  <button class="refresh" onclick="fetchAnalytics()">↻ Refresh</button>
+  ${d ? `<span class="muted" style="font-size:12px">
+    ${esc(d.period?.from)} → ${esc(d.period?.to)}
+  </span>` : ""}
+</div>
+
+${L ? '<div class="loading"><span class="spin"></span>Loading analytics…</div>' :
+  !d ? '<div class="empty"><div class="empty-icon">📊</div><h3>Select a period above</h3></div>' : `
+
+<!-- FUNNEL -->
+<div class="panel mb4">
+  <div class="panel-head"><h2>🔽 Conversion Funnel</h2></div>
+  <div style="padding:20px">
+    ${[
+      ["👥 New Clients",         d.funnel.total_clients,        d.funnel.total_clients, "#6366f1"],
+      ["💬 Started Conversation",d.funnel.started_conversation, d.funnel.total_clients, "#8b5cf6"],
+      ["✅ Completed Discovery", d.funnel.completed_discovery,  d.funnel.total_clients, "#06b6d4"],
+      ["📦 Saw Packages",        d.funnel.saw_packages,         d.funnel.total_clients, "#10b981"],
+      ["🎯 Chose a Package",     d.funnel.chose_package,        d.funnel.total_clients, "#f59e0b"],
+      ["💳 Confirmed Payment",   d.funnel.confirmed_payment,    d.funnel.total_clients, "#ef4444"],
+    ].map(([label, val, total, color]) => `
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+        <div style="width:200px;font-size:13px">${label}</div>
+        <div style="font-weight:700;width:40px;text-align:right;font-size:15px">${val}</div>
+        ${bar(val, total, color)}
+        <div style="width:45px;font-size:12px;color:#999;text-align:right">${pct(val, total)}</div>
+      </div>`).join("")}
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+
+<!-- DISCOVERY PREFERENCES -->
+<div class="panel">
+  <div class="panel-head"><h2>🎛️ Discovery Preferences</h2></div>
+  <div style="padding:20px">
+    ${[
+      ["📍 Session", "studio", "home", d.discovery.session.studio, d.discovery.session.home, "#6366f1", "#8b5cf6"],
+      ["🖼️ Frames",  "Yes",    "No",   d.discovery.frames.yes,    d.discovery.frames.no,    "#10b981", "#ef4444"],
+      ["🎂 Cake",    "Yes",    "No",   d.discovery.cake.yes,      d.discovery.cake.no,      "#f59e0b", "#ef4444"],
+      ["🎬 Video",   "Yes",    "No",   d.discovery.video.yes,     d.discovery.video.no,     "#06b6d4", "#ef4444"],
+    ].map(([label, l1, l2, v1, v2, c1, c2]) => {
+      const total = v1 + v2;
+      const p1 = total ? Math.round(v1/total*100) : 0;
+      const p2 = 100 - p1;
+      return `
+      <div style="margin-bottom:18px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+          <span style="font-size:13px;font-weight:600">${label}</span>
+          <span style="font-size:11px;color:#999">${total} responses</span>
+        </div>
+        <div style="display:flex;border-radius:6px;overflow:hidden;height:24px">
+          <div style="background:${c1};width:${p1}%;display:flex;align-items:center;justify-content:center;font-size:11px;color:#fff;font-weight:700;transition:width .4s">
+            ${p1>10?`${l1} ${p1}%`:""}
+          </div>
+          <div style="background:${c2};width:${p2}%;display:flex;align-items:center;justify-content:center;font-size:11px;color:#fff;font-weight:700;transition:width .4s">
+            ${p2>10?`${l2} ${p2}%`:""}
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:11px;color:#999">
+          <span>${l1}: ${v1}</span><span>${l2}: ${v2}</span>
+        </div>
+      </div>`;
+    }).join("")}
+  </div>
+</div>
+
+<!-- COMBOS POPULAIRES -->
+<div class="panel">
+  <div class="panel-head"><h2>🔥 Popular Combos</h2></div>
+  <div style="padding:20px">
+    ${d.discovery.top_combos.length === 0
+      ? '<div class="empty"><p>No data yet</p></div>'
+      : d.discovery.top_combos.map((c, i) => {
+          const colors = ["#6366f1","#8b5cf6","#06b6d4","#10b981","#f59e0b","#ef4444"];
+          const maxVal = d.discovery.top_combos[0]?.count || 1;
+          return `
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+            <span style="font-size:16px">${["🥇","🥈","🥉","4️⃣","5️⃣","6️⃣"][i]||"•"}</span>
+            <div style="flex:1">
+              <div style="font-size:13px;margin-bottom:4px">${esc(c.combo)}</div>
+              <div style="background:#eee;border-radius:4px;height:6px">
+                <div style="background:${colors[i%colors.length]};width:${Math.round(c.count/maxVal*100)}%;height:6px;border-radius:4px"></div>
+              </div>
+            </div>
+            <span style="font-weight:700;font-size:14px">${c.count}</span>
+          </div>`;
+        }).join("")
+    }
+  </div>
+</div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px">
+
+<!-- COMPORTEMENT -->
+<div class="panel">
+  <div class="panel-head"><h2>🧠 Behavior</h2></div>
+  <div style="padding:20px">
+    ${[
+      ["👤 Talk to Agent",    d.behavior.talk_to_agent,   "#f59e0b"],
+      ["🔒 Human Takeovers",  d.behavior.human_takeovers, "#ef4444"],
+    ].map(([label, val, color]) => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f0f0f0">
+        <span style="font-size:13px">${label}</span>
+        <span style="font-weight:700;font-size:18px;color:${color}">${val}</span>
+      </div>`).join("")}
+    <div style="margin-top:16px">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#999;margin-bottom:10px">Languages</div>
+      ${Object.entries(d.behavior.languages).map(([lang, count]) => {
+        const flags = {en:"🇬🇧", rw:"🇷🇼", fr:"🇫🇷"};
+        const total = Object.values(d.behavior.languages).reduce((a,b)=>a+b,0);
+        return `
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <span style="font-size:16px">${flags[lang]||"🌐"}</span>
+          <span style="font-size:13px;width:30px">${lang.toUpperCase()}</span>
+          ${bar(count, total, {en:"#6366f1",rw:"#10b981",fr:"#f59e0b"}[lang]||"#999")}
+          <span style="font-size:12px;font-weight:600;width:30px">${count}</span>
+        </div>`;
+      }).join("")}
+    </div>
+  </div>
+</div>
+
+<!-- PHASE DISTRIBUTION -->
+<div class="panel">
+  <div class="panel-head"><h2>📍 Where They Stopped</h2></div>
+  <div style="padding:20px">
+    ${Object.entries(d.behavior.phase_distribution)
+      .sort((a,b) => b[1]-a[1])
+      .map(([phase, count]) => {
+        const total = Object.values(d.behavior.phase_distribution).reduce((a,b)=>a+b,0);
+        const icons = {entry:"🚪",booking:"📦",sales_resistance:"⚔️",preparation:"📸",delivery:"📤",feedback:"⭐"};
+        return `
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <span style="font-size:14px">${icons[phase]||"•"}</span>
+          <div style="flex:1">
+            <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+              <span style="font-size:12px">${phase}</span>
+              <span style="font-size:12px;font-weight:600">${count}</span>
+            </div>
+            ${bar(count, total, "#6366f1")}
+          </div>
+          <span style="font-size:11px;color:#999;width:35px;text-align:right">${pct(count,total)}</span>
+        </div>`;
+      }).join("")}
+  </div>
+</div>
+
+<!-- AI PERFORMANCE -->
+<div class="panel">
+  <div class="panel-head"><h2>⚡ AI Performance</h2></div>
+  <div style="padding:20px">
+    ${[
+      ["💬 Conversations",      d.ai_performance.total_conversations, "#6366f1", ""],
+      ["🔤 Total Tokens",       (d.ai_performance.total_tokens||0).toLocaleString(), "#8b5cf6", ""],
+      ["📊 Avg Tokens/Conv",    d.ai_performance.avg_tokens_per_conv, "#06b6d4", ""],
+      ["💰 Estimated Cost",     `$${d.ai_performance.estimated_cost_usd}`, "#10b981", "USD"],
+    ].map(([label, val, color]) => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #f0f0f0">
+        <span style="font-size:13px;color:#555">${label}</span>
+        <span style="font-weight:700;font-size:16px;color:${color}">${val}</span>
+      </div>`).join("")}
+    <div style="margin-top:16px;background:#f9f6f2;border-radius:8px;padding:12px;font-size:12px;color:#999">
+      💡 Cost estimate based on GPT-4o-mini pricing (60% input / 40% output)
+    </div>
+  </div>
+</div>
+</div>
+`}`;
+}
