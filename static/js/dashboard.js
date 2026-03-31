@@ -1017,6 +1017,7 @@ function render() {
     approvals: pageApprovals,
     clients: pageClients,
     bookings: pageBookings,
+    analytics: pageAnalytics, 
   }[page]?.() || "";
 
   const titles = {
