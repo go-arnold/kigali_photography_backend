@@ -163,16 +163,53 @@ def handle_inbound_message(
             )
 
         elif flow_mode == "welcome_sent" and text:
-            # Client tape du texte après le welcome sans cliquer un bouton → renvoyer menu
-            send_welcome(from_number)
-            conversation.touch()
-            return OrchestratorResult(
-                success=True,
-                action="sent",
-                client_id=str(client.pk),
-                conversation_id=conversation.pk,
-                tokens_used=0,
+            # Client tape du texte après le welcome sans cliquer un bouton
+            # → répondre en mode question + renvoyer le menu
+            from services.button_flow import handle_text_during_discovery
+            # Temporairement mettre flow_mode = "question" pour que le prompt soit correct
+            journey.flow_mode = "question"
+            journey.save(update_fields=["flow_mode", "updated_at"])
+
+            # Appel IA direct avec prompt question
+            from services.openai_service import build_system_prompt, build_messages_context, call_openai
+            from services.rag_service import retrieve_context
+
+            rag_context = retrieve_context(query=text, journey_phase="entry", language=client.language)
+
+            system_prompt = build_system_prompt(
+                journey_phase=journey.phase,
+                journey_step=journey.step,
+                heat_label=journey.heat_label,
+                language=client.language,
+                client_name=client.name or from_number,
+                children_info="",
+                rag_context=rag_context,
+                flow_mode="question",
             )
+            messages = build_messages_context(
+                conversation_summary=None,
+                recent_messages=[],
+                new_message=text,
+            )
+            response = call_openai(system_prompt=system_prompt, messages=messages)
+
+            if response.ok:
+                from services.whatsapp import send_text, send_buttons
+                send_text(to=from_number, message=response.text)
+                # Bouton Talk to Agent
+                lang = client.language or "en"
+                agent_titles = {"en": "🧑 Talk to Agent", "rw": "🧑 Vugana n'Umukozi", "fr": "🧑 Parler à un Agent"}
+                send_buttons(
+                    to=from_number,
+                    body={"en": "Need human help?", "rw": "Ukeneye umuntu?", "fr": "Besoin d'aide ?"}.get(lang, "Need human help?"),
+                    buttons=[{"id": "btn_agent", "title": agent_titles.get(lang, agent_titles["en"])}],
+                )
+            
+            # Remettre flow_mode à welcome_sent pour que le menu reste actif
+            journey.flow_mode = "welcome_sent"
+            journey.save(update_fields=["flow_mode", "updated_at"])
+            conversation.touch()
+            return OrchestratorResult(success=True, action="sent", client_id=str(client.pk), conversation_id=conversation.pk)
         
         elif flow_mode == "awaiting_datetime" and text and msg_type != "interactive":
             # Client répond avec sa date/heure préférée → human takeover

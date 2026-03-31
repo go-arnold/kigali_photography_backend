@@ -70,7 +70,7 @@ DISCOVERY_STEPS = {
             "message": "Mbere na mbere, ni ubuhe bwoko bwa photoshoot mwifuzako twabakorera? 😊",
             "buttons": [
                 {"id": "disc_child",  "title": "👶 Gufotoza Umwana"},
-                {"id": "disc_family", "title": "👨‍👩‍👧 Gufotoza Umuryango"},
+                {"id": "disc_family", "title": "👨‍👩‍👧 Cg Umuryango"},
             ],
         },
         {
@@ -163,10 +163,10 @@ PACKAGE_MESSAGES = {
     },
     "rw": {
         "intro": "Dore packages 3 zikubiyemo ibyo mwadusabye\n",
-        "session_studio": "Session muri Studio",
+        "session_studio": "yo kwifotoza muri Studio",
         "session_home": "Session mu Rugo",
         "delivery": "Hakubiyemo: Amafoto {photos} mwahisemo atunganijwe",
-        "unedited": "Ayandi amafoto Yose Adatunganijwe(unedited)",
+        "unedited": "Ayandi mafoto Yose Adatunganijwe(unedited)",
         "includes": "Harimo: {includes}",
         "question": "Kandi mu izina rya Kigali Photography, Tuzabongereramo impano yihariye y'umwana, murifuzako ari iyihe package twabakorera? 😊",
         "body": "Hitamo package:",
@@ -562,7 +562,7 @@ def _handle_package_choice(package_name: str, from_number: str, journey, client)
         "rw": (
             f"Murakoze! 🎉 Mwahisemo *{package_name} Package*.\n\n"
             f"Ni uwuhe munsi/itariki n'isaha mwifuzaho session yanyu? 📅\n"
-            f"Mutwihanganire akanya gato mugihe tugisuzuma ubusabe bwanyu!"
+            
         ),
         "fr": (
             f"Excellent choix! 🎉 Vous avez sélectionné le *{package_name} Package*.\n\n"
@@ -594,7 +594,7 @@ def _handle_payment_confirmed(from_number: str, journey, client) -> str:
     if lang == "rw":
         booking_form = (
             f"Twayakiriye! Murakoze.\n\n"
-            f"Murakoze! Mwatwuzuriza iyi myirondoro:\n\n"
+            f"Mwatwuzuriza iyi myirondoro:\n\n"
             f"Izina:\n"
             f"Igitsina cy'umwana:\n"
             f"Imyaka y'umwana:\n"
@@ -672,6 +672,7 @@ def _handle_talk_to_agent(from_number: str, journey, client) -> str:
                 reason="Client requested human agent",
                 ai_suggestion=agent_message,
             )
+            _send_agent_request_email(client, journey)
     except Exception as exc:
         logger.warning("Notification failed after talk_to_agent: %s", exc)
 
@@ -697,7 +698,7 @@ MAIN_MENU = {
         ),
         "body": "Hitamo:",
         "buttons": [
-            {"id": "btn_book",     "title": "📸 Fata Igihe"},
+            {"id": "btn_book",     "title": "📸 Kwifotoza"},
             {"id": "btn_prices",   "title": "💰 Reba Ibiciro"},
             {"id": "btn_question", "title": "ℹ️ Baza Ikibazo"},
         ],
@@ -975,19 +976,36 @@ def handle_text_during_discovery(
         if discovery_done:
             packages_context = _build_packages_context_for_prompt(journey)
 
+        lang = getattr(client, "language", "en") or "en"
+
         back_to_options = {
             "en": "Now, back to your options 👇",
             "rw": "Noneho, turgaruke ku mahitamo yanyu 👇",
             "fr": "Maintenant, revenons à vos options 👇",
-        }
+        }.get(lang, "Now, back to your options 👇")
+
+        still_need_help = {
+            "en": "Still need help? Talk or call a real person — we've got you 😊",
+            "rw": "Ukeneye ubufasha bwisumbuye? Vugana cyangwa uhamagare umuntu wa nyawe agufashe — turi hano kubwanyu 😊",
+            "fr": "Besoin d'aide ? Discutez ou appelez une vraie personne — nous sommes là pour vous 😊",
+        }.get(lang, "Still need help? Talk or call a real person — we've got you 😊")
 
         system_prompt = (
-            "You are Julie, WhatsApp assistant for KP Kids Studio, Kigali. "
-            "Answer the client's question briefly (2-3 sentences max, WhatsApp style). "
-            "Be warm and helpful. "
+            f"You are Julie, WhatsApp assistant for KP Kids Studio, Kigali.\n"
+            f"CRITICAL: Respond ONLY in {lang.upper()}. Never switch languages.\n"
+            f"Answer briefly (2-3 sentences, WhatsApp style). Be warm.\n\n"
+            f"LOCATION: We are in Kicukiro, opposite IPRC, BRGD Plaza, next to SAWA CITY Supermarket.\n"
+            f"ONE PICTURE PRICE: Sorry, no single-picture pricing — we offer packages. "
+            f"Click Book a Session or View Prices for a custom quote.\n"
+            f"FRAMES: 2 A5-format framed photos, beautiful quality for home display.\n"
+            f"CAKE SIZE: Perfectly sized for a birthday celebration.\n"
+            f"OWN CAKE: No problem — clients can bring their own cake.\n"
+            f"VIDEO: A 15-30 second highlight clip of the session's best moments.\n"
+            f"DISCOUNT: No discounts — quality service, 24h delivery, child specialists.\n\n"
             f"{packages_context}"
-            f"{'Knowledge base: ' + rag_context if rag_context else ''}\n\n"
-            f"After your answer, end with: '{back_to_options.get(client.language or 'en', back_to_options['en'])}'"
+            f"{'Knowledge base:\\n' + rag_context if rag_context else ''}\n\n"
+            f"After your answer, append exactly:\n{back_to_options}\n"
+            f"Then on a new line: {still_need_help}"
         )
 
         response = call_openai(
@@ -998,6 +1016,19 @@ def handle_text_during_discovery(
 
         if response.ok:
             send_text(to=from_number, message=response.text)
+            # Bouton Talk to Agent après réponse IA textuelle
+            agent_titles = {
+                "en": "🧑 Talk to Agent",
+                "rw": "🧑 Vugana n'Umukozi",
+                "fr": "🧑 Parler à un Agent",
+            }
+            send_buttons(
+                to=from_number,
+                body={"en": "Need human help?", "rw": "Ukeneye umuntu?", "fr": "Besoin d'aide ?"}.get(lang, "Need human help?"),
+                buttons=[
+                    {"id": "btn_agent", "title": agent_titles.get(lang, agent_titles["en"])},
+                ],
+            )
         else:
             send_text(
                 to=from_number,
@@ -1278,12 +1309,12 @@ def handle_datetime_response(
         ),
         "rw": (
             f"Amakuru meza! 🎉 Itariki mushaka iraboneka!\n\n"
-            f"Kugira ngo twohereze itariki yanyu, "
-            f"mwishyure booking fee ya *20,000 RWF* kuri:\n\n"
+            f"Kugira ngo tubafatire itariki yanyu, "
+            f"mwakishyura booking fee ya *20,000 RWF* kuri:\n\n"
             f"📱 MTN MoMo: *798741*\n"
             f"Izina: *Kigali Photography Ltd*\n\n"
-            f"Andi yishyurwa session irangiye. "
-            f"Mutubanize murangije! 🙏"
+            f"Andi yishyurwa kwifotoza birangiye. "
+            f"Mwatubwira murangije, murakoze! 🙏"
         ),
         "fr": (
             f"Bonne nouvelle! 🎉 Votre créneau est disponible!\n\n"
@@ -1308,7 +1339,7 @@ def handle_datetime_response(
     # ── Étape 1 : Répondre au client immédiatement ──
     ack_msgs = {
         "en": "Thank you! 😊 We're checking availability for your preferred date. A team member will get back to you shortly! 🙏",
-        "rw": "Murakoze! 😊 Turimo gusuzuma gahunda yacu. Umwe mu bakoze bacu azababwira vuba! 🙏",
+        "rw": "Murakoze! 😊 Mwaduha akanya gato, tugasuzuma ubusabe bwanyu, tukabafasha! 🙏",
         "fr": "Merci! 😊 Nous vérifions notre disponibilité. Un membre de notre équipe vous répondra bientôt! 🙏",
     }
     send_text(to=from_number, message=ack_msgs.get(lang, ack_msgs["en"]))
@@ -1359,6 +1390,8 @@ def handle_datetime_response(
             "ApprovalQueue created ✅ | client=%s preferred=%s",
             client.wa_number, text,
         )
+        # ← NOUVEAU : email de notification pour vérification de disponibilité
+        _send_availability_check_email(client, journey, text, extras_str, pkg)
     except Exception as exc:
         logger.error(
             "ApprovalQueue creation FAILED | client=%s error=%s",
@@ -1374,3 +1407,183 @@ def handle_datetime_response(
         logger.error("Could not save journey state: %s", exc)
 
     return "datetime_received_human_takeover"
+
+# FONCTIONS DE L'ENVOIE DES MAILS
+# --------------------------------
+def _send_agent_request_email(client, journey):
+    """Email de notification quand un client demande à parler à un agent."""
+    try:
+        from django.core.mail import EmailMultiAlternatives
+        from django.conf import settings
+
+        state = journey.discovery_state or {}
+        pkg = journey.selected_package or "Not yet chosen"
+        lang = getattr(client, "language", "en") or "en"
+
+        text_body = (
+            f"Client requesting human agent.\n\n"
+            f"Name: {client.name or 'Unknown'}\n"
+            f"Phone: {client.wa_number}\n"
+            f"Language: {lang.upper()}\n"
+            f"Journey: {journey.phase}/{journey.step}\n"
+            f"Heat: {journey.heat_label}\n"
+            f"Package selected: {pkg}\n\n"
+            f"Action: Go to dashboard and take over the conversation.\n"
+            f"Dashboard: https://senior-madeleine-matabar-93648cd5.koyeb.app/"
+        )
+
+        html_body = f"""
+<!DOCTYPE html><html><head><meta charset="UTF-8">
+<style>
+  body {{margin:0;padding:0;background:#f5f0eb;font-family:'Georgia',serif;}}
+  .wrapper {{max-width:600px;margin:40px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.1);}}
+  .header {{background:linear-gradient(135deg,#1a1a2e,#0f3460);padding:40px 30px;text-align:center;}}
+  .header h1 {{color:#fff;margin:0;font-size:24px;letter-spacing:2px;text-transform:uppercase;}}
+  .header p {{color:#e2b96f;margin:8px 0 0;font-size:14px;}}
+  .badge {{display:inline-block;background:#ff6b35;color:#fff;padding:6px 16px;border-radius:20px;font-size:12px;font-weight:bold;margin-top:15px;}}
+  .body {{padding:35px 40px;}}
+  .section-title {{font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#999;margin-bottom:8px;margin-top:24px;}}
+  .info-block {{background:#f9f6f2;border-left:4px solid #ff6b35;border-radius:6px;padding:16px 20px;margin-bottom:16px;}}
+  .info-block p {{margin:6px 0;color:#333;font-size:15px;}}
+  .info-block strong {{color:#1a1a2e;}}
+  .action-btn {{display:block;background:#e2b96f;color:#1a1a2e;text-align:center;padding:16px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;margin:25px 0;}}
+  .footer {{background:#1a1a2e;padding:20px;text-align:center;}}
+  .footer p {{color:#666;font-size:12px;margin:4px 0;}}
+  .footer a {{color:#e2b96f;text-decoration:none;}}
+</style></head><body>
+<div class="wrapper">
+  <div class="header">
+    <h1>KP Kids Studio</h1>
+    <p>Agent Request</p>
+    <span class="badge">👤 HUMAN NEEDED</span>
+  </div>
+  <div class="body">
+    <div class="section-title">Client Details</div>
+    <div class="info-block">
+      <p><strong>Name:</strong> {client.name or 'Unknown'}</p>
+      <p><strong>Phone:</strong> {client.wa_number}</p>
+      <p><strong>Language:</strong> {lang.upper()}</p>
+    </div>
+    <div class="section-title">Journey State</div>
+    <div class="info-block">
+      <p><strong>Phase/Step:</strong> {journey.phase}/{journey.step}</p>
+      <p><strong>Heat:</strong> {journey.heat_label}</p>
+      <p><strong>Package selected:</strong> {pkg}</p>
+    </div>
+    <div class="section-title">Action Required</div>
+    <div class="info-block">
+      <p>The client wants to speak with a human agent.</p>
+      <p>Go to the dashboard and take over the conversation.</p>
+    </div>
+    <a href="https://senior-madeleine-matabar-93648cd5.koyeb.app/" class="action-btn">Open Dashboard →</a>
+  </div>
+  <div class="footer">
+    <p>KP Kids Studio — Kigali, Rwanda</p>
+    <p><a href="https://senior-madeleine-matabar-93648cd5.koyeb.app/">Dashboard</a></p>
+  </div>
+</div></body></html>"""
+
+        msg = EmailMultiAlternatives(
+            subject=f"👤 Agent requested — {client.name or client.wa_number}",
+            body=text_body,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[settings.STUDIO_NOTIFICATION_EMAIL],
+        )
+        msg.attach_alternative(html_body, "text/html")
+        msg.send(fail_silently=True)
+        logger.info("Agent request email sent for %s", client.wa_number)
+    except Exception as exc:
+        logger.warning("Agent request email failed: %s", exc)
+
+#Availability email
+def _send_availability_check_email(client, journey, preferred_datetime, extras_str, pkg):
+    """Email de notification pour vérification de disponibilité."""
+    try:
+        from django.core.mail import EmailMultiAlternatives
+        from django.conf import settings
+
+        state = journey.discovery_state or {}
+        session_type = state.get("session_type", "studio").title()
+        lang = getattr(client, "language", "en") or "en"
+
+        text_body = (
+            f"Availability check needed.\n\n"
+            f"Name: {client.name or 'Unknown'}\n"
+            f"Phone: {client.wa_number}\n\n"
+            f"Package: {pkg}\n"
+            f"Session: {session_type}\n"
+            f"Extras: {extras_str}\n"
+            f"Preferred date/time: {preferred_datetime}\n\n"
+            f"Action: Check booking table for availability, then approve in dashboard.\n"
+            f"Dashboard: https://senior-madeleine-matabar-93648cd5.koyeb.app/"
+        )
+
+        html_body = f"""
+<!DOCTYPE html><html><head><meta charset="UTF-8">
+<style>
+  body {{margin:0;padding:0;background:#f5f0eb;font-family:'Georgia',serif;}}
+  .wrapper {{max-width:600px;margin:40px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.1);}}
+  .header {{background:linear-gradient(135deg,#1a1a2e,#0f3460);padding:40px 30px;text-align:center;}}
+  .header h1 {{color:#fff;margin:0;font-size:24px;letter-spacing:2px;text-transform:uppercase;}}
+  .header p {{color:#e2b96f;margin:8px 0 0;font-size:14px;}}
+  .badge {{display:inline-block;background:#e2b96f;color:#1a1a2e;padding:6px 16px;border-radius:20px;font-size:12px;font-weight:bold;margin-top:15px;}}
+  .body {{padding:35px 40px;}}
+  .section-title {{font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#999;margin-bottom:8px;margin-top:24px;}}
+  .info-block {{background:#f9f6f2;border-left:4px solid #e2b96f;border-radius:6px;padding:16px 20px;margin-bottom:16px;}}
+  .info-block p {{margin:6px 0;color:#333;font-size:15px;}}
+  .info-block strong {{color:#1a1a2e;}}
+  .datetime-block {{background:linear-gradient(135deg,#1a1a2e,#0f3460);border-radius:10px;padding:20px 24px;margin-bottom:16px;text-align:center;}}
+  .datetime-block p {{color:#e2b96f;font-size:20px;font-weight:bold;margin:0;}}
+  .action-btn {{display:block;background:#e2b96f;color:#1a1a2e;text-align:center;padding:16px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:16px;margin:25px 0;}}
+  .footer {{background:#1a1a2e;padding:20px;text-align:center;}}
+  .footer p {{color:#666;font-size:12px;margin:4px 0;}}
+  .footer a {{color:#e2b96f;text-decoration:none;}}
+</style></head><body>
+<div class="wrapper">
+  <div class="header">
+    <h1>KP Kids Studio</h1>
+    <p>Availability Check</p>
+    <span class="badge">📅 CHECK NEEDED</span>
+  </div>
+  <div class="body">
+    <div class="section-title">Client Details</div>
+    <div class="info-block">
+      <p><strong>Name:</strong> {client.name or 'Unknown'}</p>
+      <p><strong>Phone:</strong> {client.wa_number}</p>
+      <p><strong>Language:</strong> {lang.upper()}</p>
+    </div>
+    <div class="section-title">Requested Date & Time</div>
+    <div class="datetime-block">
+      <p>📅 {preferred_datetime}</p>
+    </div>
+    <div class="section-title">Package Details</div>
+    <div class="info-block">
+      <p><strong>Package:</strong> {pkg}</p>
+      <p><strong>Session:</strong> {session_type}</p>
+      <p><strong>Extras:</strong> {extras_str}</p>
+    </div>
+    <div class="section-title">Action Required</div>
+    <div class="info-block">
+      <p>1. Check booking table for <strong>{preferred_datetime}</strong></p>
+      <p>2. If available → approve the booking message in the dashboard</p>
+      <p>3. If not available → contact client directly via Send Message</p>
+    </div>
+    <a href="https://senior-madeleine-matabar-93648cd5.koyeb.app/" class="action-btn">Open Dashboard →</a>
+  </div>
+  <div class="footer">
+    <p>KP Kids Studio — Kigali, Rwanda</p>
+    <p><a href="https://senior-madeleine-matabar-93648cd5.koyeb.app/">Dashboard</a></p>
+  </div>
+</div></body></html>"""
+
+        msg = EmailMultiAlternatives(
+            subject=f"📅 Availability check — {client.name or client.wa_number} | {preferred_datetime}",
+            body=text_body,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[settings.STUDIO_NOTIFICATION_EMAIL],
+        )
+        msg.attach_alternative(html_body, "text/html")
+        msg.send(fail_silently=True)
+        logger.info("Availability check email sent for %s", client.wa_number)
+    except Exception as exc:
+        logger.warning("Availability check email failed: %s", exc)
