@@ -114,6 +114,14 @@ def handle_inbound_message(
 
         # ── BRANCHEMENT BOUTONS ──────────────────────────────────────────────────────
         if msg_type == "interactive" and interactive_id:
+            # ← SAUVEGARDER le clic bouton comme message inbound
+            _save_inbound(
+                client=client,
+                conversation=conversation,
+                message_id=message_id,
+                text=text or f"[button: {interactive_id}]",
+                msg_type=msg_type,
+            )
             action = handle_button_click(
                 interactive_id=interactive_id,
                 from_number=from_number,

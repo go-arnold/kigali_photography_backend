@@ -1107,7 +1107,7 @@ function renderModal() {
                       <div class="msg-bubble msg-bubble-in">${esc(msg.content)}</div>
                       <div class="msg-meta">${ago(msg.timestamp)}</div>
                     </div></div>`
-                  // Dans le rendu des messages, remplace le bloc outbound par :
+                  // Dans le rendu des messages, j'ai remplace le bloc outbound par :
                   : `<div class="msg-row-out"><div>
                       <div class="msg-bubble msg-bubble-out">
                         ${msg.msg_type === "interactive" 

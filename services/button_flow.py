@@ -394,7 +394,7 @@ def _handle_discovery(field: str, value, from_number: str, journey, client) -> s
     next_step = _get_next_unanswered_step(state, lang=client.language)
 
     if next_step:
-        _send_discovery_question(from_number, next_step)
+        _send_discovery_question(from_number, next_step, client)
         return f"discovery_{field}_saved_next_{next_step['key']}"
     else:
         # Toutes les questions répondues → présenter les packages
@@ -438,7 +438,7 @@ def _present_packages(from_number: str, journey, client) -> None:
         _present_premium_package(from_number, journey, client,
                                   extras_cost, includes_line, msgs, lang)
     else:
-        _present_studio_packages(from_number, extras_cost, includes_line, msgs)
+        _present_studio_packages(from_number, extras_cost, includes_line, msgs, client)
 
 
 def _present_studio_packages(
