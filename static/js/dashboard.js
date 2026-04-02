@@ -996,10 +996,10 @@ function renderModal() {
                 <div style="display:flex;align-items:flex-end;gap:8px;max-width:75%;align-self:flex-end">
                   <div style="text-align:right">
                     <div style="
-                      background:${isInteractive ? "#0b402d" : "#197b9b"};
-                      color:#fff;border-radius:12px 12px 2px 12px;
+                      background:${isInteractive ? "#6dfbc7" : "#71d1f2"};
+                      color:#000;border-radius:12px 12px 2px 12px;
                       padding:10px 14px;font-size:14px;
-                      box-shadow:0 1px 3px rgba(0,0,0,0.15);
+                      box-shadow:0 1px 3px #00000026;
                       white-space:pre-wrap;word-break:break-word;
                       ${isInteractive ? "font-style:italic;opacity:0.9" : ""}
                     ">${esc(msg.content)}</div>
