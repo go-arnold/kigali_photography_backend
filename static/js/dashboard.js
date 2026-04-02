@@ -1001,7 +1001,7 @@ function renderModal() {
                       padding:10px 14px;font-size:14px;
                       box-shadow:0 1px 3px #00000026;
                       white-space:pre-wrap;word-break:break-word;
-                      ${isInteractive ? "font-style:italic;opacity:0.9" : ""}
+                      ${isInteractive ? "opacity:0.9" : ""}
                     ">${esc(msg.content)}</div>
                     <div style="font-size:10px;color:#999;margin-top:3px;padding-right:4px">
                       ${msg.generated_by_ai ? "👤 Staff, Approved" : "🤖Bot - AI"} · ${time}
