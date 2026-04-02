@@ -92,6 +92,13 @@ let S = {
   analyticsPeriod: "30d",
   analyticsFrom: "",
   analyticsTo: "",
+  //message dashboard view ajoute
+  chatClientId: null,        // ID du client en cours de chat
+  chatMessages: [],          // Messages chargés
+  chatLoading: false,        // Loading initial
+  chatLastTimestamp: null,   // Dernier timestamp reçu (pour polling)
+  chatPollingInterval: null, // Référence au setInterval
+  chatHumanTakeover: false,  // Human takeover actif ?
 };
 
 function set(patch) { Object.assign(S, patch); render(); }
@@ -138,6 +145,139 @@ function nav(page) {
   if (page === "clients") fetchClients();
   if (page === "bookings") fetchBookings();
   if (page === "analytics") fetchAnalytics();
+}
+
+//_______________________________________autres fetcher
+
+// ─── Chat en temps réel ───────────────────────────────────────────────────────
+
+async function openChat(pk, name, phone) {
+  // Arrêter tout polling existant
+  stopChatPolling();
+
+  set({
+    modal: { type: "chat", pk, name, phone },
+    chatClientId: pk,
+    chatMessages: [],
+    chatLoading: true,
+    chatLastTimestamp: null,
+    chatHumanTakeover: false,
+  });
+
+  // Charger tous les messages initiaux
+  await loadChatMessages(pk, null);
+
+  // Démarrer le polling toutes les 10 secondes
+  S.chatPollingInterval = setInterval(() => {
+    if (S.chatClientId === pk && S.modal?.type === "chat") {
+      pollChatMessages(pk);
+    } else {
+      stopChatPolling();
+    }
+  }, 10000);
+}
+
+async function loadChatMessages(pk, since) {
+  try {
+    let path = `/clients/${pk}/messages/`;
+    if (since) path += `?since=${encodeURIComponent(since)}`;
+
+    const data = await req("GET", path);
+    if (!data) return;
+
+    if (since) {
+      // Polling — ajouter seulement les nouveaux messages
+      if (data.messages && data.messages.length > 0) {
+        S.chatMessages = [...S.chatMessages, ...data.messages];
+        S.chatLastTimestamp = data.messages[data.messages.length - 1].timestamp;
+        S.chatHumanTakeover = data.human_takeover;
+        render();
+        // Auto-scroll vers le bas
+        setTimeout(() => {
+          const list = document.getElementById("chat-msg-list");
+          if (list) list.scrollTop = list.scrollHeight;
+        }, 50);
+      }
+    } else {
+      // Chargement initial
+      S.chatMessages = data.messages || [];
+      S.chatHumanTakeover = data.human_takeover;
+      S.chatLoading = false;
+      if (data.messages && data.messages.length > 0) {
+        S.chatLastTimestamp = data.messages[data.messages.length - 1].timestamp;
+      }
+      render();
+      // Auto-scroll vers le bas
+      setTimeout(() => {
+        const list = document.getElementById("chat-msg-list");
+        if (list) list.scrollTop = list.scrollHeight;
+      }, 100);
+    }
+  } catch (e) {
+    S.chatLoading = false;
+    render();
+  }
+}
+
+async function pollChatMessages(pk) {
+  // Polling silencieux — pas de spinner
+  await loadChatMessages(pk, S.chatLastTimestamp);
+}
+
+function stopChatPolling() {
+  if (S.chatPollingInterval) {
+    clearInterval(S.chatPollingInterval);
+    S.chatPollingInterval = null;
+  }
+}
+
+async function sendChatMessage(pk) {
+  const input = document.getElementById("chat-input");
+  const message = input?.value?.trim();
+  if (!message) return;
+
+  // Désactiver le bouton pendant l'envoi
+  const btn = document.getElementById("chat-send-btn");
+  if (btn) { btn.disabled = true; btn.textContent = "…"; }
+
+  try {
+    await req("POST", `/clients/${pk}/message/`, { to: String(pk), message });
+    input.value = "";
+
+    // Ajouter le message localement immédiatement (sans attendre le polling)
+    const now = new Date().toISOString();
+    S.chatMessages.push({
+      id: `local_${Date.now()}`,
+      direction: "outbound",
+      content: message,
+      msg_type: "text",
+      timestamp: now,
+      generated_by_ai: false,
+      approved_by_human: true,
+    });
+    S.chatLastTimestamp = now;
+    render();
+
+    // Scroll vers le bas
+    setTimeout(() => {
+      const list = document.getElementById("chat-msg-list");
+      if (list) list.scrollTop = list.scrollHeight;
+    }, 50);
+
+  } catch (e) {
+    toast(e.message, "err");
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = "Send"; }
+  }
+}
+
+async function toggleTakeoverFromChat(pk, enable) {
+  try {
+    await req("POST", `/clients/${pk}/takeover/`, { enable });
+    S.chatHumanTakeover = enable;
+    toast(enable ? "Human takeover active — AI silenced" : "Released back to AI", "ok");
+    render();
+  } catch (e) { toast(e.message, "err"); }
 }
 
 // ─── Actions ─────────────────────────────────────────────────────────────────
@@ -208,7 +348,12 @@ async function deleteBooking(id, name) {
   } catch (e) { toast(e.message, "err"); }
 }
 
-function closeModal() { set({ modal: null }); }
+// function closeModal() { set({ modal: null }); }
+function closeModal() {
+  stopChatPolling();
+  S.chatClientId = null;
+  set({ modal: null });
+} //dashboard direct message
 
 // ─── Component helpers ───────────────────────────────────────────────────────
 function heatBadge(label) {
@@ -407,7 +552,8 @@ function pageClients() {
           <td class="mono muted" style="font-size:11px">${ago(c.last_contact)}</td>
           <td><div class="flex aic gap1">
             <button class="btn btn-ghost btn-xs" onclick="openDetail(${c.id})">View</button>
-            <button class="btn btn-ghost btn-xs" onclick="openMessage(${c.id},'${esc(c.name || "Client")}','${esc(c.wa_number || "")}')">✉</button>
+            <button class="btn btn-ghost btn-xs" onclick="openChat(${c.id},'${esc(c.name || "Client")}','${esc(c.wa_number || "")}')">💬 Chat</button>
+            
             <button class="btn ${c.human_takeover ? "btn-green" : "btn-red"} btn-xs"
               onclick="takeover(${c.id},${!c.human_takeover})">
               ${c.human_takeover ? "Release" : "Takeover"}
@@ -787,6 +933,131 @@ function renderModal() {
       </div>
     </div>`;
   }
+  // AJOUTE 
+  if (m.type === "chat") {
+  const msgs = S.chatMessages;
+  const loading = S.chatLoading;
+  const takeover = S.chatHumanTakeover;
+
+  inner = `
+  <div class="modal modal-lg" style="height:85vh;display:flex;flex-direction:column">
+    <div class="modal-head" style="flex-shrink:0">
+      <div>
+        <h3>💬 ${esc(m.name || "Client")}</h3>
+        <div class="phone muted" style="font-size:12px">${esc(m.phone || "")}</div>
+      </div>
+      <div class="flex aic gap2">
+        ${takeover
+          ? `<span class="badge ba" style="font-size:11px">👤 Takeover Active</span>
+             <button class="btn btn-green btn-sm" onclick="toggleTakeoverFromChat(${m.pk}, false)">Release to AI</button>`
+          : `<span class="badge bg" style="font-size:11px">🤖 AI Active</span>
+             <button class="btn btn-red btn-sm" onclick="toggleTakeoverFromChat(${m.pk}, true)">Take Over</button>`
+        }
+        <div class="flex aic gap1 muted" style="font-size:11px">
+          <span class="topbar-dot" style="background:#22c55e"></span>
+          <span>Live • refreshes every 10s</span>
+        </div>
+        <button class="btn btn-ghost btn-icon btn-sm" onclick="closeModal()">✕</button>
+      </div>
+    </div>
+
+    <!-- Messages -->
+    <div id="chat-msg-list" style="
+      flex:1;overflow-y:auto;padding:16px;
+      display:flex;flex-direction:column;gap:8px;
+      background:#f9f6f2;
+    ">
+      ${loading
+        ? `<div class="loading" style="margin:auto"><span class="spin"></span>Loading messages…</div>`
+        : msgs.length === 0
+          ? `<div class="empty" style="margin:auto"><p>No messages yet</p></div>`
+          : msgs.map((msg) => {
+              const isIn = msg.direction === "inbound";
+              const time = msg.timestamp
+                ? new Date(msg.timestamp).toLocaleTimeString("en-GB", {hour:"2-digit",minute:"2-digit"})
+                : "";
+              const isInteractive = msg.msg_type === "interactive";
+
+              if (isIn) {
+                return `
+                <div style="display:flex;align-items:flex-end;gap:8px;max-width:75%">
+                  <div>
+                    <div style="
+                      background:#fff;border-radius:12px 12px 12px 2px;
+                      padding:10px 14px;font-size:14px;color:#333;
+                      box-shadow:0 1px 3px rgba(0,0,0,0.08);
+                      white-space:pre-wrap;word-break:break-word;
+                    ">${esc(msg.content)}</div>
+                    <div style="font-size:10px;color:#999;margin-top:3px;padding-left:4px">${time}</div>
+                  </div>
+                </div>`;
+              } else {
+                return `
+                <div style="display:flex;align-items:flex-end;gap:8px;max-width:75%;align-self:flex-end">
+                  <div style="text-align:right">
+                    <div style="
+                      background:${isInteractive ? "#6366f1" : "#1a1a2e"};
+                      color:#fff;border-radius:12px 12px 2px 12px;
+                      padding:10px 14px;font-size:14px;
+                      box-shadow:0 1px 3px rgba(0,0,0,0.15);
+                      white-space:pre-wrap;word-break:break-word;
+                      ${isInteractive ? "font-style:italic;opacity:0.9" : ""}
+                    ">${esc(msg.content)}</div>
+                    <div style="font-size:10px;color:#999;margin-top:3px;padding-right:4px">
+                      ${msg.generated_by_ai ? "🤖 AI" : "👤 Staff"} · ${time}
+                      ${msg.approved_by_human === null ? " · ⏳ Pending" : ""}
+                    </div>
+                  </div>
+                </div>`;
+              }
+            }).join("")
+      }
+    </div>
+
+    <!-- Zone de saisie -->
+    <div style="
+      flex-shrink:0;padding:12px 16px;
+      background:#fff;border-top:1px solid #eee;
+    ">
+      ${!takeover
+        ? `<div style="
+            background:#fff3cd;border:1px solid #ffc107;border-radius:8px;
+            padding:10px 14px;font-size:12px;color:#856404;margin-bottom:10px;
+          ">
+            ⚠️ AI is active. Click <strong>Take Over</strong> to reply manually.
+          </div>`
+        : ""
+      }
+      <div class="flex aic gap2">
+        <textarea
+          id="chat-input"
+          placeholder="${takeover ? "Type your message…" : "Enable takeover to reply manually…"}"
+          ${!takeover ? "disabled" : ""}
+          rows="2"
+          style="
+            flex:1;resize:none;padding:10px 14px;
+            border:1px solid #ddd;border-radius:10px;
+            font-size:14px;font-family:inherit;
+            background:${takeover ? "#fff" : "#f5f5f5"};
+            outline:none;
+          "
+          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChatMessage(${m.pk})}"
+        ></textarea>
+        <button
+          id="chat-send-btn"
+          class="btn btn-accent"
+          style="height:60px;padding:0 20px;font-size:14px"
+          ${!takeover ? "disabled" : ""}
+          onclick="sendChatMessage(${m.pk})"
+        >Send</button>
+      </div>
+      <div style="font-size:11px;color:#999;margin-top:6px;text-align:right">
+        Enter to send · Shift+Enter for new line
+      </div>
+    </div>
+  </div>`;
+}
+//------
 
   if (m.type === "detail") {
     const c = S.detail;
@@ -836,9 +1107,19 @@ function renderModal() {
                       <div class="msg-bubble msg-bubble-in">${esc(msg.content)}</div>
                       <div class="msg-meta">${ago(msg.timestamp)}</div>
                     </div></div>`
+                  // Dans le rendu des messages, remplace le bloc outbound par :
                   : `<div class="msg-row-out"><div>
-                      <div class="msg-bubble msg-bubble-out">${esc(msg.content)}</div>
-                      <div class="msg-meta msg-meta-out">${msg.generated_by_ai ? "🤖 AI" : "👤 Staff"} · ${ago(msg.timestamp)}</div>
+                      <div class="msg-bubble msg-bubble-out">
+                        ${msg.msg_type === "interactive" 
+                          ? `<div style="font-style:italic;color:#aaa;font-size:12px">
+                              [Interactive: ${esc(msg.content)}]
+                            </div>`
+                          : esc(msg.content)
+                        }
+                      </div>
+                      <div class="msg-meta msg-meta-out">
+                        ${msg.generated_by_ai ? "🤖 AI" : "👤 Staff"} · ${ago(msg.timestamp)}
+                      </div>
                     </div></div>`
               ).join("")
           }

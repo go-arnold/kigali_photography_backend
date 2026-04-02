@@ -275,6 +275,7 @@ class ClientDetailView(ClientLookupMixin, APIView):
                 "direction": m.direction,
                 "content": m.content,
                 "timestamp": m.timestamp,
+                "msg_type": m.msg_type, 
                 "generated_by_ai": m.generated_by_ai,
                 "tokens": m.total_tokens,
                 "model": m.model_used,
@@ -913,3 +914,51 @@ def models_F_sum(field):
 def models_F_avg(field):
     from django.db.models import Avg
     return Avg(field)
+
+
+## Modification Messages View chew le dashboard:
+
+class ClientMessagesView(ClientLookupMixin, APIView):
+    """
+    GET /dashboard/clients/{id}/messages/?since=<timestamp>
+    Retourne les messages depuis un timestamp donné.
+    Utilisé par le chat en temps réel (polling toutes les 10s).
+    """
+    permission_classes = [IsStudioStaff]
+
+    def get(self, request, pk):
+        client = self.get_client(pk)
+        from apps.conversations.models import Message
+
+        since = request.query_params.get("since")
+        qs = Message.objects.filter(client=client).order_by("timestamp")
+
+        if since:
+            try:
+                from datetime import datetime
+                since_dt = datetime.fromisoformat(since.replace("Z", "+00:00"))
+                qs = qs.filter(timestamp__gt=since_dt)
+            except Exception:
+                pass
+
+        qs = qs[:100]
+
+        messages = [
+            {
+                "id": m.pk,
+                "direction": m.direction,
+                "content": m.content,
+                "msg_type": m.msg_type,
+                "timestamp": m.timestamp.isoformat(),
+                "generated_by_ai": m.generated_by_ai,
+                "approved_by_human": m.approved_by_human,
+            }
+            for m in qs
+        ]
+        return Response({
+            "messages": messages,
+            "client_id": pk,
+            "human_takeover": getattr(
+                getattr(client, "journey_state", None), "human_takeover", False
+            ),
+        })

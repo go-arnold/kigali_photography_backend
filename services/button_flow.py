@@ -28,7 +28,7 @@ DISCOVERY_STEPS = {
             "message": "First, what type of photoshoot is this for? 😊",
             "buttons": [
                 {"id": "disc_child",  "title": "👶 Child Photoshoot"},
-                {"id": "disc_family", "title": "👨‍👩‍👧 Family Photoshoot"},
+                {"id": "disc_family", "title": "👨‍👩‍👧 Family Photos"},
             ],
         },
         {
@@ -381,6 +381,10 @@ def _handle_discovery(field: str, value, from_number: str, journey, client) -> s
     else:
         # Toutes les questions répondues → présenter les packages
         _present_packages(from_number, journey, client)
+        _save_button_message(
+            client,
+            f"[PACKAGES PRESENTED — discovery complete]"
+        )
         return "discovery_complete_packages_sent"
 
 
@@ -477,34 +481,34 @@ def _present_premium_package(
         "en": {
             "header": f"🏆 *Premium Package* — {total:,} RWF",
             "session": "2h Home Session",
-            "delivery": "Delivery: [30] Edited Photos",
+            "delivery": "Delivery: 30 Edited Photos",
             "unedited": "All Other Unedited Photos",
             "question": (
                 "This is our Home Session package, tailored just for you! 😊\n\n"
                 "What date and time would you prefer? 📅\n"
-                "Kindly allow us to check our availability right away!"
+                #"Kindly allow us to check our availability right away!"
             ),
         },
         "rw": {
             "header": f"🏆 *Premium Package* — {total:,} RWF",
             "session": "Amasaha 2 yo kwifotoza mu Rugo",
-            "delivery": "Tubatunganiriza: Amafoto [30] mwahisemo",
+            "delivery": "Tubatunganiriza: Amafoto 30 mwahisemo",
             "unedited": "Tukabaha nandi Yose Adatunganijwe",
             "question": (
                 "Iyi ni package yo mu rugo ibabereye! 😊\n\n"
                 "Mwatubwira umunsi nisaha mwifuzako twabafotora? 📅\n"
-                "Mutwihanganire akanya gato mugihe tugisuzuma ubusabe bwanyu!"
+                #"Mutwihanganire akanya gato mugihe tugisuzuma ubusabe bwanyu!"
             ),
         },
         "fr": {
             "header": f"🏆 *Premium Package* — {total:,} RWF",
             "session": "2h Séance à Domicile",
-            "delivery": "Livraison: [30] Photos Éditées",
+            "delivery": "Livraison: 30 Photos Éditées",
             "unedited": "Toutes les Autres Non Éditées",
             "question": (
                 "Voici notre package Séance à Domicile, fait pour vous! 😊\n\n"
-                "Quelle date et heure préférez-vous? 📅\n"
-                "Nous vérifierons notre disponibilité immédiatement!"
+                "Dites nous, Quelle date et heure préférez-vous? 📅\n"
+                #"Nous vérifierons notre disponibilité immédiatement!"
             ),
         },
     }
@@ -558,7 +562,7 @@ def _handle_package_choice(package_name: str, from_number: str, journey, client)
         "en": (
             f"Great choice! 🎉 You selected the *{package_name} Package*.\n\n"
             f"What date and time would you prefer for your session? 📅\n"
-            f"Kindly allow us to check our availability right away!"
+            #f"Kindly allow us to check our availability right away!"
         ),
         "rw": (
             f"Murakoze! 🎉 Mwahisemo *{package_name} Package*.\n\n"
@@ -567,12 +571,16 @@ def _handle_package_choice(package_name: str, from_number: str, journey, client)
         ),
         "fr": (
             f"Excellent choix! 🎉 Vous avez sélectionné le *{package_name} Package*.\n\n"
-            f"Quelle date et heure préférez-vous pour votre séance? 📅\n"
-            f"Nous vérifierons notre disponibilité immédiatement!"
+            f"Dites nous, quelle date et heure préférez-vous pour votre séance? 📅\n"
+            #f"Nous vérifierons notre disponibilité immédiatement!"
         ),
     }
     
     send_text(to=from_number, message=datetime_msgs.get(lang, datetime_msgs["en"]))
+    _save_button_message(
+        client,
+        f"Package chosen: {package_name} — date/time question sent"
+    )
 
 
     return f"package_chosen_{package_name.lower()}_awaiting_datetime"
@@ -1597,3 +1605,40 @@ def _send_availability_check_email(client, journey, preferred_datetime, extras_s
         logger.info("Availability check email sent for %s", client.wa_number)
     except Exception as exc:
         logger.warning("Availability check email failed: %s", exc)
+
+#save boutons messages
+def _save_button_message(client, text_content: str) -> None:
+    """
+    Sauvegarde un message outbound du flow boutons en DB.
+    Permet au dashboard de voir l'historique complet.
+    """
+    import uuid
+    from apps.conversations.models import (
+        Message, MessageDirection, MessageStatus, Conversation
+    )
+    from django.utils import timezone
+
+    try:
+        conversation = (
+            client.conversations
+            .filter(window_status="open")
+            .order_by("-started_at")
+            .first()
+        )
+        if not conversation:
+            return
+
+        Message.objects.create(
+            wa_message_id=f"btn_{uuid.uuid4().hex[:12]}",
+            conversation=conversation,
+            client=client,
+            direction=MessageDirection.OUTBOUND,
+            status=MessageStatus.SENT,
+            content=text_content,
+            msg_type="interactive",
+            generated_by_ai=False,
+            approved_by_human=True,
+            timestamp=timezone.now(),
+        )
+    except Exception as exc:
+        logger.warning("Could not save button message to DB: %s", exc)
