@@ -1102,78 +1102,28 @@ function renderModal() {
           ${!(c.recent_messages && c.recent_messages.length)
             ? `<div class="empty"><p>No messages yet</p></div>`
             : [...c.recent_messages].reverse().map((msg) => {
-                if (msg.direction === "inbound") {
-                  return `<div class="msg-row-in"><div>
-                            <div class="msg-bubble msg-bubble-in">${esc(msg.content)}</div>
-                            <div class="msg-meta">${ago(msg.timestamp)}</div>
-                          </div></div>`;
-                } else {
-                  const isInteractive = msg.msg_type === "interactive";
-                  let contentHtml;
-                  if (isInteractive) {
-                    const lines = msg.content.split('\n');
-                    const body = lines[0] || "";
-                    const btnLine = lines.slice(1).join(' ').trim();
-                    const btns = btnLine
-                      ? btnLine.split('|')
-                          .map(b => b.replace(/[\[\]]/g, '').trim())
-                          .filter(Boolean)
-                      : [];
-                    contentHtml = `
-                      <div style="font-size:13px;margin-bottom:${btns.length ? '8px' : '0'}">${esc(body)}</div>
-                      ${btns.length ? `<div style="display:flex;flex-wrap:wrap;gap:4px">
-                        ${btns.map(b => `<span style="
-                          background:rgba(255,255,255,0.15);
-                          border:1px solid rgba(255,255,255,0.35);
-                          border-radius:14px;padding:3px 10px;font-size:11px;
-                        ">${esc(b)}</span>`).join('')}
-                      </div>` : ''}
-                    `;
-                  } else {
-                    contentHtml = `<div style="white-space:pre-wrap;word-break:break-word">${esc(msg.content)}</div>`;
-                  }
-                  if (isIn) {
-                    const isClientBtn = msg.msg_type === "interactive";
-                    return `
-                    <div style="display:flex;align-items:flex-end;gap:8px;max-width:75%">
-                      <div>
-                        <div style="
-                          background:#fff;border-radius:12px 12px 12px 2px;
-                          padding:10px 14px;font-size:14px;color:#333;
-                          box-shadow:0 1px 3px rgba(0,0,0,0.08);
-                          ${isClientBtn ? "display:inline-flex;align-items:center;gap:6px;background:#f0fdf4;border:1px solid #86efac;" : "white-space:pre-wrap;word-break:break-word;"}
-                        ">
-                          ${isClientBtn ? `<span style="font-size:12px">👆</span>` : ""}
-                          ${esc(msg.content)}
-                        </div>
-                        <div style="font-size:10px;color:#999;margin-top:3px;padding-left:4px">${time}</div>
+                msg.direction === "inbound"
+                  ? `<div class="msg-row-in"><div>
+                      <div class="msg-bubble msg-bubble-in">${esc(msg.content)}</div>
+                      <div class="msg-meta">${ago(msg.timestamp)}</div>
+                    </div></div>`
+                  // Dans le rendu des messages, j'a remplace le bloc outbound par :
+                  : `<div class="msg-row-out"><div>
+                      <div class="msg-bubble msg-bubble-out">
+                        ${msg.msg_type === "interactive" 
+                          ? `<div style="font-style:italic;color:#aaa;font-size:12px">
+                              [Interactive: ${esc(msg.content)}]
+                            </div>`
+                          : esc(msg.content)
+                        }
                       </div>
-                    </div>`;
-                  }
-
-                  const time = ago(msg.timestamp);
-
-                  return `
-                  <div style="display:flex;align-items:flex-end;gap:8px;max-width:80%;align-self:flex-end">
-                    <div style="text-align:right">
-                      <div style="
-                        background:${isInteractive ? "#4f46e5" : "#1a1a2e"};
-                        color:#fff;border-radius:12px 12px 2px 12px;
-                        padding:10px 14px;font-size:14px;
-                        box-shadow:0 1px 3px rgba(0,0,0,0.15);
-                      ">${contentHtml}</div>
-                      <div style="font-size:10px;color:#999;margin-top:3px;padding-right:4px">
-                        ${msg.generated_by_ai ? "🤖 AI" : "👤 Staff"} · ${time}
-                        ${isInteractive ? " · 🔘 Buttons" : ""}
+                      <div class="msg-meta msg-meta-out">
+                        ${msg.generated_by_ai ? "🤖 AI" : "👤 Staff"} · ${ago(msg.timestamp)}
                       </div>
-                    </div>
-                  </div>`;
-                }
-              }).join("")
+                    </div></div>`
+          }).join("")
           }
-        </div>
-
-`
+        </div>`
         }`}
       </div>
     </div>`;
