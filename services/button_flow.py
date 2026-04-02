@@ -956,6 +956,7 @@ def handle_text_during_discovery(
     MEANINGLESS = {"ok", "okay", "k", "hmm", "lol", "haha", "👍", "🙏"}
     if len(text_clean) <= 3 or text_clean in MEANINGLESS:
         send_text(to=from_number, message=_m(client, "resend_options"))
+
         _resend_current_step(from_number, journey, client)
         return "resent_buttons_short_text"
 
@@ -1021,7 +1022,11 @@ def handle_text_during_discovery(
 
         if response.ok:
             # 1. Réponse IA (contient déjà "back to your options" à la fin)
-            send_text(to=from_number, message=response.text)
+            #_send_text_and_save(from_number, _m(client, "talk_to_agent"), client)
+
+            #send_text(to=from_number, message=response.text)
+            _send_text_and_save(from_number, response.text, client)
+
             ai_responded = True
 
             try:
@@ -1031,10 +1036,14 @@ def handle_text_during_discovery(
                 pass
         else:
             send_text(to=from_number, message=_m(client, "fallback_question"))
+            #_send_text_and_save(from_number, response.text, client)
+            
 
     except Exception as exc:
         logger.warning("AI response during discovery failed: %s", exc)
         send_text(to=from_number, message=_m(client, "fallback_question"))
+        # _send_text_and_save(from_number, response.text, client)
+        
 
     # ── Toujours envoyer dans cet ordre exact ─────────────────────────────────
     # 2. Boutons de l'étape courante (discovery question OU package buttons)
@@ -1065,19 +1074,7 @@ def handle_text_during_discovery(
 
 # ---
 
-# ## Résultat visuel sur WhatsApp
-# # ```
-# Client: "What size are the frames?"
 
-# Julie: "We include 2 A5-format framed photos — beautiful
-#         quality, perfect to display at home as a keepsake.
-#         Now, back to your options 👇"
-
-# [Would you like 2 A5 photo frames?]
-# [✅ Yes]  [❌ No]
-
-# [Still need help? Talk or call a real person — we've got you 😊]
-# [🧑 Talk to Agent]
 
 def _handle_package_recalc(
     text: str,
