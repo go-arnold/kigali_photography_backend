@@ -198,27 +198,112 @@ def _dispatch_scheduled(scheduled, send_text_fn, send_template_fn):
     """Route scheduled message to correct send method."""
     from apps.conversations.models import ScheduledMessageType
 
-    client = scheduled.client
+    client   = scheduled.client
     msg_type = scheduled.message_type
+    lang     = scheduled.language or "en"
+    content  = scheduled.content or ""
 
-    # Template messages for outbound (24h window closed)
-    if msg_type in (
-        ScheduledMessageType.BIRTHDAY_REMINDER,
-        ScheduledMessageType.FOLLOWUP,
-    ):
-        # Use pre-approved Meta template for outbound
-        template_name = _get_template_name(msg_type, scheduled.language)
-        lang_code = "rw_RW" if scheduled.language == "rw" else "en_US"
+    # ── Langue → code template Meta ──────────────────────────────────────────
+    lang_code = "fr_FR" if lang == "fr" else "en_US"
+    # Kinyarwanda : pas de template RW approuvé possible facilement → fallback EN
+
+    if msg_type == ScheduledMessageType.BIRTHDAY_WISH:
+        # Toujours un template — fenêtre 24h probablement fermée
+        child_name = _extract_child_name_from_content(content)
         send_template_fn(
             to=client.wa_number,
-            template_name=template_name,
+            template_name="kp_birthday_wish",
             language_code=lang_code,
+            components=[{
+                "type": "body",
+                "parameters": [
+                    {"type": "text", "text": child_name},
+                ],
+            }],
         )
-    else:
-        # Session window open — send direct text
-        if scheduled.content:
-            send_text_fn(to=client.wa_number, message=scheduled.content)
 
+    elif msg_type == ScheduledMessageType.BIRTHDAY_REMINDER:
+        # Vérifier si le client a déjà un booking futur → skip
+        from apps.conversations.models import Booking
+        already_booked = Booking.objects.filter(
+            phone=client.wa_number,
+            booking_day__gte=timezone.now().date(),
+        ).exists()
+
+        if already_booked:
+            scheduled.status = scheduled.SendStatus.CANCELLED
+            scheduled.save(update_fields=["status"])
+            logger.info(
+                "Birthday reminder skipped — %s already has a booking",
+                client.wa_number,
+            )
+            return
+
+        child_name = _extract_child_name_from_content(content)
+        delay = "1 week" if "1 week" in content else "tomorrow" if "tomorrow" in content else "soon"
+
+        send_template_fn(
+            to=client.wa_number,
+            template_name="kp_birthday_reminder",
+            language_code=lang_code,
+            components=[{
+                "type": "body",
+                "parameters": [
+                    {"type": "text", "text": child_name},
+                    {"type": "text", "text": delay},
+                ],
+            }],
+        )
+
+    elif msg_type == ScheduledMessageType.FOLLOWUP:
+        send_template_fn(
+            to=client.wa_number,
+            template_name="kp_followup",
+            language_code=lang_code,
+            components=[{
+                "type": "body",
+                "parameters": [
+                    {"type": "text", "text": client.name or "there"},
+                    {"type": "text", "text": "your little one"},
+                ],
+            }],
+        )
+
+    elif msg_type in (
+        ScheduledMessageType.SESSION_REMINDER,
+        ScheduledMessageType.DAY_OF_WELCOME,
+        ScheduledMessageType.FEEDBACK_REQUEST,
+    ):
+        # Ces messages arrivent dans le contexte d'une session confirmée
+        # → le client vient de nous écrire récemment → fenêtre probablement ouverte
+        # → send_text OK, mais on ajoute un fallback template si ça plante
+        if content:
+            try:
+                send_text_fn(to=client.wa_number, message=content)
+            except Exception as exc:
+                if "131047" in str(exc):
+                    # Fenêtre fermée → utiliser template de fallback
+                    send_template_fn(
+                        to=client.wa_number,
+                        template_name="kp_followup",
+                        language_code=lang_code,
+                        components=[{
+                            "type": "body",
+                            "parameters": [
+                                {"type": "text", "text": client.name or "there"},
+                                {"type": "text", "text": "your little one"},
+                            ],
+                        }],
+                    )
+                else:
+                    raise
+
+    else:
+        # Type inconnu — log et ignorer
+        logger.warning(
+            "Unknown scheduled message type %s for client %s",
+            msg_type, client.wa_number,
+        )
 
 def _get_template_name(msg_type: str, language: str) -> str:
     """Map message type + language to pre-approved Meta template name."""
@@ -432,3 +517,17 @@ def _render_birthday_wish(child, language: str) -> str:
         f"Wishing them a day full of joy, laughter, and beautiful memories. "
         f"Thank you for letting us be part of your family's journey! 📸✨"
     )
+
+def _extract_child_name_from_content(content: str) -> str:
+    """Extract child first name from pre-rendered birthday message content."""
+    import re
+    # Patterns : "Happy Birthday Emma!" / "Hi! Emma's birthday" / "wonderful Emma!"
+    for pattern in [
+        r"Birthday (?:to the wonderful )?([A-Za-zÀ-ÿ\-']+)[!,\s]",
+        r"Hi!\s+([A-Za-zÀ-ÿ\-']+)'s birthday",
+        r"Muramutse.*?wa ([A-Za-zÀ-ÿ\-']+)[!\s]",
+    ]:
+        match = re.search(pattern, content)
+        if match:
+            return match.group(1)
+    return "your child"

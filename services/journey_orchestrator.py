@@ -331,6 +331,13 @@ def handle_inbound_message(
 
         elif flow_mode in ("booking", "prices") and text:
             # Texte pendant discovery → répondre + renvoyer boutons
+            _save_inbound(
+                client=client,
+                conversation=conversation,
+                message_id=message_id,
+                text=text,
+                msg_type=msg_type,
+            )
             from services.button_flow import handle_text_during_discovery
             handle_text_during_discovery(
                 text=text,
