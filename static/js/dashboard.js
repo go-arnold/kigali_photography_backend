@@ -996,7 +996,7 @@ function renderModal() {
                 <div style="display:flex;align-items:flex-end;gap:8px;max-width:75%;align-self:flex-end">
                   <div style="text-align:right">
                     <div style="
-                      background:${isInteractive ? "#6366f1" : "#1a1a2e"};
+                      background:${isInteractive ? "#0b402d" : "#197b9b"};
                       color:#fff;border-radius:12px 12px 2px 12px;
                       padding:10px 14px;font-size:14px;
                       box-shadow:0 1px 3px rgba(0,0,0,0.15);
@@ -1004,7 +1004,7 @@ function renderModal() {
                       ${isInteractive ? "font-style:italic;opacity:0.9" : ""}
                     ">${esc(msg.content)}</div>
                     <div style="font-size:10px;color:#999;margin-top:3px;padding-right:4px">
-                      ${msg.generated_by_ai ? "🤖 AI" : "👤 Staff"} · ${time}
+                      ${msg.generated_by_ai ? "👤 Staff, Approved" : "🤖Bot - AI"} · ${time}
                       ${msg.approved_by_human === null ? " · ⏳ Pending" : ""}
                     </div>
                   </div>
@@ -1045,7 +1045,7 @@ function renderModal() {
         ></textarea>
         <button
           id="chat-send-btn"
-          class="btn btn-accent"
+          class="btn btn-green"
           style="height:60px;padding:0 20px;font-size:14px"
           ${!takeover ? "disabled" : ""}
           onclick="sendChatMessage(${m.pk})"

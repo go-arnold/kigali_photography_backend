@@ -312,6 +312,13 @@ def handle_inbound_message(
 
         elif flow_mode == "awaiting_datetime" and text and msg_type != "interactive":
             # Client répond avec sa date/heure préférée → human takeover
+            _save_inbound(
+                client=client,
+                conversation=conversation,
+                message_id=message_id,
+                text=text,
+                msg_type=msg_type,
+            )
             from services.button_flow import handle_datetime_response
             handle_datetime_response(
                 text=text,
