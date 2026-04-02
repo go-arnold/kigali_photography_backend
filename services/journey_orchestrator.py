@@ -159,7 +159,7 @@ def handle_inbound_message(
 
         elif not flow_mode:
             # Toujours envoyer le welcome + choix de langue au premier contact
-            send_welcome(from_number)
+            send_welcome(from_number, client = client)
             _set_flow_mode_on_journey(journey, "welcome_sent")
             # Sauvegarder le message inbound avant de partir
             _save_inbound(

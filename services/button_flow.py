@@ -17,6 +17,23 @@ OU pour envoyer le message de bienvenue (premier message).
 import logging
 from services.whatsapp import send_text, send_buttons
 
+#----------
+def _send_text_and_save(to: str, message: str, client=None) -> None:
+    """Envoie un message texte ET le sauvegarde en DB si client fourni."""
+    send_text(to=to, message=message)
+    if client:
+        _save_button_message(client, message)
+
+
+def _send_buttons_and_save(to: str, body: str, buttons: list, client=None) -> None:
+    """Envoie des boutons ET sauvegarde le body en DB si client fourni."""
+    send_buttons(to=to, body=body, buttons=buttons)
+    if client:
+        # On sauvegarde le body + les titres des boutons pour lisibilité
+        btn_labels = " | ".join(f"[{b['title']}]" for b in buttons)
+        _save_button_message(client, f"{body}\n{btn_labels}")
+#----------
+
 logger = logging.getLogger(__name__)
 
 # ─── DÉFINITION DES ÉTAPES DISCOVERY ────────────────────────────────────────
@@ -288,7 +305,7 @@ def handle_button_click(interactive_id: str, from_number: str, journey, client) 
 #             {"id": "btn_question", "title": "ℹ️ Ask a Question"},
 #         ],
 #     )
-def send_welcome(to: str) -> None:
+def send_welcome(to: str, client=None) -> None:
     """
     Envoie le message de bienvenue UNIQUEMENT avec le choix de langue.
     Les 3 boutons (Book/Prices/Question) arrivent APRÈS le choix de langue.
@@ -301,7 +318,7 @@ def send_welcome(to: str) -> None:
             "Bonjour! Bienvenue chez *KP Kids Studio*.\n"
         ),
     )
-    send_buttons(
+    _send_buttons_and_save(
         to=to,
         body="Language / Ururimi / Langue:",
         buttons=[
@@ -309,6 +326,7 @@ def send_welcome(to: str) -> None:
             {"id": "lang_rw", "title": "🇷🇼 Kinyarwanda"},
             {"id": "lang_fr", "title": "🇫🇷 Français"},
         ],
+        client=client,
     )
 
 
@@ -328,26 +346,26 @@ def _handle_action(action: str, from_number: str, journey, client) -> str:
         client.save(update_fields=["language", "language_locked", "updated_at"]) #nexplit
         journey.flow_mode = "menu_shown"
         #client.save(update_fields=["language", "updated_at"]) #nexplit
-        _send_main_menu(to=from_number, lang=lang)
+        _send_main_menu(to=from_number, lang=lang, client = client)
         return f"language_set_{lang}"
 
     if action == "start_booking":
         _set_flow_mode(journey, "booking")
         _reset_discovery(journey)
-        send_text(to=from_number, message=_m(client, "start_booking"))
+        _send_text_and_save(from_number, _m(client, "start_booking"), client)
         _send_next_discovery_question(from_number, journey, client)
         return "started_booking_flow"
 
     if action == "start_prices":
         _set_flow_mode(journey, "prices")
         _reset_discovery(journey)
-        send_text(to=from_number, message=_m(client, "start_prices"))
+        _send_text_and_save(from_number, _m(client, "start_prices"), client)
         _send_next_discovery_question(from_number, journey, client)
         return "started_prices_flow"
 
     if action == "start_question":
         _set_flow_mode(journey, "question")
-        send_text(to=from_number, message=_m(client, "start_question"))
+        _send_text_and_save(from_number, _m(client, "start_question"), client)
         return "started_question_mode"
 
     if action == "payment_confirmed":
@@ -381,10 +399,6 @@ def _handle_discovery(field: str, value, from_number: str, journey, client) -> s
     else:
         # Toutes les questions répondues → présenter les packages
         _present_packages(from_number, journey, client)
-        _save_button_message(
-            client,
-            f"[PACKAGES PRESENTED — discovery complete]"
-        )
         return "discovery_complete_packages_sent"
 
 
@@ -432,6 +446,7 @@ def _present_studio_packages(
     extras_cost: int,
     includes_line,
     msgs: dict,
+    client=None
 ) -> None:
     """Présente les 3 packages studio (Starter, Silver, Gold)."""
     packages = [
@@ -452,15 +467,16 @@ def _present_studio_packages(
         lines.append("")
 
     lines.append(msgs["question"])
-    send_text(to=from_number, message="\n".join(lines))
-    send_buttons(
-        to=from_number,
-        body=msgs["body"],
-        buttons=[
+    _send_text_and_save(from_number, "\n".join(lines), client)
+    _send_buttons_and_save(
+        from_number,
+        msgs["body"],
+        [
             {"id": "pkg_starter", "title": "🥉 Starter"},
             {"id": "pkg_silver",  "title": "🥈 Silver"},
             {"id": "pkg_gold",    "title": "🥇 Gold"},
         ],
+        client,
     )
 
 
@@ -526,7 +542,8 @@ def _present_premium_package(
     lines.append("")
     lines.append(pt["question"])
 
-    send_text(to=from_number, message="\n".join(lines))
+    #send_text(to=from_number, message="\n".join(lines))
+    _send_text_and_save(from_number, "\n".join(lines), client)
 
     # Sauvegarder directement — pas de choix à faire pour home
     journey.selected_package = f"Premium — {total:,} RWF"
@@ -576,12 +593,8 @@ def _handle_package_choice(package_name: str, from_number: str, journey, client)
         ),
     }
     
-    send_text(to=from_number, message=datetime_msgs.get(lang, datetime_msgs["en"]))
-    _save_button_message(
-        client,
-        f"Package chosen: {package_name} — date/time question sent"
-    )
-
+    #send_text(to=from_number, message=datetime_msgs.get(lang, datetime_msgs["en"]))
+    _send_text_and_save(from_number, datetime_msgs.get(lang, datetime_msgs["en"]), client)
 
     return f"package_chosen_{package_name.lower()}_awaiting_datetime"
 
@@ -650,7 +663,8 @@ def _handle_payment_confirmed(from_number: str, journey, client) -> str:
     except Exception as exc:
         logger.warning("Notification failed after payment_confirmed: %s", exc)
 
-    send_text(to=from_number, message=_m(client, "payment_confirmed"))
+    #send_text(to=from_number, message=_m(client, "payment_confirmed"))
+    _send_text_and_save(from_number, _m(client, "payment_confirmed"), client)
     return "payment_confirmed_human_takeover"
 
 
@@ -685,7 +699,8 @@ def _handle_talk_to_agent(from_number: str, journey, client) -> str:
     except Exception as exc:
         logger.warning("Notification failed after talk_to_agent: %s", exc)
 
-    send_text(to=from_number, message=_m(client, "talk_to_agent"))
+    #send_text(to=from_number, message=_m(client, "talk_to_agent"))
+    _send_text_and_save(from_number, _m(client, "talk_to_agent"), client)
     return "talk_to_agent_human_takeover"
 MAIN_MENU = {
     "en": {
@@ -881,10 +896,10 @@ def _m(client_or_lang, key: str, **kwargs) -> str:
     
     return msg.format(**kwargs) if kwargs else msg
 
-def _send_main_menu(to: str, lang: str) -> None:
+def _send_main_menu(to: str, lang: str, client=None) -> None:
     menu = MAIN_MENU.get(lang, MAIN_MENU["en"])
-    send_text(to=to, message=menu["text"])
-    send_buttons(to=to, body=menu["body"], buttons=menu["buttons"])
+    _send_text_and_save(to, menu["text"], client)
+    _send_buttons_and_save(to, menu["body"], menu["buttons"], client)
 
 
 # ─── HELPERS DISCOVERY ───────────────────────────────────────────────────────
@@ -897,21 +912,14 @@ def _get_next_unanswered_step(state: dict, lang: str = "en") -> dict | None:
     return None
 
 
-def _send_next_discovery_question(to: str, journey,client) -> None:
-    """Envoie la prochaine question discovery non répondue."""
+def _send_next_discovery_question(to: str, journey, client) -> None:
     state = journey.discovery_state or {}
     next_step = _get_next_unanswered_step(state, lang=client.language)
     if next_step:
-        _send_discovery_question(to, next_step)
+        _send_discovery_question(to, next_step, client)
 
-
-def _send_discovery_question(to: str, step: dict) -> None:
-    """Envoie une question discovery avec ses boutons."""
-    send_buttons(
-        to=to,
-        body=step["message"],
-        buttons=step["buttons"],
-    )
+def _send_discovery_question(to: str, step: dict, client=None) -> None:
+    _send_buttons_and_save(to, step["message"], step["buttons"], client)
 
 
 def _reset_discovery(journey) -> None:
@@ -1045,12 +1053,11 @@ def handle_text_during_discovery(
             "fr": "Besoin d'aide ? Discutez ou appelez une vraie personne 😊",
         }.get(lang, "Still need help? Talk or call a real person — we've got you 😊")
 
-        send_buttons(
-            to=from_number,
-            body=still_need_help_body,
-            buttons=[
-                {"id": "btn_agent", "title": agent_titles.get(lang, agent_titles["en"])},
-            ],
+        _send_buttons_and_save(
+            from_number,
+            still_need_help_body,
+            [{"id": "btn_agent", "title": agent_titles.get(lang, agent_titles["en"])}],
+            client,
         )
 
     return "answered_text_resent_step"
@@ -1192,6 +1199,7 @@ def _handle_package_recalc(
         _resend_package_buttons(from_number)
         return "recalc_unclear_ai_responded"
 
+
 def _resend_current_step(to: str, journey, client) -> None:
     """
     Renvoie l'étape courante :
@@ -1200,7 +1208,6 @@ def _resend_current_step(to: str, journey, client) -> None:
     """
     state = journey.discovery_state or {}
     current_step = _get_next_unanswered_step(state)
-
     if current_step:
         # Discovery pas finie → renvoyer la question
         lang = getattr(client, "language", "en") or "en"
@@ -1210,23 +1217,18 @@ def _resend_current_step(to: str, journey, client) -> None:
             (s for s in steps if s["key"] == current_step["key"]),
             current_step
         )
-        send_buttons(to=to, body=lang_step["message"], buttons=lang_step["buttons"])
+        _send_buttons_and_save(to, lang_step["message"], lang_step["buttons"], client)
     else:
-        # Discovery terminée → renvoyer les boutons packages
-        _resend_package_buttons(to)
-
+        _resend_package_buttons(to, client)
 
 def _resend_package_buttons(to: str, client=None) -> None:
     body = _m(client, "package_buttons_body") if client else "Which package would you like?"
-    send_buttons(
-        to=to,
-        body=body,
-        buttons=[
-            {"id": "pkg_starter", "title": "🥉 Starter"},
-            {"id": "pkg_silver",  "title": "🥈 Silver"},
-            {"id": "pkg_gold",    "title": "🥇 Gold"},
-        ],
-    )
+    buttons = [
+        {"id": "pkg_starter", "title": "🥉 Starter"},
+        {"id": "pkg_silver",  "title": "🥈 Silver"},
+        {"id": "pkg_gold",    "title": "🥇 Gold"},
+    ]
+    _send_buttons_and_save(to, body, buttons, client)
 
 
 def _build_packages_context_for_prompt(journey) -> str:
@@ -1360,7 +1362,8 @@ def handle_datetime_response(
         "rw": "Murakoze! 😊 Mwaduha akanya gato, tugasuzuma ubusabe bwanyu, tukabafasha! 🙏",
         "fr": "Merci! 😊 Nous vérifions notre disponibilité. Un membre de notre équipe vous répondra bientôt! 🙏",
     }
-    send_text(to=from_number, message=ack_msgs.get(lang, ack_msgs["en"]))
+    #send_text(to=from_number, message=ack_msgs.get(lang, ack_msgs["en"]))
+    _send_text_and_save(from_number, ack_msgs.get(lang, ack_msgs["en"]), client)
 
     # ── Étape 2 : Récupérer/créer la conversation AVANT tout le reste ──
     active_conversation = conversation
@@ -1606,7 +1609,7 @@ def _send_availability_check_email(client, journey, preferred_datetime, extras_s
     except Exception as exc:
         logger.warning("Availability check email failed: %s", exc)
 
-#save boutons messages
+#save buttons messages
 def _save_button_message(client, text_content: str) -> None:
     """
     Sauvegarde un message outbound du flow boutons en DB.
@@ -1617,7 +1620,6 @@ def _save_button_message(client, text_content: str) -> None:
         Message, MessageDirection, MessageStatus, Conversation
     )
     from django.utils import timezone
-
     try:
         conversation = (
             client.conversations
@@ -1627,7 +1629,6 @@ def _save_button_message(client, text_content: str) -> None:
         )
         if not conversation:
             return
-
         Message.objects.create(
             wa_message_id=f"btn_{uuid.uuid4().hex[:12]}",
             conversation=conversation,
