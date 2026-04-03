@@ -135,8 +135,8 @@ def handle_inbound_message(
                 conversation_id=conversation.pk,
                 tokens_used=0,
             )
-
-        # ── HUMAN TAKEOVER EARLY CHECK ───────────────────────────────────────────────
+ 
+        # ── HUMAN TAKEOVER EARLY CHECK ───────────────────────────────────────
         if journey.human_takeover:
             logger.info("Human takeover active for %s — AI silenced (early check)", client.wa_number)
             _save_inbound(
@@ -153,7 +153,6 @@ def handle_inbound_message(
                 client_id=str(client.pk),
                 conversation_id=conversation.pk,
             )
-
 
         # ── ROUTING TEXTE LIBRE ───────────────────────────────────────────────────────
         #flow_mode = getattr(journey, "flow_mode", "") or ""
@@ -2235,5 +2234,3 @@ def advance_journey(journey, phase: str, step: str) -> None:
 #     logger.warning(
 #         "Human takeover triggered | client=%s reason=%s", client.wa_number, reason
 #     )
-       
-

@@ -994,6 +994,7 @@ class ManualMediaView(ClientLookupMixin, APIView):
     def post(self, request, pk):
         from services.whatsapp import send_image, send_audio, send_document
         from services.media_service import MEDIA_DIR, prepare_media_for_sending, get_public_url
+        from config.settings import base
         import uuid as _uuid
         from pathlib import Path
  
@@ -1026,11 +1027,11 @@ class ManualMediaView(ClientLookupMixin, APIView):
                     f.write(chunk)
  
             original_mime = uploaded_file.content_type or ""
-            relative_url = f"{settings.MEDIA_URL}whatsapp/{unique_name}"
+            relative_url = f"{base.MEDIA_URL}whatsapp/{unique_name}"
  
             # ── Préparer pour envoi WhatsApp (conversion audio si nécessaire) ──
             send_path, send_mime = prepare_media_for_sending(file_path, original_mime)
-            send_url = get_public_url(f"{settings.MEDIA_URL}whatsapp/{send_path.name}")
+            send_url = get_public_url(f"{base.MEDIA_URL}whatsapp/{send_path.name}")
  
             logger.info(
                 "Sending media | original=%s mime=%s → send=%s mime=%s url=%s",
