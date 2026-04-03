@@ -169,7 +169,7 @@ async function openChat(pk, name, phone) {
 
   // Démarrer le polling toutes les 10 secondes
   S.chatPollingInterval = setInterval(() => {
-    if (S.chatClientId === pk && S.modal?.type === "chat") {
+    if (S.chatClientId === pk && S.modal?.msg_type === "chat") {
       pollChatMessages(pk);
     } else {
       stopChatPolling();
@@ -314,7 +314,7 @@ async function sendMediaFromDashboard(pk) {
  
     const now = new Date().toISOString();
     const localId = `local_media_${Date.now()}`;
-    const mime = fileRef.type || "";
+    const mime = fileRef.msg_type || "";
  
     // Pour les images: créer un URL objet pour prévisualisation immédiate
     const localUrl = mime.startsWith("image/") || mime.startsWith("audio/")
@@ -324,8 +324,8 @@ async function sendMediaFromDashboard(pk) {
     S.chatMessages.push({
       id: localId,
       direction: "outbound",
-      content: fileRef.name || `[${data.type}]`,
-      msg_type: data.type,
+      content: fileRef.name || `[${data.msg_type}]`,
+      msg_type: data.msg_type,
       media_url: data.url || localUrl,   // URL serveur en priorité
       media_mime_type: mime,
       media_filename: fileRef.name,
@@ -1140,7 +1140,7 @@ function renderModal() {
   if (!m) return "";
   let inner = "";
 
-  if (m.type === "approval") {
+  if (m.msg_type === "approval") {
     const a = m.data;
     inner = `
     <div class="modal">
@@ -1176,7 +1176,7 @@ function renderModal() {
     </div>`;
   }
 
-  if (m.type === "message") {
+  if (m.msg_type === "message") {
     inner = `
     <div class="modal">
       <div class="modal-head">
@@ -1200,7 +1200,7 @@ function renderModal() {
     </div>`;
   }
   // AJOUTE 
-  if (m.type === "chat") {
+  if (m.msg_type === "chat") {
   const msgs = S.chatMessages;
   const loading = S.chatLoading;
   const takeover = S.chatHumanTakeover;
@@ -1485,7 +1485,7 @@ function renderModal() {
 }
 //------
 
-  if (m.type === "detail") {
+  if (m.msg_type === "detail") {
     const c = S.detail;
     const loading = S.detailLoading;
     const tab = S.detailTab;
@@ -1555,7 +1555,7 @@ function renderModal() {
     </div>`;
   }
 
-  if (m.type === "journey") {
+  if (m.msg_type === "journey") {
     const c = m.client;
     inner = `
     <div class="modal">
@@ -1596,11 +1596,11 @@ function renderModal() {
     </div>`;
   }
 
-  if (m.type === "booking") {
+  if (m.msg_type === "booking") {
     inner = renderBookingForm(m.booking);
   }
   
-  if (m.type === "bookingDetail") {
+  if (m.msg_type === "bookingDetail") {
   const b = m.data;
   const isChild = b.occasion === "child_celebration";
   inner = `

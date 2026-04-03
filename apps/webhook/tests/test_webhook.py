@@ -132,7 +132,7 @@ class ParserTest(TestCase):
         self.assertIsInstance(msg, InboundMessage)
         self.assertEqual(msg.message_id, "wamid.abc123")
         self.assertEqual(msg.from_name, "Alice")
-        self.assertEqual(msg.type, "text")
+        self.assertEqual(msg.msg_type, "text")
         self.assertEqual(msg.text, "Hello, I'd like to book a session")
 
     def test_parse_interactive_button(self):

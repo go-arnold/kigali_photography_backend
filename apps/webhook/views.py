@@ -105,7 +105,7 @@ def _dispatch_message(msg) -> None:
             from_number=msg.from_number,
             from_name=msg.from_name,
             timestamp=msg.timestamp,
-            msg_type=msg.type,
+            msg_type=msg.msg_type,
             text=msg.text or "",
             media_id=msg.media_id,
             interactive_id=msg.interactive_id,
