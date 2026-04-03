@@ -69,7 +69,7 @@ def _parse_message(msg: dict, contacts: list) -> Optional[InboundMessage]:
         message_id = msg["id"]
         from_number = msg["from"]
         timestamp = msg.get("timestamp", "")
-        msg_type = msg.get("type")
+        msg_type = msg.get("msg_type")
 
         from_name = _resolve_name(from_number, contacts)
 
@@ -116,7 +116,7 @@ def _parse_message(msg: dict, contacts: list) -> Optional[InboundMessage]:
 
         elif msg_type == "interactive":
             interactive = msg.get("interactive", {})
-            reply_type = interactive.get("type")
+            reply_type = interactive.get("msg_type")
             if reply_type == "button_reply":
                 interactive_id = interactive["button_reply"]["id"]
                 interactive_title = interactive["button_reply"]["title"]
@@ -129,7 +129,7 @@ def _parse_message(msg: dict, contacts: list) -> Optional[InboundMessage]:
         # WhatsApp call attempt — Meta envoie un webhook spécial
         elif msg_type == "system":
             system = msg.get("system", {})
-            if system.get("type") == "call":
+            if system.get("msg_type") == "call":
                 msg_type = "call"
                 text = "[Missed call]"
 

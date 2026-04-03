@@ -34,7 +34,7 @@ TEXT_PAYLOAD = {
                     "id": "wamid.abc123",
                     "from": "250700000001",
                     "timestamp": "1700000000",
-                    "type": "text",
+                    "msg_type": "text",
                     "text": {"body": "Hello, I'd like to book a session"},
                 }],
             },

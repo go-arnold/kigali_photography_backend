@@ -1090,7 +1090,7 @@ class ManualMediaView(ClientLookupMixin, APIView):
             )
             return Response({
                 "status": "sent",
-                "type": msg_type,
+                "msg_type": msg_type,
                 "url": relative_url,
             })
  
