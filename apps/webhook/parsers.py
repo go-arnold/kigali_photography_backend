@@ -14,7 +14,7 @@ class InboundMessage:
     timestamp: str
     type: str          # text | image | audio | voice | document | interactive | call | unsupported
     text: Optional[str] = None
-    msg_type: Optional[str] = None
+    msg_type: str= "text"
     media_id: Optional[str] = None
     media_mime_type: Optional[str] = None
     media_filename: Optional[str] = None
