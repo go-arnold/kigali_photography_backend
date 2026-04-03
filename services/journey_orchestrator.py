@@ -825,19 +825,15 @@ def _save_inbound(
     media_mime_type: str = "",
     media_filename: str = "",
 ):
-    from apps.conversations.models import Message
+    from apps.conversations.models import Message,
 
-    # Valeurs explicitement converties en string pour éviter tout type inattendu
     content_val = str(text) if text else f"[{msg_type}]"
     msg_type_val = str(msg_type) if msg_type else "text"
     media_url_val = str(media_url) if media_url else ""
     media_mime_val = str(media_mime_type) if media_mime_type else ""
     media_name_val = str(media_filename) if media_filename else ""
-
-    try:
-        msg, created = Message.objects.get_or_create(
-            wa_message_id=str(message_id),
-            defaults={
+ 
+    defaults={
                 "conversation": conversation,
                 "client": client,
                 "direction": "inbound",   # ← string directe, pas TextChoices
@@ -849,32 +845,25 @@ def _save_inbound(
                 "media_filename": media_name_val,
                 "timestamp": timezone.now(),
             },
-        )
-        return msg
-    except Exception as exc:
-        logger.error("_save_inbound failed for %s: %s", message_id, exc)
-        # Fallback : créer directement sans get_or_create
-        try:
-            msg = Message.objects.create(
-                wa_message_id=f"{message_id}_{timezone.now().timestamp():.0f}",
-                conversation=conversation,
-                client=client,
-                direction="inbound",
-                status="received",
-                content=content_val,
-                msg_type=msg_type_val,
-                media_url=media_url_val,
-                media_mime_type=media_mime_val,
-                media_filename=media_name_val,
-                timestamp=timezone.now(),
-            )
-            return msg
-        except Exception as exc2:
-            logger.error("_save_inbound fallback also failed: %s", exc2)
-            # Retourner un objet mock pour ne pas crasher le pipeline
-            class FakeMsg:
-                timestamp = timezone.now()
-            return FakeMsg()
+ 
+    # Protection: ajouter media fields seulement si la migration est appliquée
+    try:
+        message_fields = {f.name for f in Message._meta.get_fields()}
+        if "media_url" in message_fields:
+            defaults["media_url"] = media_url or ""
+        if "media_mime_type" in message_fields:
+            defaults["media_mime_type"] = media_mime_type or ""
+        if "media_filename" in message_fields:
+            defaults["media_filename"] = media_filename or ""
+    except Exception:
+        pass  # En cas d'erreur, continuer sans les champs media
+ 
+    msg, _ = Message.objects.get_or_create(
+        wa_message_id=message_id,
+        defaults=defaults,
+    )
+    return msg
+
 
 def _save_outbound(client, conversation, text, model, tokens_input, tokens_output):
     import uuid
