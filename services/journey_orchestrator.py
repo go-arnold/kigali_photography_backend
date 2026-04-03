@@ -823,31 +823,40 @@ def _process_opt_out(from_number: str):
 
 
 def _save_inbound(
-        client,
-        conversation, 
-        message_id, 
-        text, 
-        msg_type,
-        media_url: str = "",
-        media_mime_type: str = "",
-        media_filename: str = "",):
+    client,
+    conversation,
+    message_id,
+    text,
+    msg_type,
+    media_url: str = "",
+    media_mime_type: str = "",
+    media_filename: str = "",
+):
     from apps.conversations.models import Message, MessageDirection, MessageStatus
 
-    # Dedup by wa_message_id — safe to call even if already exists
+    defaults = {
+        "conversation": conversation,
+        "client": client,
+        "direction": MessageDirection.INBOUND,
+        "status": MessageStatus.RECEIVED,
+        "content": text or f"[{msg_type}]",
+        "msg_type": msg_type,
+        "timestamp": timezone.now(),
+    }
+
+    # Ajouter les champs media seulement s'ils existent sur le modèle
+    # (protection si migration pas encore appliquée)
+    message_fields = {f.name for f in Message._meta.get_fields()}
+    if "media_url" in message_fields:
+        defaults["media_url"] = media_url or ""
+    if "media_mime_type" in message_fields:
+        defaults["media_mime_type"] = media_mime_type or ""
+    if "media_filename" in message_fields:
+        defaults["media_filename"] = media_filename or ""
+
     msg, _ = Message.objects.get_or_create(
         wa_message_id=message_id,
-        defaults={
-            "conversation": conversation,
-            "client": client,
-            "direction": MessageDirection.INBOUND,
-            "status": MessageStatus.RECEIVED,
-            "content": text or f"[{msg_type}]",
-            "msg_type": msg_type,
-            "media_url": media_url or "",
-            "media_mime_type": media_mime_type or "",
-            "media_filename": media_filename or "",
-            "timestamp": timezone.now(),
-        },
+        defaults=defaults,
     )
     return msg
 
