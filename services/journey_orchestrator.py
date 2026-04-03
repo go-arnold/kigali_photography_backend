@@ -825,7 +825,7 @@ def _save_inbound(
     media_mime_type: str = "",
     media_filename: str = "",
 ):
-    from apps.conversations.models import Message,
+    from apps.conversations.models import Message
 
     content_val = str(text) if text else f"[{msg_type}]"
     msg_type_val = str(msg_type) if msg_type else "text"
