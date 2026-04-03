@@ -822,7 +822,15 @@ def _process_opt_out(from_number: str):
     client.save(update_fields=["is_opted_out", "opted_out_at"])
 
 
-def _save_inbound(client, conversation, message_id, text, msg_type):
+def _save_inbound(
+        client,
+        conversation, 
+        message_id, 
+        text, 
+        msg_type,
+        media_url: str = "",
+        media_mime_type: str = "",
+        media_filename: str = "",):
     from apps.conversations.models import Message, MessageDirection, MessageStatus
 
     # Dedup by wa_message_id — safe to call even if already exists
@@ -835,6 +843,9 @@ def _save_inbound(client, conversation, message_id, text, msg_type):
             "status": MessageStatus.RECEIVED,
             "content": text or f"[{msg_type}]",
             "msg_type": msg_type,
+            "media_url": media_url or "",
+            "media_mime_type": media_mime_type or "",
+            "media_filename": media_filename or "",
             "timestamp": timezone.now(),
         },
     )
