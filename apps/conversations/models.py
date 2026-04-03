@@ -161,7 +161,7 @@ class Message(models.Model):
     @property
     def total_tokens(self) -> int:
         return self.tokens_input + self.tokens_output
-
+ 
 
 class HeatEvent(models.Model):
     """

@@ -825,26 +825,17 @@ def _save_inbound(
     media_mime_type: str = "",
     media_filename: str = "",
 ):
-    from apps.conversations.models import Message
-
-    content_val = str(text) if text else f"[{msg_type}]"
-    msg_type_val = str(msg_type) if msg_type else "text"
-    media_url_val = str(media_url) if media_url else ""
-    media_mime_val = str(media_mime_type) if media_mime_type else ""
-    media_name_val = str(media_filename) if media_filename else ""
+    from apps.conversations.models import Message, MessageDirection, MessageStatus
  
-    defaults={
-                "conversation": conversation,
-                "client": client,
-                "direction": "inbound",   # ← string directe, pas TextChoices
-                "status": "received",     # ← string directe, pas TextChoices
-                "content": content_val,
-                "msg_type": msg_type_val,
-                "media_url": media_url_val,
-                "media_mime_type": media_mime_val,
-                "media_filename": media_name_val,
-                "timestamp": timezone.now(),
-            },
+    defaults = {
+        "conversation": conversation,
+        "client": client,
+        "direction": MessageDirection.INBOUND,
+        "status": MessageStatus.RECEIVED,
+        "content": text or f"[{msg_type}]",
+        "msg_type": msg_type,
+        "timestamp": timezone.now(),
+    }
  
     # Protection: ajouter media fields seulement si la migration est appliquée
     try:
@@ -858,10 +849,16 @@ def _save_inbound(
     except Exception:
         pass  # En cas d'erreur, continuer sans les champs media
  
-    msg, _ = Message.objects.get_or_create(
-        wa_message_id=message_id,
-        defaults=defaults,
-    )
+    print("DEBUG DEFAULTS:", defaults)
+    for k, v in defaults.items():
+        print(k, type(v))
+    msg = Message.objects.filter(wa_message_id=message_id).first()
+
+    if not msg:
+        msg = Message.objects.create(
+            wa_message_id=message_id,
+            **defaults
+        )
     return msg
 
 
