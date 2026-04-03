@@ -76,6 +76,9 @@ def handle_inbound_message(
     text: str,
     timestamp: str,
     interactive_id: Optional[str] = None,
+    media_id: Optional[str] = None,           # ← NOUVEAU
+    media_mime_type: Optional[str] = None,    # ← NOUVEAU
+    media_filename: Optional[str] = None,     # ← NOUVEAU
 ) -> OrchestratorResult:
     """
     Full inbound message pipeline.
@@ -88,21 +91,22 @@ def handle_inbound_message(
         if opt_out_result:
             return opt_out_result
 
-        # # Step 2: Onboard client
-        # from services.client_service import onboard_client
+        MEDIA_HANDLER_BLOCK =
+        # ── MEDIA / CALL HANDLING ────────────────────────────────────────────────────
+        if msg_type in ("image", "audio", "voice", "document", "sticker", "call", "unsupported"):
+            return _handle_media_or_special(
+                client=client,
+                journey=journey,
+                conversation=conversation,
+                message_id=message_id,
+                from_number=from_number,
+                msg_type=msg_type,
+                text=text,
+                media_id=media_id,        # ← nouveau param à ajouter à handle_inbound_message
+                media_mime_type=media_mime_type,  # ← nouveau param
+                media_filename=media_filename,    # ← nouveau param
+            )
 
-        # client, journey, conversation, is_new = onboard_client(
-        #     wa_number=from_number,
-        #     name=from_name,
-        # )
-        # from django.utils import timezone as tz
-        # last_conv = client.conversations.order_by("-started_at").first()
-        # if last_conv:
-        #     days_since = (tz.now() - last_conv.started_at).days
-        #     if days_since > 30 and flow_mode not in ("", None):
-        #         journey.flow_mode = ""
-        #         journey.save(update_fields=["flow_mode", "updated_at"])
-        #         flow_mode = ""
 
         # Step 2: Onboard client
         from services.client_service import onboard_client
@@ -1355,6 +1359,227 @@ def _calculate_packages(session_type: str, frames: bool, cake: bool, video: bool
 def _set_flow_mode_on_journey(journey, mode: str):
     journey.flow_mode = mode
     journey.save(update_fields=["flow_mode", "updated_at"])
+
+
+
+# ─── MEDIA & SPECIAL MESSAGES ────────────────────────────────────────────────
+ 
+def _handle_media_or_special(
+    client, journey, conversation, message_id, from_number,
+    msg_type, text, media_id, media_mime_type, media_filename,
+):
+    # \"\"\"
+    # Gère les messages non-texte :
+    # - image     → télécharger + sauvegarder + répondre si AI active
+    # - voice     → télécharger + sauvegarder + répondre si AI active
+    # - audio     → télécharger + sauvegarder
+    # - document  → télécharger + sauvegarder + répondre si AI active
+    # - call      → message automatique
+    # - sticker   → message sympa
+    # \"\"\"
+    from services.whatsapp import send_text as _send_text
+    from services.media_service import download_and_save_media
+ 
+    # 1. Télécharger et sauvegarder le media
+    media_url = None
+    if media_id and msg_type not in ("call",):
+        media_url = download_and_save_media(
+            media_id=media_id,
+            mime_type=media_mime_type or "",
+            filename=media_filename or "",
+        )
+ 
+    # 2. Sauvegarder le message inbound avec media_url
+    import uuid
+    from apps.conversations.models import Message, MessageDirection, MessageStatus
+    content_text = text or f"[{msg_type}]"
+ 
+    msg, _ = Message.objects.get_or_create(
+        wa_message_id=message_id,
+        defaults={
+            "conversation": conversation,
+            "client": client,
+            "direction": MessageDirection.INBOUND,
+            "status": MessageStatus.RECEIVED,
+            "content": content_text,
+            "msg_type": msg_type,
+            "media_url": media_url or "",
+            "media_mime_type": media_mime_type or "",
+            "media_filename": media_filename or "",
+            "timestamp": timezone.now(),
+        },
+    )
+ 
+    conversation.touch()
+ 
+    # 3. Si human takeover actif → ne pas répondre (l'agent gère)
+    if journey.human_takeover:
+        logger.info("Media received during human takeover | client=%s type=%s", client.wa_number, msg_type)
+        return OrchestratorResult(
+            success=True,
+            action="human_takeover",
+            client_id=str(client.pk),
+            conversation_id=conversation.pk,
+        )
+ 
+    # 4. Répondre automatiquement selon le type
+    lang = getattr(client, "language", "en") or "en"
+ 
+    if msg_type == "call":
+        # Appel manqué → message automatique
+        call_msgs = {
+            "en": (
+                "Hi! 😊 I noticed you tried to call us. "
+                "Unfortunately we can't receive calls on this number, "
+                "but I'm right here to help you via WhatsApp! "
+                "What can I do for you? 📸"
+            ),
+            "rw": (
+                "Muraho! 😊 Twabonye ko mwagerageje duhamagara. "
+                "Ntidushobora kwakira indirimbo kuri uyu numero, "
+                "ariko ndi hano kubafasha kuri WhatsApp! "
+                "Ni iki mshaka gukora? 📸"
+            ),
+            "fr": (
+                "Bonjour! 😊 J'ai vu que vous avez essayé de nous appeler. "
+                "Malheureusement nous ne pouvons pas recevoir d'appels sur ce numéro, "
+                "mais je suis là pour vous aider via WhatsApp ! "
+                "Que puis-je faire pour vous? 📸"
+            ),
+        }
+        _send_text(to=from_number, message=call_msgs.get(lang, call_msgs["en"]))
+ 
+    elif msg_type == "image":
+        img_msgs = {
+            "en": (
+                "Thanks for sharing this photo! 📸 "
+                "I'm Julie, your KP Kids Studio assistant — "
+                "I can read text but can't view images directly. "
+                "If you have a question or want to book a session, "
+                "feel free to write and I'll help you right away! 😊"
+            ),
+            "rw": (
+                "Murakoze gutuma ifoto! 📸 "
+                "Nitwa Julie, umufasha wa KP Kids Studio — "
+                "Nsoma ubutumwa ariko ntashobora kureba amafoto. "
+                "Niba mufite ikibazo cyangwa mushaka kubika igihe, "
+                "mwandike kandi mbasoze vuba! 😊"
+            ),
+            "fr": (
+                "Merci pour cette photo! 📸 "
+                "Je suis Julie, votre assistante KP Kids Studio — "
+                "je lis les textes mais ne peux pas voir les images directement. "
+                "Si vous avez une question ou souhaitez réserver, "
+                "écrivez-moi et je vous aide tout de suite! 😊"
+            ),
+        }
+        _send_text(to=from_number, message=img_msgs.get(lang, img_msgs["en"]))
+ 
+    elif msg_type in ("audio", "voice"):
+        audio_msgs = {
+            "en": (
+                "Thanks for the voice note! 🎙️ "
+                "I'm Julie — I can only read text messages for now. "
+                "Could you send me your question or request in text? "
+                "I'll get back to you right away! 😊"
+            ),
+            "rw": (
+                "Murakoze ubutumwa bwa amajwi! 🎙️ "
+                "Nitwa Julie — nsoma gusa ubutumwa bw'inyandiko. "
+                "Mwandike ikibazo cyangwa ibyo mushaka? "
+                "Mbasubiza vuba! 😊"
+            ),
+            "fr": (
+                "Merci pour le message vocal! 🎙️ "
+                "Je suis Julie — je ne peux lire que les messages texte pour l'instant. "
+                "Pourriez-vous m'écrire votre question ou demande? "
+                "Je vous réponds tout de suite! 😊"
+            ),
+        }
+        _send_text(to=from_number, message=audio_msgs.get(lang, audio_msgs["en"]))
+ 
+    elif msg_type == "document":
+        doc_msgs = {
+            "en": (
+                "Thanks for sending this document! 📄 "
+                "I've noted it — a team member will review it if needed. "
+                "Is there anything I can help you with? 😊"
+            ),
+            "rw": (
+                "Murakoze gutuma iki gitabo! 📄 "
+                "Twabikiye — umukozi azakisubiramo niba bikenerwa. "
+                "Hari ikindi mbasaba gufasha? 😊"
+            ),
+            "fr": (
+                "Merci pour ce document! 📄 "
+                "Je l'ai noté — un membre de l'équipe le consultera si nécessaire. "
+                "Y a-t-il autre chose que je peux faire pour vous? 😊"
+            ),
+        }
+        _send_text(to=from_number, message=doc_msgs.get(lang, doc_msgs["en"]))
+ 
+    elif msg_type == "sticker":
+        sticker_msgs = {
+            "en": "Thanks for the sticker! 😄 How can I help you today?",
+            "rw": "Murakoze! 😄 Ni gute nabafasha uyu munsi?",
+            "fr": "Merci pour l'autocollant! 😄 Comment puis-je vous aider?",
+        }
+        _send_text(to=from_number, message=sticker_msgs.get(lang, sticker_msgs["en"]))
+ 
+    logger.info(
+        "Media handled | client=%s type=%s media_id=%s saved=%s",
+        client.wa_number, msg_type, media_id, bool(media_url)
+    )
+ 
+    return OrchestratorResult(
+        success=True,
+        action="sent",
+        client_id=str(client.pk),
+        conversation_id=conversation.pk,
+        tokens_used=0,
+    )
+ 
+ 
+# ─── PHASE/STEP ADVANCEMENT ───────────────────────────────────────────────────
+ 
+def advance_journey(journey, phase: str, step: str) -> None:
+    # \"\"\"
+    # Met à jour la phase et le step du journey de façon atomique.
+    # Appelé depuis button_flow.py aux moments clés du flow.
+    
+    # Phases utilisées:
+    #     entry/greeting               → premier message
+    #     entry/language_selection     → welcome envoyé, choix langue
+    #     entry/main_menu              → langue choisie, menu affiché
+    #     discovery/questions          → flow booking/prices démarré
+    #     discovery/complete           → toutes les questions répondues
+    #     packages/presented           → packages envoyés
+    #     packages/chosen              → client a choisi un package
+    #     booking/awaiting_datetime    → package choisi, attente date
+    #     booking/availability_check   → date donnée, vérification agent
+    #     booking/awaiting_payment     → disponibilité confirmée, paiement attendu
+    #     booking/payment_confirmed    → paiement confirmé
+    #     booking/finalizing           → formulaire de détails envoyé
+    #     question/active              → mode question IA
+    #     objection/handling           → résistance prix détectée
+    # \"\"\"
+    try:
+        journey.phase = phase
+        journey.step = step
+        journey.save(update_fields=["phase", "step", "updated_at"])
+        logger.debug(
+            "Journey advanced | client=%s → %s/%s",
+            journey.client.wa_number if hasattr(journey, 'client') else "?",
+            phase, step
+        )
+    except Exception as exc:
+        logger.warning("advance_journey failed: %s", exc)
+
+
+
+
+
+
 #________________________________________________________________________________________________________
 # """
 # Journey Orchestrator

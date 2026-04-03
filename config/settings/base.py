@@ -150,6 +150,9 @@ STATICFILES_STORAGE = "django.contrib.staticfiles.storage.StaticFilesStorage"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
+
+SITE_URL = "https://senior-madeleine-matabar-93648cd5.koyeb.app/" 
+
 WHATSAPP = {
     "PHONE_NUMBER_ID": env("WA_PHONE_NUMBER_ID"),
     "ACCESS_TOKEN": env("WA_ACCESS_TOKEN"),

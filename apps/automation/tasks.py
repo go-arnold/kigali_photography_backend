@@ -53,6 +53,8 @@ def process_inbound_message(
     msg_type: str,
     text: str,
     media_id: str = None,
+    media_mime_type: str = None,
+    media_filename: str = None,
     interactive_id: str = None,
 ):
     """
@@ -101,11 +103,15 @@ def process_inbound_message(
             message_id=message_id,
             from_number=from_number,
             from_name=from_name,
-            msg_type=msg_type,
+            msg_type=type,
             text=text,
             timestamp=timestamp,
             interactive_id=interactive_id,
+            media_id=media_id,             # ← NOUVEAU
+            media_mime_type=media_mime_type, # ← NOUVEAU
+            media_filename=media_filename,    # ← NOUVEAU
         )
+
 
         logger.info(
             "Pipeline result | id=%s action=%s tokens=%s",

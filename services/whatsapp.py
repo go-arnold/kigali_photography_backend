@@ -3,11 +3,11 @@ WhatsApp Cloud API Service
 ===========================
 Handles all outbound communication to Meta's Graph API.
 
-Design principles:
-- All calls are synchronous (called from Celery workers, not request thread)
-- Raises on HTTP errors — callers handle retry logic
-- Typed methods per message type for clarity
-- Single httpx client reused across calls (connection pooling)
+Added:
+- send_image()     → envoie une image depuis une URL publique
+- send_audio()     → envoie un audio depuis une URL publique (pour les voice notes de l'agent)
+- send_document()  → envoie un document depuis une URL publique
+- download_media() → télécharge un media depuis Meta (délégué à media_service)
 """
 import logging
 from typing import Optional
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 _BASE_URL = settings.WHATSAPP["BASE_URL"]
 _PHONE_ID = settings.WHATSAPP["PHONE_NUMBER_ID"]
 _MESSAGES_URL = f"{_BASE_URL}/{_PHONE_ID}/messages"
-_TIMEOUT = 15  # seconds
+_TIMEOUT = 15
 
 
 def _headers() -> dict:
@@ -31,11 +31,6 @@ def _headers() -> dict:
 
 
 def _post(payload: dict) -> dict:
-    """
-    Core POST to Meta messages endpoint.
-    Returns parsed response JSON.
-    Raises httpx.HTTPStatusError on 4xx/5xx.
-    """
     with httpx.Client(timeout=_TIMEOUT) as client:
         response = client.post(_MESSAGES_URL, json=payload, headers=_headers())
 
@@ -48,7 +43,6 @@ def _post(payload: dict) -> dict:
         )
     response.raise_for_status()
     return response.json()
-
 
 
 def send_text(to: str, message: str, preview_url: bool = False) -> dict:
@@ -66,11 +60,7 @@ def send_text(to: str, message: str, preview_url: bool = False) -> dict:
 
 
 def send_buttons(to: str, body: str, buttons: list[dict]) -> dict:
-    """
-    Send interactive button message.
-    buttons = [{"id": "btn_1", "title": "Book Now"}, ...]
-    Max 3 buttons per Meta limit.
-    """
+    """Send interactive button message. Max 3 buttons."""
     assert len(buttons) <= 3, "Meta allows max 3 buttons"
     payload = {
         "messaging_product": "whatsapp",
@@ -92,11 +82,71 @@ def send_buttons(to: str, body: str, buttons: list[dict]) -> dict:
     return result
 
 
+def send_image(to: str, image_url: str, caption: str = "") -> dict:
+    """
+    Envoie une image depuis une URL publique.
+    L'URL doit être accessible publiquement par Meta.
+    """
+    payload = {
+        "messaging_product": "whatsapp",
+        "recipient_type": "individual",
+        "to": to,
+        "type": "image",
+        "image": {
+            "link": image_url,
+        },
+    }
+    if caption:
+        payload["image"]["caption"] = caption
+
+    result = _post(payload)
+    logger.info("Image sent to %s | wamid=%s", to, _extract_wamid(result))
+    return result
+
+
+def send_audio(to: str, audio_url: str) -> dict:
+    """
+    Envoie un fichier audio depuis une URL publique.
+    Formats supportés: audio/aac, audio/mp4, audio/mpeg, audio/amr, audio/ogg
+    """
+    payload = {
+        "messaging_product": "whatsapp",
+        "recipient_type": "individual",
+        "to": to,
+        "type": "audio",
+        "audio": {
+            "link": audio_url,
+        },
+    }
+    result = _post(payload)
+    logger.info("Audio sent to %s | wamid=%s", to, _extract_wamid(result))
+    return result
+
+
+def send_document(to: str, document_url: str, filename: str = "document.pdf", caption: str = "") -> dict:
+    """
+    Envoie un document depuis une URL publique.
+    """
+    payload = {
+        "messaging_product": "whatsapp",
+        "recipient_type": "individual",
+        "to": to,
+        "type": "document",
+        "document": {
+            "link": document_url,
+            "filename": filename,
+        },
+    }
+    if caption:
+        payload["document"]["caption"] = caption
+
+    result = _post(payload)
+    logger.info("Document sent to %s | wamid=%s", to, _extract_wamid(result))
+    return result
+
+
 def send_list(to: str, body: str, button_label: str, sections: list[dict]) -> dict:
-    """
-    Send interactive list message.
-    sections = [{"title": "Packages", "rows": [{"id": "pkg_1", "title": "Basic", "description": "..."}]}]
-    """
+    """Send interactive list message."""
     payload = {
         "messaging_product": "whatsapp",
         "to": to,
@@ -117,10 +167,7 @@ def send_list(to: str, body: str, button_label: str, sections: list[dict]) -> di
 
 def send_template(to: str, template_name: str, language_code: str = "en_US",
                   components: Optional[list] = None) -> dict:
-    """
-    Send a pre-approved Meta template message.
-    Used for outbound (birthday reminders, re-engagement) where 24h window is closed.
-    """
+    """Send a pre-approved Meta template message."""
     payload = {
         "messaging_product": "whatsapp",
         "to": to,
@@ -137,10 +184,7 @@ def send_template(to: str, template_name: str, language_code: str = "en_US",
 
 
 def mark_as_read(message_id: str) -> dict:
-    """
-    Mark a received message as read.
-    Costs nothing, improves UX (shows blue ticks).
-    """
+    """Mark a received message as read (blue ticks)."""
     payload = {
         "messaging_product": "whatsapp",
         "status": "read",
@@ -149,13 +193,11 @@ def mark_as_read(message_id: str) -> dict:
     try:
         return _post(payload)
     except Exception as exc:
-        # Non-critical — don't fail processing if this errors
         logger.warning("Failed to mark message as read %s: %s", message_id, exc)
         return {}
 
 
 def _extract_wamid(response: dict) -> str:
-    """Extract WhatsApp message ID from API response."""
     try:
         return response["messages"][0]["id"]
     except (KeyError, IndexError):

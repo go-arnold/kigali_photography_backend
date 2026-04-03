@@ -345,13 +345,22 @@ def _handle_action(action: str, from_number: str, journey, client) -> str:
         client.language_locked = True #nexplit
         client.save(update_fields=["language", "language_locked", "updated_at"]) #nexplit
         journey.flow_mode = "menu_shown"
-        #client.save(update_fields=["language", "updated_at"]) #nexplit
+        try:
+            from services.journey_orchestrator import advance_journey
+            advance_journey(journey, "entry", "main_menu")
+        except Exception:
+            pass
         _send_main_menu(to=from_number, lang=lang, client = client)
         return f"language_set_{lang}"
 
     if action == "start_booking":
         _set_flow_mode(journey, "booking")
         _reset_discovery(journey)
+        try:
+            from services.journey_orchestrator import advance_journey
+            advance_journey(journey, "discovery", "questions")
+        except Exception:
+            pass
         _send_text_and_save(from_number, _m(client, "start_booking"), client)
         _send_next_discovery_question(from_number, journey, client)
         return "started_booking_flow"
@@ -359,12 +368,22 @@ def _handle_action(action: str, from_number: str, journey, client) -> str:
     if action == "start_prices":
         _set_flow_mode(journey, "prices")
         _reset_discovery(journey)
+        try:
+            from services.journey_orchestrator import advance_journey
+            advance_journey(journey, "discovery", "questions")
+        except Exception:
+            pass
         _send_text_and_save(from_number, _m(client, "start_prices"), client)
         _send_next_discovery_question(from_number, journey, client)
         return "started_prices_flow"
 
     if action == "start_question":
         _set_flow_mode(journey, "question")
+        try:
+            from services.journey_orchestrator import advance_journey
+            advance_journey(journey, "question", "active")
+        except Exception:
+            pass
         _send_text_and_save(from_number, _m(client, "start_question"), client)
         return "started_question_mode"
 
@@ -397,8 +416,18 @@ def _handle_discovery(field: str, value, from_number: str, journey, client) -> s
         _send_discovery_question(from_number, next_step, client)
         return f"discovery_{field}_saved_next_{next_step['key']}"
     else:
+        try:
+            from services.journey_orchestrator import advance_journey
+            advance_journey(journey, "discovery", "complete")
+        except Exception:
+            pass
         # Toutes les questions répondues → présenter les packages
         _present_packages(from_number, journey, client)
+        try:
+            from services.journey_orchestrator import advance_journey
+            advance_journey(journey, "packages", "presented")
+        except Exception:
+            pass
         return "discovery_complete_packages_sent"
 
 
@@ -573,6 +602,12 @@ def _handle_package_choice(package_name: str, from_number: str, journey, client)
     journey.flow_mode = "awaiting_datetime"
     journey.save(update_fields=["selected_package", "flow_mode", "updated_at"])
 
+    try:
+        from services.journey_orchestrator import advance_journey
+        advance_journey(journey, "packages", "chosen")
+    except Exception:
+        pass
+
     lang = getattr(client, "language", "en") or "en"
 
     datetime_msgs = {
@@ -596,6 +631,12 @@ def _handle_package_choice(package_name: str, from_number: str, journey, client)
     #send_text(to=from_number, message=datetime_msgs.get(lang, datetime_msgs["en"]))
     _send_text_and_save(from_number, datetime_msgs.get(lang, datetime_msgs["en"]), client)
 
+    try:
+        from services.journey_orchestrator import advance_journey
+        advance_journey(journey, "booking", "awaiting_datetime")
+    except Exception:
+        pass
+
     return f"package_chosen_{package_name.lower()}_awaiting_datetime"
 
 # ─── HANDLER PAIEMENT CONFIRMÉ ───────────────────────────────────────────────
@@ -605,9 +646,12 @@ def _handle_payment_confirmed(from_number: str, journey, client) -> str:
     from services.journey_orchestrator import (
         _notify_human_takeover,
         _send_payment_notification_email,
+        advance_journey,
     )
 
     journey.flag_human_takeover("Client confirmed payment via button")
+
+    advance_journey(journey, "booking", "payment_confirmed")
 
     # Construire le formulaire de booking pour le dashboard
     pkg  = journey.selected_package or "?"
@@ -1295,6 +1339,12 @@ def handle_datetime_response(
     from services.journey_orchestrator import _notify_human_takeover
     from apps.conversations.models import ApprovalQueue, ApprovalAction, Conversation
     from django.utils import timezone
+
+    try:
+        from services.journey_orchestrator import advance_journey
+        advance_journey(journey, "booking", "availability_check")
+    except Exception:
+        pass
 
     lang = getattr(client, "language", "en") or "en"
     pkg  = journey.selected_package or "?"

@@ -118,6 +118,18 @@ class Message(models.Model):
         default="text",
         help_text="text | image | audio | interactive | template",
     )
+    media_url = models.CharField(
+        max_length=500, blank=True, default='',
+        help_text='URL locale ou S3 du fichier media (image, audio, doc)'
+    )
+    media_mime_type = models.CharField(
+        max_length=100, blank=True, default='',
+        help_text='MIME type: image/jpeg, audio/ogg, application/pdf...'
+    )
+    media_filename = models.CharField(
+        max_length=200, blank=True, default='',
+        help_text='Nom du fichier original (pour documents)'
+    )
 
     # AI metadata (outbound only)
     generated_by_ai = models.BooleanField(default=False)

@@ -4,7 +4,7 @@ Parse raw Meta WhatsApp webhook payloads into clean Python dicts.
 Meta sends a deeply nested structure. This module flattens it into
 a consistent shape used everywhere else in the system.
 
-Supported message types: text, image, audio, video, document, interactive
+Supported message types: text, image, audio, document, interactive, call
 """
 import logging
 from dataclasses import dataclass, field
@@ -16,16 +16,18 @@ logger = logging.getLogger(__name__)
 @dataclass
 class InboundMessage:
     """Normalized inbound WhatsApp message."""
-    message_id: str          # Unique WA message ID (used for idempotency)
-    from_number: str         # Sender's phone number (e.164 format)
-    from_name: str           # Sender's display name
-    timestamp: str           # Unix timestamp string from Meta
-    type: str                # text | image | audio | video | document | interactive | unsupported
-    text: Optional[str] = None          # For type=text
-    media_id: Optional[str] = None      # For media types
-    interactive_id: Optional[str] = None    # Button/list reply ID
-    interactive_title: Optional[str] = None # Button/list reply title
-    raw: dict = field(default_factory=dict) # Original payload for edge cases
+    message_id: str
+    from_number: str
+    from_name: str
+    timestamp: str
+    type: str                               # text | image | audio | document | interactive | call | unsupported
+    text: Optional[str] = None
+    media_id: Optional[str] = None          # WhatsApp media ID (à télécharger)
+    media_mime_type: Optional[str] = None   # image/jpeg | audio/ogg | application/pdf ...
+    media_filename: Optional[str] = None    # Pour documents uniquement
+    interactive_id: Optional[str] = None
+    interactive_title: Optional[str] = None
+    raw: dict = field(default_factory=dict)
 
 
 @dataclass
@@ -33,17 +35,11 @@ class StatusUpdate:
     """Normalized delivery/read status update."""
     message_id: str
     from_number: str
-    status: str   # sent | delivered | read | failed
+    status: str
     timestamp: str
 
 
 def parse_webhook_payload(body: dict) -> tuple[list[InboundMessage], list[StatusUpdate]]:
-    """
-    Parse a Meta webhook POST body.
-
-    Returns:
-        (messages, statuses) — both lists, usually one item each.
-    """
     messages: list[InboundMessage] = []
     statuses: list[StatusUpdate] = []
 
@@ -52,13 +48,11 @@ def parse_webhook_payload(body: dict) -> tuple[list[InboundMessage], list[Status
             for change in entry.get("changes", []):
                 value = change.get("value", {})
 
-                # ── Parse inbound messages ─────────────────────────────────
                 for msg in value.get("messages", []):
                     parsed = _parse_message(msg, value.get("contacts", []))
                     if parsed:
                         messages.append(parsed)
 
-                # ── Parse status updates ───────────────────────────────────
                 for status in value.get("statuses", []):
                     parsed_status = _parse_status(status)
                     if parsed_status:
@@ -71,26 +65,54 @@ def parse_webhook_payload(body: dict) -> tuple[list[InboundMessage], list[Status
 
 
 def _parse_message(msg: dict, contacts: list) -> Optional[InboundMessage]:
-    """Extract a single InboundMessage from a raw message dict."""
     try:
         message_id = msg["id"]
         from_number = msg["from"]
         timestamp = msg.get("timestamp", "")
         msg_type = msg.get("type", "unsupported")
 
-        # Resolve display name from contacts list
         from_name = _resolve_name(from_number, contacts)
 
         text = None
         media_id = None
+        media_mime_type = None
+        media_filename = None
         interactive_id = None
         interactive_title = None
 
         if msg_type == "text":
             text = msg.get("text", {}).get("body", "")
 
-        elif msg_type in ("image", "audio", "video", "document", "sticker"):
-            media_id = msg.get(msg_type, {}).get("id")
+        elif msg_type == "image":
+            img = msg.get("image", {})
+            media_id = img.get("id")
+            media_mime_type = img.get("mime_type", "image/jpeg")
+            # Caption si présent
+            caption = img.get("caption", "")
+            if caption:
+                text = caption
+
+        elif msg_type == "audio":
+            audio = msg.get("audio", {})
+            media_id = audio.get("id")
+            media_mime_type = audio.get("mime_type", "audio/ogg")
+            # Les voice notes ont voice=True
+            is_voice = audio.get("voice", False)
+            msg_type = "voice" if is_voice else "audio"
+
+        elif msg_type == "document":
+            doc = msg.get("document", {})
+            media_id = doc.get("id")
+            media_mime_type = doc.get("mime_type", "application/octet-stream")
+            media_filename = doc.get("filename", "document")
+            caption = doc.get("caption", "")
+            if caption:
+                text = caption
+
+        elif msg_type == "sticker":
+            sticker = msg.get("sticker", {})
+            media_id = sticker.get("id")
+            media_mime_type = sticker.get("mime_type", "image/webp")
 
         elif msg_type == "interactive":
             interactive = msg.get("interactive", {})
@@ -98,11 +120,18 @@ def _parse_message(msg: dict, contacts: list) -> Optional[InboundMessage]:
             if reply_type == "button_reply":
                 interactive_id = interactive["button_reply"]["id"]
                 interactive_title = interactive["button_reply"]["title"]
-                text = interactive_title  # normalise: treat button tap as text too
+                text = interactive_title
             elif reply_type == "list_reply":
                 interactive_id = interactive["list_reply"]["id"]
                 interactive_title = interactive["list_reply"]["title"]
                 text = interactive_title
+
+        # WhatsApp call attempt — Meta envoie un webhook spécial
+        elif msg_type == "system":
+            system = msg.get("system", {})
+            if system.get("type") == "call":
+                msg_type = "call"
+                text = "[Missed call]"
 
         else:
             logger.debug("Unsupported message type: %s", msg_type)
@@ -116,6 +145,8 @@ def _parse_message(msg: dict, contacts: list) -> Optional[InboundMessage]:
             type=msg_type,
             text=text,
             media_id=media_id,
+            media_mime_type=media_mime_type,
+            media_filename=media_filename,
             interactive_id=interactive_id,
             interactive_title=interactive_title,
             raw=msg,

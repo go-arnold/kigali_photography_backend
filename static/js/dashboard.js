@@ -271,6 +271,193 @@ async function sendChatMessage(pk) {
   }
 }
 
+// État enregistrement vocal
+let S_recorder = { stream: null, recorder: null, chunks: [], recording: false };
+
+async function sendMediaFromDashboard(pk) {
+  const input = document.getElementById("chat-file-input");
+  if (!input || !input.files.length) return;
+  const file = input.files[0];
+  
+  const btn = document.getElementById("chat-media-btn");
+  if (btn) { btn.disabled = true; btn.textContent = "⏳"; }
+
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
+    
+    const r = await fetch(API_BASE + `/clients/${pk}/media/`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "X-CSRFToken": getCsrf() },
+      body: formData,
+    });
+    
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP \${r.status}`);
+    }
+    
+    const data = await r.json();
+    toast("Media sent ✓", "ok");
+    input.value = "";
+    
+    // Ajouter localement
+    const now = new Date().toISOString();
+    S.chatMessages.push({
+      id: `local_media_${Date.now()}`,
+      direction: "outbound",
+      content: `[${data.type} sent]`,
+      msg_type: data.type,
+      media_url: data.url,
+      media_mime_type: file.type,
+      media_filename: file.name,
+      timestamp: now,
+      generated_by_ai: false,
+      approved_by_human: true,
+    });
+    S.chatLastTimestamp = now;
+    render();
+    setTimeout(() => {
+      const list = document.getElementById("chat-msg-list");
+      if (list) list.scrollTop = list.scrollHeight;
+    }, 50);
+  } catch(e) {
+    toast(e.message, "err");
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = "📎"; }
+  }
+}
+
+async function startVoiceRecording(pk) {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+    S_recorder = { stream, recorder, chunks: [], recording: true, pk };
+    
+    recorder.ondataavailable = (e) => {
+      if (e.data.size > 0) S_recorder.chunks.push(e.data);
+    };
+    
+    recorder.onstop = async () => {
+      const blob = new Blob(S_recorder.chunks, { type: "audio/webm" });
+      const file = new File([blob], `voice_${Date.now()}.webm`, { type: "audio/webm" });
+      
+      const formData = new FormData();
+      formData.append("file", file);
+      
+      try {
+        const r = await fetch(API_BASE + `/clients/${S_recorder.pk}/media/`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "X-CSRFToken": getCsrf() },
+          body: formData,
+        });
+        if (r.ok) {
+          toast("Voice note sent ✓", "ok");
+          // Ajouter localement
+          const now = new Date().toISOString();
+          const objUrl = URL.createObjectURL(blob);
+          S.chatMessages.push({
+            id: `local_voice_${Date.now()}`,
+            direction: "outbound",
+            content: "[Voice note sent]",
+            msg_type: "voice",
+            media_url: objUrl,
+            media_mime_type: "audio/webm",
+            timestamp: now,
+            generated_by_ai: false,
+            approved_by_human: true,
+          });
+          S.chatLastTimestamp = now;
+          render();
+          setTimeout(() => {
+            const list = document.getElementById("chat-msg-list");
+            if (list) list.scrollTop = list.scrollHeight;
+          }, 50);
+        } else {
+          toast("Failed to send voice note", "err");
+        }
+      } catch(e) {
+        toast(e.message, "err");
+      }
+      
+      // Nettoyage
+      S_recorder.stream.getTracks().forEach(t => t.stop());
+      S_recorder = { stream: null, recorder: null, chunks: [], recording: false };
+    };
+    
+    recorder.start();
+    render(); // Mettre à jour le bouton en rouge
+    
+  } catch(e) {
+    toast("Microphone access denied: " + e.message, "err");
+  }
+}
+
+function stopVoiceRecording() {
+  if (S_recorder.recording && S_recorder.recorder) {
+    S_recorder.recorder.stop();
+    S_recorder.recording = false;
+    render();
+  }
+}
+
+function renderMediaMessage(msg, isIn) {
+  const mime = msg.media_mime_type || "";
+  const url = msg.media_url || "";
+  const filename = msg.media_filename || "file";
+  
+  // Construire l'URL absolue si nécessaire
+  const fullUrl = url.startsWith("http") ? url : (window.location.origin + url);
+  
+  if (mime.startsWith("image/") || msg.msg_type === "image") {
+    return `
+      <div style="max-width:220px;cursor:pointer" onclick="window.open('${fullUrl}','_blank')">
+        <img src="${fullUrl}" 
+          style="width:100%;border-radius:8px;display:block;max-height:200px;object-fit:cover"
+          onerror="this.style.display='none';this.nextSibling.style.display='block'"
+          alt="Image">
+        <div style="display:none;padding:8px;font-size:12px;color:#999">📷 Image (click to open)</div>
+        ${msg.content && msg.content !== "[image]" ? `<div style="font-size:12px;margin-top:4px;opacity:0.8">${esc(msg.content)}</div>` : ""}
+      </div>`;
+  }
+  
+  if (mime.startsWith("audio/") || msg.msg_type === "audio" || msg.msg_type === "voice") {
+    return `
+      <div style="min-width:200px">
+        <div style="font-size:11px;opacity:0.7;margin-bottom:4px">🎙️ Voice note</div>
+        <audio controls style="width:100%;height:32px;outline:none" preload="metadata">
+          <source src="${fullUrl}" type="${mime || 'audio/ogg'}">
+          <a href="${fullUrl}" style="color:#fff;font-size:12px">▶ Play audio</a>
+        </audio>
+      </div>`;
+  }
+  
+  // Document / autre
+  return `
+    <a href="${fullUrl}" target="_blank" style="
+      display:flex;align-items:center;gap:8px;
+      color:inherit;text-decoration:none;
+      background:rgba(255,255,255,0.1);
+      border-radius:8px;padding:8px 12px;
+      min-width:180px;
+    ">
+      <span style="font-size:24px">${_docIcon(mime)}</span>
+      <div>
+        <div style="font-size:13px;font-weight:600">${esc(filename)}</div>
+        <div style="font-size:11px;opacity:0.7">Tap to open</div>
+      </div>
+    </a>`;
+}
+
+function _docIcon(mime) {
+  if (mime.includes("pdf")) return "📄";
+  if (mime.includes("word") || mime.includes("doc")) return "📝";
+  if (mime.includes("sheet") || mime.includes("excel")) return "📊";
+  return "📎";
+}
+
 async function toggleTakeoverFromChat(pk, enable) {
   try {
     await req("POST", `/clients/${pk}/takeover/`, { enable });
@@ -938,124 +1125,274 @@ function renderModal() {
   const msgs = S.chatMessages;
   const loading = S.chatLoading;
   const takeover = S.chatHumanTakeover;
+  const isRecording = S_recorder.recording;
+
+  // Helper: formater timestamp
+  function fmtTime(ts) {
+    if (!ts) return "";
+    return new Date(ts).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  }
+
+  // Helper: rendre un message individuel
+  function renderMsg(msg) {
+    const isIn = msg.direction === "inbound";
+    const time = fmtTime(msg.timestamp);
+    const isInteractive = msg.msg_type === "interactive";
+    const hasMedia = msg.media_url && msg.media_url.length > 0;
+    const isCall = msg.msg_type === "call";
+    const isVoice = msg.msg_type === "voice" || msg.msg_type === "audio";
+    const isImage = msg.msg_type === "image";
+    const isDoc = msg.msg_type === "document";
+
+    // ── Message système (appel) ────────────────────────────────
+    if (isCall) {
+      return `<div style="display:flex;justify-content:center;margin:8px 0">
+        <div style="background:#f0f0f0;border-radius:20px;padding:4px 14px;font-size:12px;color:#666">
+          📞 Missed call attempt
+        </div>
+      </div>`;
+    }
+
+    // ── Contenu du message ─────────────────────────────────────
+    let contentHtml = "";
+
+    if (hasMedia) {
+      contentHtml = renderMediaMessage(msg, isIn);
+    } else if (isInteractive) {
+      // Boutons envoyés par le bot
+      const lines = msg.content.split("\\n");
+      const bodyText = lines[0] || "";
+      const btnLine = lines.slice(1).join(" ").trim();
+      const btns = btnLine
+        ? btnLine.split("|").map(b => b.replace(/[\\[\\]]/g, "").trim()).filter(Boolean)
+        : [];
+      contentHtml = `
+        <div style="font-size:13px;margin-bottom:${btns.length ? "8px" : "0"}">${esc(bodyText)}</div>
+        ${btns.length ? `<div style="display:flex;flex-wrap:wrap;gap:4px">
+          ${btns.map(b => `<span style="
+            background:rgba(0,168,132,0.15);
+            border:1px solid rgba(0,168,132,0.4);
+            color:#00a884;
+            border-radius:16px;padding:3px 10px;font-size:11px;font-weight:600;
+          ">${esc(b)}</span>`).join("")}
+        </div>` : ""}
+      `;
+    } else {
+      contentHtml = `<div style="white-space:pre-wrap;word-break:break-word;font-size:14px">${esc(msg.content)}</div>`;
+    }
+
+    // ── Bulle INBOUND (client → nous) ─────────────────────────
+    if (isIn) {
+      const isClientBtn = isInteractive || (msg.content && msg.content.startsWith("[button:"));
+      return `
+      <div style="display:flex;align-items:flex-end;gap:6px;max-width:72%;margin-bottom:2px">
+        <div style="width:28px;height:28px;border-radius:50%;background:#25D366;
+          display:flex;align-items:center;justify-content:center;
+          font-size:12px;font-weight:bold;color:#fff;flex-shrink:0;margin-bottom:18px">
+          ${esc((m.name || "?")[0].toUpperCase())}
+        </div>
+        <div>
+          <div style="
+            background:#fff;
+            border-radius:0 12px 12px 12px;
+            padding:8px 12px;
+            box-shadow:0 1px 2px rgba(0,0,0,0.08);
+            ${isClientBtn ? "border-left:3px solid #25D366;" : ""}
+          ">
+            ${isClientBtn ? `<div style="font-size:10px;color:#25D366;font-weight:600;margin-bottom:3px">👆 Button tap</div>` : ""}
+            ${contentHtml}
+          </div>
+          <div style="font-size:10px;color:#999;margin-top:2px;padding-left:2px">${time}</div>
+        </div>
+      </div>`;
+    }
+
+    // ── Bulle OUTBOUND (nous → client) ────────────────────────
+    const bubbleBg = isInteractive
+      ? "linear-gradient(135deg,#128C7E,#075E54)"
+      : msg.generated_by_ai
+        ? "linear-gradient(135deg,#25D366,#128C7E)"
+        : "#fff";
+    const textColor = (isInteractive || msg.generated_by_ai) ? "#fff" : "#333";
+    const border = (!isInteractive && !msg.generated_by_ai) ? "border:1px solid #e0e0e0;" : "";
+    const senderLabel = msg.generated_by_ai
+      ? "🤖 Julie · AI"
+      : "👤 You · Staff";
+    const senderColor = msg.generated_by_ai ? "#25D366" : "#128C7E";
+
+    return `
+    <div style="display:flex;justify-content:flex-end;margin-bottom:2px">
+      <div style="max-width:72%">
+        <div style="
+          background:${bubbleBg};
+          color:${textColor};
+          border-radius:12px 0 12px 12px;
+          padding:8px 12px;
+          box-shadow:0 1px 2px rgba(0,0,0,0.12);
+          ${border}
+        ">
+          ${contentHtml}
+        </div>
+        <div style="font-size:10px;color:${senderColor};margin-top:2px;text-align:right;padding-right:2px;font-weight:600">
+          ${senderLabel} · ${time}
+          ${msg.approved_by_human === null ? " · ⏳" : ""}
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // ── Zone de saisie (takeover requis) ──────────────────────────────────────
+  const inputArea = takeover ? `
+    <div style="display:flex;align-items:flex-end;gap:8px">
+      
+      <!-- Upload media -->
+      <label title="Send image or document" style="
+        width:40px;height:40px;border-radius:50%;
+        background:#f0f0f0;cursor:pointer;
+        display:flex;align-items:center;justify-content:center;
+        font-size:18px;flex-shrink:0;
+      ">
+        📎
+        <input type="file" id="chat-file-input" accept="image/*,.pdf,.doc,.docx"
+          style="display:none"
+          onchange="sendMediaFromDashboard(${m.pk})"
+        >
+      </label>
+
+      <!-- Textarea -->
+      <textarea
+        id="chat-input"
+        placeholder="Type a message…"
+        rows="1"
+        style="
+          flex:1;resize:none;padding:10px 14px;
+          border:1px solid #ddd;border-radius:20px;
+          font-size:14px;font-family:inherit;
+          background:#fff;outline:none;
+          max-height:120px;overflow-y:auto;
+          line-height:1.4;
+        "
+        oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px'"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChatMessage(${m.pk})}"
+      ></textarea>
+
+      <!-- Voice / Send -->
+      ${isRecording
+        ? `<button onclick="stopVoiceRecording()" style="
+            width:44px;height:44px;border-radius:50%;border:none;cursor:pointer;
+            background:#ef4444;color:#fff;font-size:18px;flex-shrink:0;
+            animation:pulse 1s infinite;
+          ">⏹</button>`
+        : `<button onclick="if(document.getElementById('chat-input')?.value?.trim()){sendChatMessage(${m.pk})}else{startVoiceRecording(${m.pk})}"
+            id="chat-send-btn"
+            style="
+              width:44px;height:44px;border-radius:50%;border:none;cursor:pointer;
+              background:#25D366;color:#fff;font-size:18px;flex-shrink:0;
+            "
+            title="Send message or hold to record voice">
+            🎙️
+          </button>`
+      }
+    </div>
+    <div style="font-size:10px;color:#999;margin-top:4px;text-align:center">
+      Enter to send · Shift+Enter for newline · 📎 for files
+    </div>
+  ` : `
+    <div style="
+      background:#fff8e1;border:1px solid #ffc107;border-radius:12px;
+      padding:12px 16px;font-size:13px;color:#795548;text-align:center;
+    ">
+      ⚠️ AI is active — click <strong>Take Over</strong> to reply or send media
+    </div>
+  `;
 
   inner = `
-  <div class="modal modal-lg" style="height:85vh;display:flex;flex-direction:column">
-    <div class="modal-head" style="flex-shrink:0">
-      <div>
-        <h3>💬 ${esc(m.name || "Client")}</h3>
-        <div class="phone muted" style="font-size:12px">${esc(m.phone || "")}</div>
-      </div>
-      <div class="flex aic gap2">
-        ${takeover
-          ? `<span class="badge ba" style="font-size:11px">👤 Takeover Active</span>
-             <button class="btn btn-green btn-sm" onclick="toggleTakeoverFromChat(${m.pk}, false)">Release to AI</button>`
-          : `<span class="badge bg" style="font-size:11px">🤖 AI Active</span>
-             <button class="btn btn-red btn-sm" onclick="toggleTakeoverFromChat(${m.pk}, true)">Take Over</button>`
-        }
-        <div class="flex aic gap1 muted" style="font-size:11px">
-          <span class="topbar-dot" style="background:#22c55e"></span>
-          <span>Live • refreshes every 10s</span>
+  <div class="modal modal-lg" style="
+    height:88vh;display:flex;flex-direction:column;
+    border-radius:12px;overflow:hidden;
+  ">
+
+    <!-- Header style WhatsApp -->
+    <div style="
+      background:linear-gradient(135deg,#075E54,#128C7E);
+      padding:12px 16px;display:flex;align-items:center;gap:12px;
+      flex-shrink:0;
+    ">
+      <!-- Avatar -->
+      <div style="
+        width:40px;height:40px;border-radius:50%;
+        background:#25D366;display:flex;align-items:center;
+        justify-content:center;font-size:16px;font-weight:bold;color:#fff;
+        flex-shrink:0;
+      ">${esc((m.name || "?")[0].toUpperCase())}</div>
+      
+      <!-- Infos -->
+      <div style="flex:1">
+        <div style="font-size:15px;font-weight:700;color:#fff">${esc(m.name || "Client")}</div>
+        <div style="font-size:12px;color:rgba(255,255,255,0.75)">
+          ${esc(m.phone || "")}
+          · ${takeover
+            ? '<span style="color:#ffd700">👤 You are in control</span>'
+            : '<span style="color:#a0f0c0">🤖 AI responding</span>'}
         </div>
-        <button class="btn btn-ghost btn-icon btn-sm" onclick="closeModal()">✕</button>
+      </div>
+
+      <!-- Actions -->
+      <div style="display:flex;gap:8px;align-items:center">
+        ${takeover
+          ? `<button onclick="toggleTakeoverFromChat(${m.pk},false)" style="
+              padding:6px 12px;border-radius:20px;border:none;cursor:pointer;
+              background:rgba(255,255,255,0.2);color:#fff;font-size:12px;font-weight:600;
+            ">Release to AI</button>`
+          : `<button onclick="toggleTakeoverFromChat(${m.pk},true)" style="
+              padding:6px 12px;border-radius:20px;border:none;cursor:pointer;
+              background:#ef4444;color:#fff;font-size:12px;font-weight:600;
+            ">Take Over</button>`
+        }
+        <div style="font-size:10px;color:rgba(255,255,255,0.6);display:flex;align-items:center;gap:4px">
+          <span style="width:6px;height:6px;border-radius:50%;background:#25D366;display:inline-block"></span>
+          Live · 10s
+        </div>
+        <button onclick="closeModal()" style="
+          background:none;border:none;cursor:pointer;color:#fff;font-size:20px;
+          width:32px;height:32px;border-radius:50%;
+          display:flex;align-items:center;justify-content:center;
+        ">✕</button>
       </div>
     </div>
 
-    <!-- Messages -->
+    <!-- Zone messages style WhatsApp -->
     <div id="chat-msg-list" style="
-      flex:1;overflow-y:auto;padding:16px;
-      display:flex;flex-direction:column;gap:8px;
-      background:#f9f6f2;
+      flex:1;overflow-y:auto;
+      padding:12px 16px;
+      display:flex;flex-direction:column;gap:4px;
+      background: #e5ddd5 url('data:image/png;base64,iVBORw0KGgo=') center/400px;
     ">
       ${loading
-        ? `<div class="loading" style="margin:auto"><span class="spin"></span>Loading messages…</div>`
+        ? `<div style="display:flex;justify-content:center;align-items:center;height:100%;color:#666">
+            <span class="spin"></span>&nbsp;Loading messages…
+          </div>`
         : msgs.length === 0
-          ? `<div class="empty" style="margin:auto"><p>No messages yet</p></div>`
-          : msgs.map((msg) => {
-              const isIn = msg.direction === "inbound";
-              const time = msg.timestamp
-                ? new Date(msg.timestamp).toLocaleTimeString("en-GB", {hour:"2-digit",minute:"2-digit"})
-                : "";
-              const isInteractive = msg.msg_type === "interactive";
-
-              if (isIn) {
-                return `
-                <div style="display:flex;align-items:flex-end;gap:8px;max-width:75%">
-                  <div>
-                    <div style="
-                      background:#fff;border-radius:12px 12px 12px 2px;
-                      padding:10px 14px;font-size:14px;color:#333;
-                      box-shadow:0 1px 3px rgba(0,0,0,0.08);
-                      white-space:pre-wrap;word-break:break-word;
-                    ">${esc(msg.content)}</div>
-                    <div style="font-size:10px;color:#999;margin-top:3px;padding-left:4px">${time}</div>
-                  </div>
-                </div>`;
-              } else {
-                return `
-                <div style="display:flex;align-items:flex-end;gap:8px;max-width:75%;align-self:flex-end">
-                  <div style="text-align:right">
-                    <div style="
-                      background:${isInteractive ? "#6dfbc7" : "#71d1f2"};
-                      color:#000;border-radius:12px 12px 2px 12px;
-                      padding:10px 14px;font-size:14px;
-                      box-shadow:0 1px 3px #00000026;
-                      white-space:pre-wrap;word-break:break-word;
-                      ${isInteractive ? "opacity:0.9" : ""}
-                    ">${esc(msg.content)}</div>
-                    <div style="font-size:10px;color:#999;margin-top:3px;padding-right:4px">
-                      ${msg.generated_by_ai ? "👤 Staff, Approved" : "🤖Bot - AI"} · ${time}
-                      ${msg.approved_by_human === null ? " · ⏳ Pending" : ""}
-                    </div>
-                  </div>
-                </div>`;
-              }
-            }).join("")
+          ? `<div style="display:flex;justify-content:center;align-items:center;height:100%">
+              <div style="background:#fff;border-radius:12px;padding:12px 20px;font-size:13px;color:#999">
+                💬 No messages yet
+              </div>
+            </div>`
+          : msgs.map(renderMsg).join("")
       }
     </div>
 
     <!-- Zone de saisie -->
     <div style="
-      flex-shrink:0;padding:12px 16px;
-      background:#fff;border-top:1px solid #eee;
+      flex-shrink:0;padding:10px 12px;
+      background:#f0f0f0;border-top:1px solid #ddd;
     ">
-      ${!takeover
-        ? `<div style="
-            background:#fff3cd;border:1px solid #ffc107;border-radius:8px;
-            padding:10px 14px;font-size:12px;color:#856404;margin-bottom:10px;
-          ">
-            ⚠️ AI is active. Click <strong>Take Over</strong> to reply manually.
-          </div>`
-        : ""
-      }
-      <div class="flex aic gap2">
-        <textarea
-          id="chat-input"
-          placeholder="${takeover ? "Type your message…" : "Enable takeover to reply manually…"}"
-          ${!takeover ? "disabled" : ""}
-          rows="2"
-          style="
-            flex:1;resize:none;padding:10px 14px;
-            border:1px solid #ddd;border-radius:10px;
-            font-size:14px;font-family:inherit;
-            background:${takeover ? "#fff" : "#f5f5f5"};
-            outline:none;
-          "
-          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChatMessage(${m.pk})}"
-        ></textarea>
-        <button
-          id="chat-send-btn"
-          class="btn btn-green"
-          style="height:60px;padding:0 20px;font-size:14px"
-          ${!takeover ? "disabled" : ""}
-          onclick="sendChatMessage(${m.pk})"
-        >Send</button>
-      </div>
-      <div style="font-size:11px;color:#999;margin-top:6px;text-align:right">
-        Enter to send · Shift+Enter for new line
-      </div>
+      ${inputArea}
     </div>
-  </div>`;
+
+  </div>
+  `;
+  // ── FIN CHAT MODAL ─────────────────────────────────────────────────────
 }
 //------
 

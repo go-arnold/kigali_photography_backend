@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
+from django.conf.urls.static import static
 
 from apps.dashboard.spa_view import DashboardAppView
 from apps.webhook.views import  ping
@@ -12,9 +13,10 @@ urlpatterns = [
     path("api/webhook/", include("apps.webhook.urls")),
     path("api/dashboard/", include("apps.dashboard.urls")),
     path("ping/", ping),
-
+    
 ]
 
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 if settings.DEBUG:
     import debug_toolbar

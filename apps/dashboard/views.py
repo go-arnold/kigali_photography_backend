@@ -25,6 +25,8 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.parsers import MultiPartParser, FormParser
+
 
 from .mixins import ApprovalObjectMixin, ClientLookupMixin
 from .permissions import IsStudioStaff
@@ -140,6 +142,15 @@ class ApprovalApproveView(ApprovalObjectMixin, APIView):
                     # Envoyer le booking message au client
                     send_text(to=client.wa_number, message=client_message)
 
+                    try:
+                        from services.journey_orchestrator import advance_journey
+                        advance_journey(client.journey_state, "booking", "finalizing")
+                        # Mettre à jour le statut client
+                        client.status = "booked"
+                        client.save(update_fields=["status", "updated_at"])
+                    except Exception:
+                        pass
+
                     # Envoyer les boutons de paiement
                     paid_titles  = {"en": "✅ I've Sent Payment", "rw": "✅ Nishyuye", "fr": "✅ J'ai Envoyé"}
                     agent_titles = {"en": "🧑 Talk to Agent", "rw": "🧑 Vugana n'Umukozi", "fr": "🧑 Parler à un Agent"}
@@ -153,6 +164,11 @@ class ApprovalApproveView(ApprovalObjectMixin, APIView):
                             {"id": "btn_agent", "title": agent_titles.get(lang, agent_titles["en"])},
                         ],
                     )
+                    try:
+                        from services.journey_orchestrator import advance_journey
+                        advance_journey(client.journey_state, "booking", "awaiting_payment")
+                    except Exception:
+                        pass
 
                     # ── Désactiver le human takeover → l'IA reprend si besoin ──
                     # Mais on met flow_mode = "awaiting_payment" pour que
@@ -952,6 +968,9 @@ class ClientMessagesView(ClientLookupMixin, APIView):
                 "timestamp": m.timestamp.isoformat(),
                 "generated_by_ai": m.generated_by_ai,
                 "approved_by_human": m.approved_by_human,
+                "media_url": m.media_url or "",           # ← NOUVEAU
+                "media_mime_type": m.media_mime_type or "", # ← NOUVEAU
+                "media_filename": m.media_filename or "",   # ← NOUVEAU
             }
             for m in qs
         ]
@@ -962,3 +981,113 @@ class ClientMessagesView(ClientLookupMixin, APIView):
                 getattr(client, "journey_state", None), "human_takeover", False
             ),
         })
+
+class ManualMediaView(ClientLookupMixin, APIView):
+    """
+    POST /dashboard/clients/{id}/media/
+    Envoie un fichier media depuis l'agent vers le client WhatsApp.
+    Seulement si human_takeover est actif.
+    
+    multipart/form-data:
+        file: le fichier (image ou audio)
+        caption: texte optionnel
+    """
+    permission_classes = [IsStudioStaff]
+    parser_classes = [MultiPartParser, FormParser]
+ 
+    def post(self, request, pk):
+        from services.whatsapp import send_image, send_audio, send_document
+        from services.media_service import MEDIA_DIR, MEDIA_URL_PREFIX
+        import uuid
+        from pathlib import Path
+        from django.conf import settings
+ 
+        client = self.get_client(pk)
+ 
+        # Vérifier que human takeover est actif
+        journey = getattr(client, "journey_state", None)
+        if not journey or not journey.human_takeover:
+            return Response(
+                {"error": "Human takeover must be active to send media"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+ 
+        uploaded_file = request.FILES.get("file")
+        caption = request.data.get("caption", "")
+ 
+        if not uploaded_file:
+            return Response({"error": "No file provided"}, status=status.HTTP_400_BAD_REQUEST)
+ 
+        try:
+            # Sauvegarder le fichier localement
+            from services.media_service import MEDIA_DIR
+            MEDIA_DIR.mkdir(parents=True, exist_ok=True)
+ 
+            ext = Path(uploaded_file.name).suffix.lower()
+            unique_name = f"agent_{uuid.uuid4().hex[:12]}{ext}"
+            file_path = MEDIA_DIR / unique_name
+ 
+            with open(file_path, "wb") as f:
+                for chunk in uploaded_file.chunks():
+                    f.write(chunk)
+ 
+            # URL publique du fichier
+            site_url = getattr(settings, "SITE_URL", "")
+            relative_url = f"{settings.MEDIA_URL}whatsapp/{unique_name}"
+            public_url = f"{site_url}{relative_url}"
+ 
+            mime = uploaded_file.content_type or ""
+ 
+            # Envoyer selon le type
+            if mime.startswith("image/"):
+                send_image(to=client.wa_number, image_url=public_url, caption=caption)
+                msg_type = "image"
+            elif mime.startswith("audio/"):
+                send_audio(to=client.wa_number, audio_url=public_url)
+                msg_type = "audio"
+            else:
+                send_document(
+                    to=client.wa_number,
+                    document_url=public_url,
+                    filename=uploaded_file.name,
+                    caption=caption,
+                )
+                msg_type = "document"
+ 
+            # Enregistrer en DB
+            import uuid as _uuid
+            from apps.conversations.models import Message, MessageDirection, MessageStatus
+            from django.utils import timezone
+ 
+            conv = client.conversations.filter(window_status="open").first()
+            if conv:
+                Message.objects.create(
+                    wa_message_id=f"agent_media_{_uuid.uuid4().hex[:12]}",
+                    conversation=conv,
+                    client=client,
+                    direction=MessageDirection.OUTBOUND,
+                    status=MessageStatus.SENT,
+                    content=caption or f"[{msg_type} sent by agent]",
+                    msg_type=msg_type,
+                    media_url=relative_url,
+                    media_mime_type=mime,
+                    media_filename=uploaded_file.name,
+                    generated_by_ai=False,
+                    approved_by_human=True,
+                    timestamp=timezone.now(),
+                )
+ 
+            logger.info(
+                "Agent media sent | client=%s type=%s file=%s by=%s",
+                client.wa_number, msg_type, unique_name, request.user.username
+            )
+            return Response({
+                "status": "sent",
+                "type": msg_type,
+                "url": relative_url,
+                "public_url": public_url,
+            })
+ 
+        except Exception as exc:
+            logger.error("ManualMediaView failed: %s", exc)
+            return Response({"error": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
