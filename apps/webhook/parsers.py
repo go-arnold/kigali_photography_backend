@@ -20,7 +20,7 @@ class InboundMessage:
     from_number: str
     from_name: str
     timestamp: str
-    type: str                               # text | image | audio | document | interactive | call | unsupported
+    msg_type: str                               # text | image | audio | document | interactive | call | unsupported
     text: Optional[str] = None
     media_id: Optional[str] = None          # WhatsApp media ID (à télécharger)
     media_mime_type: Optional[str] = None   # image/jpeg | audio/ogg | application/pdf ...
@@ -69,7 +69,7 @@ def _parse_message(msg: dict, contacts: list) -> Optional[InboundMessage]:
         message_id = msg["id"]
         from_number = msg["from"]
         timestamp = msg.get("timestamp", "")
-        msg_type = msg.get("type", "unsupported")
+        msg_type = msg.get("type")
 
         from_name = _resolve_name(from_number, contacts)
 
@@ -142,7 +142,7 @@ def _parse_message(msg: dict, contacts: list) -> Optional[InboundMessage]:
             from_number=from_number,
             from_name=from_name,
             timestamp=timestamp,
-            type=msg_type,
+            msg_type=msg_type,
             text=text,
             media_id=media_id,
             media_mime_type=media_mime_type,
