@@ -91,7 +91,7 @@ def handle_inbound_message(
         if opt_out_result:
             return opt_out_result
 
-        MEDIA_HANDLER_BLOCK =
+        
         # ── MEDIA / CALL HANDLING ────────────────────────────────────────────────────
         if msg_type in ("image", "audio", "voice", "document", "sticker", "call", "unsupported"):
             return _handle_media_or_special(
