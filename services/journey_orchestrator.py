@@ -827,40 +827,44 @@ def _save_inbound(
 ):
     from apps.conversations.models import Message, MessageDirection, MessageStatus
  
+    # ← PROTECTION : forcer msg_type en string propre
+    safe_msg_type = str(msg_type) if msg_type else "text"
+    # Si c'est encore "<class ...>", forcer "text"
+    if safe_msg_type.startswith("<class") or safe_msg_type == "None":
+        safe_msg_type = "text"
+ 
+    # ← PROTECTION : content toujours string
+    safe_content = str(text) if text else f"[{safe_msg_type}]"
+    if safe_content.startswith("<class"):
+        safe_content = f"[{safe_msg_type}]"
+ 
     defaults = {
         "conversation": conversation,
         "client": client,
         "direction": MessageDirection.INBOUND,
         "status": MessageStatus.RECEIVED,
-        "content": text or f"[{msg_type}]",
-        "msg_type": msg_type if isinstance(msg_type, str) else str(msg_type),
+        "content": safe_content,
+        "msg_type": safe_msg_type,
         "timestamp": timezone.now(),
     }
  
-    # Protection: ajouter media fields seulement si la migration est appliquée
+    # Ajouter media fields seulement si la migration est appliquée
     try:
         message_fields = {f.name for f in Message._meta.get_fields()}
         if "media_url" in message_fields:
-            defaults["media_url"] = media_url or ""
+            defaults["media_url"] = str(media_url) if media_url else ""
         if "media_mime_type" in message_fields:
-            defaults["media_mime_type"] = media_mime_type or ""
+            defaults["media_mime_type"] = str(media_mime_type) if media_mime_type else ""
         if "media_filename" in message_fields:
-            defaults["media_filename"] = media_filename or ""
+            defaults["media_filename"] = str(media_filename) if media_filename else ""
     except Exception:
-        pass  # En cas d'erreur, continuer sans les champs media
+        pass
  
-    print("DEBUG DEFAULTS:", defaults)
-    for k, v in defaults.items():
-        print(k, type(v))
-    msg = Message.objects.filter(wa_message_id=message_id).first()
-
     msg, _ = Message.objects.get_or_create(
-    wa_message_id=message_id,
-    defaults=defaults,
+        wa_message_id=str(message_id),
+        defaults=defaults,
     )
     return msg
-
-
 def _save_outbound(client, conversation, text, model, tokens_input, tokens_output):
     import uuid
     from apps.conversations.models import Message, MessageDirection, MessageStatus
