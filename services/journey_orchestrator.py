@@ -854,11 +854,10 @@ def _save_inbound(
         print(k, type(v))
     msg = Message.objects.filter(wa_message_id=message_id).first()
 
-    if not msg:
-        msg = Message.objects.create(
-            wa_message_id=message_id,
-            **defaults
-        )
+    msg, _ = Message.objects.get_or_create(
+    wa_message_id=message_id,
+    defaults=defaults,
+    )
     return msg
 
 
