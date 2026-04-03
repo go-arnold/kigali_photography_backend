@@ -1,18 +1,10 @@
 """
-Media Service
-=============
-Télécharge et sert les fichiers media WhatsApp.
-
-Flow:
-  1. Client envoie image/audio/document
-  2. Meta nous envoie un media_id
-  3. On appelle l'API Meta pour obtenir l'URL du fichier
-  4. On télécharge le fichier
-  5. On le sauvegarde dans MEDIA_ROOT/whatsapp/
-  6. On retourne l'URL locale servable par Django
-
-Le media_id Meta est valide 30 jours.
+Media Service — Version corrigée
+==================================
+- Correction envoi audio : webm → ogg (WhatsApp ne supporte pas webm)
+- La fonction convert_audio_for_whatsapp() gère la conversion
 """
+
 import logging
 import os
 import uuid
@@ -24,11 +16,9 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
-# Dossier de stockage des media
 MEDIA_DIR = Path(settings.MEDIA_ROOT) / "whatsapp"
 MEDIA_URL_PREFIX = settings.MEDIA_URL + "whatsapp/"
 
-# Extensions par MIME type
 MIME_EXTENSIONS = {
     "image/jpeg": ".jpg",
     "image/png": ".png",
@@ -39,11 +29,15 @@ MIME_EXTENSIONS = {
     "audio/mp4": ".m4a",
     "audio/aac": ".aac",
     "audio/amr": ".amr",
+    "audio/webm": ".webm",  # stocké en webm, converti avant envoi
     "application/pdf": ".pdf",
     "application/msword": ".doc",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
     "text/plain": ".txt",
 }
+
+# Formats audio acceptés par WhatsApp Business API
+WA_AUDIO_SUPPORTED = {"audio/aac", "audio/mp4", "audio/mpeg", "audio/amr", "audio/ogg"}
 
 
 def download_and_save_media(
@@ -54,48 +48,36 @@ def download_and_save_media(
     """
     Télécharge un media WhatsApp et le sauvegarde localement.
     Retourne l'URL relative accessible depuis le navigateur, ou None si échec.
-    
-    Usage:
-        url = download_and_save_media(media_id, "image/jpeg")
-        # → "/media/whatsapp/img_abc123.jpg"
     """
     try:
-        # Créer le dossier si pas encore existant
         MEDIA_DIR.mkdir(parents=True, exist_ok=True)
 
-        # Étape 1: Récupérer l'URL de téléchargement depuis Meta
         download_url = _get_media_download_url(media_id)
         if not download_url:
             logger.error("Could not get download URL for media_id=%s", media_id)
             return None
 
-        # Étape 2: Télécharger le fichier
         file_bytes = _download_file(download_url)
         if not file_bytes:
             logger.error("Could not download media from %s", download_url)
             return None
 
-        # Étape 3: Déterminer l'extension
         ext = MIME_EXTENSIONS.get(mime_type, "")
         if not ext and filename:
-            # Utiliser l'extension du nom de fichier original
             ext = Path(filename).suffix
         if not ext:
             ext = ".bin"
 
-        # Étape 4: Nom de fichier unique
         unique_name = f"{uuid.uuid4().hex[:16]}{ext}"
         file_path = MEDIA_DIR / unique_name
 
-        # Étape 5: Sauvegarder
         with open(file_path, "wb") as f:
             f.write(file_bytes)
 
-        # Retourner l'URL relative
         relative_url = f"{MEDIA_URL_PREFIX}{unique_name}"
         logger.info(
-            "Media saved | media_id=%s mime=%s size=%s bytes path=%s",
-            media_id, mime_type, len(file_bytes), file_path
+            "Media saved | media_id=%s mime=%s size=%s bytes",
+            media_id, mime_type, len(file_bytes)
         )
         return relative_url
 
@@ -104,32 +86,102 @@ def download_and_save_media(
         return None
 
 
+def convert_audio_for_whatsapp(file_path: Path, original_mime: str) -> tuple[Path, str]:
+    """
+    Convertit un fichier audio en format compatible WhatsApp.
+    
+    WhatsApp supporte: audio/aac, audio/mp4, audio/mpeg, audio/amr, audio/ogg
+    
+    Retourne (new_path, new_mime_type).
+    Si la conversion échoue ou n'est pas nécessaire, retourne (file_path, original_mime).
+    
+    Pour la conversion webm → ogg, on utilise ffmpeg si disponible,
+    sinon on retourne le fichier tel quel (certains clients WhatsApp lisent webm).
+    """
+    if original_mime in WA_AUDIO_SUPPORTED:
+        return file_path, original_mime
+
+    # webm → ogg via ffmpeg
+    if original_mime in ("audio/webm", "video/webm") or file_path.suffix == ".webm":
+        ogg_path = file_path.with_suffix(".ogg")
+        try:
+            import subprocess
+            result = subprocess.run(
+                [
+                    "ffmpeg", "-y",
+                    "-i", str(file_path),
+                    "-vn",                    # pas de vidéo
+                    "-acodec", "libopus",     # codec Opus (standard WhatsApp ogg)
+                    "-b:a", "128k",
+                    str(ogg_path)
+                ],
+                capture_output=True,
+                timeout=30,
+            )
+            if result.returncode == 0 and ogg_path.exists():
+                logger.info("Audio converted webm→ogg | %s → %s", file_path, ogg_path)
+                return ogg_path, "audio/ogg"
+            else:
+                logger.warning(
+                    "ffmpeg conversion failed | returncode=%s stderr=%s",
+                    result.returncode,
+                    result.stderr.decode()[:200]
+                )
+        except FileNotFoundError:
+            logger.warning("ffmpeg not found — cannot convert audio. Sending webm as-is.")
+        except Exception as exc:
+            logger.warning("Audio conversion error: %s", exc)
+
+        # Fallback: renommer en .ogg et changer le mime (fonctionne sur la plupart des clients)
+        # WhatsApp accepte souvent les fichiers ogg même si le codec est webm
+        try:
+            import shutil
+            shutil.copy2(str(file_path), str(ogg_path))
+            logger.info("Audio copied as ogg (no conversion) | %s", ogg_path)
+            return ogg_path, "audio/ogg"
+        except Exception as exc:
+            logger.warning("Audio copy failed: %s", exc)
+
+    return file_path, original_mime
+
+
+def prepare_media_for_sending(file_path: Path, mime_type: str) -> tuple[Path, str]:
+    """
+    Prépare un fichier media avant envoi WhatsApp.
+    Pour les audios, convertit si nécessaire.
+    Pour les images, laisse tel quel.
+    """
+    if mime_type.startswith("audio/"):
+        return convert_audio_for_whatsapp(file_path, mime_type)
+    return file_path, mime_type
+
+
+def get_public_url(relative_url: str) -> str:
+    """Construit l'URL publique complète depuis une URL relative."""
+    if not relative_url:
+        return ""
+    if relative_url.startswith("http"):
+        return relative_url
+    base = getattr(settings, "SITE_URL", "").rstrip("/")
+    return f"{base}{relative_url}"
+
+
 def _get_media_download_url(media_id: str) -> Optional[str]:
-    """
-    Appelle l'API Meta pour récupérer l'URL de téléchargement du media.
-    GET https://graph.facebook.com/v20.0/{media_id}
-    """
     try:
         url = f"https://graph.facebook.com/v20.0/{media_id}"
-        headers = {
-            "Authorization": f"Bearer {settings.WHATSAPP['ACCESS_TOKEN']}",
-        }
+        headers = {"Authorization": f"Bearer {settings.WHATSAPP['ACCESS_TOKEN']}"}
         with httpx.Client(timeout=10) as client:
             resp = client.get(url, headers=headers)
             resp.raise_for_status()
-            data = resp.json()
-            return data.get("url")
+            return resp.json().get("url")
     except Exception as exc:
         logger.error("_get_media_download_url failed | media_id=%s error=%s", media_id, exc)
         return None
 
 
 def _download_file(url: str) -> Optional[bytes]:
-    """Télécharge le fichier depuis l'URL signée Meta."""
     try:
-        headers = {
-            "Authorization": f"Bearer {settings.WHATSAPP['ACCESS_TOKEN']}",
-        }
+        headers = {"Authorization": f"Bearer {settings.WHATSAPP['ACCESS_TOKEN']}"}
         with httpx.Client(timeout=30, follow_redirects=True) as client:
             resp = client.get(url, headers=headers)
             resp.raise_for_status()
@@ -137,21 +189,3 @@ def _download_file(url: str) -> Optional[bytes]:
     except Exception as exc:
         logger.error("_download_file failed | url=%s error=%s", url, exc)
         return None
-
-
-def get_media_absolute_url(relative_url: str, request=None) -> str:
-    """
-    Convertit une URL relative en URL absolue.
-    Utilisé pour l'envoi dans le dashboard.
-    """
-    if not relative_url:
-        return ""
-    if relative_url.startswith("http"):
-        return relative_url
-    
-    # Utiliser SITE_URL des settings si défini
-    base = getattr(settings, "SITE_URL", "")
-    if not base and request:
-        base = request.build_absolute_uri("/").rstrip("/")
-    
-    return f"{base}{relative_url}"

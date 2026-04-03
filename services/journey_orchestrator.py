@@ -76,23 +76,26 @@ def handle_inbound_message(
     text: str,
     timestamp: str,
     interactive_id: Optional[str] = None,
-    media_id: Optional[str] = None,           # ← NOUVEAU
-    media_mime_type: Optional[str] = None,    # ← NOUVEAU
-    media_filename: Optional[str] = None,     # ← NOUVEAU
+    media_id: Optional[str] = None,
+    media_mime_type: Optional[str] = None,
+    media_filename: Optional[str] = None,
 ) -> OrchestratorResult:
-    """
-    Full inbound message pipeline.
-    Returns OrchestratorResult — never raises.
-    """
-
+ 
     try:
-        # Step 1: Opt-out hard check
+        # Step 1: Opt-out check
         opt_out_result = _check_opt_out(from_number, text)
         if opt_out_result:
             return opt_out_result
-
-        
-        # ── MEDIA / CALL HANDLING ────────────────────────────────────────────────────
+ 
+        # Step 2: Onboard client  ← DOIT ÊTRE ICI, AVANT TOUT LE RESTE
+        from services.client_service import onboard_client
+        client, journey, conversation, is_new = onboard_client(
+            wa_number=from_number,
+            name=from_name,
+        )
+ 
+        # ── MEDIA / CALL HANDLING ────────────────────────────────────────────
+        # ← Maintenant client/journey/conversation sont définis
         if msg_type in ("image", "audio", "voice", "document", "sticker", "call", "unsupported"):
             return _handle_media_or_special(
                 client=client,
@@ -102,23 +105,13 @@ def handle_inbound_message(
                 from_number=from_number,
                 msg_type=msg_type,
                 text=text,
-                media_id=media_id,        # ← nouveau param à ajouter à handle_inbound_message
-                media_mime_type=media_mime_type,  # ← nouveau param
-                media_filename=media_filename,    # ← nouveau param
+                media_id=media_id,
+                media_mime_type=media_mime_type,
+                media_filename=media_filename,
             )
-
-
-        # Step 2: Onboard client
-        from services.client_service import onboard_client
-
-        client, journey, conversation, is_new = onboard_client(
-            wa_number=from_number,
-            name=from_name,
-        )
-
-        # ── BRANCHEMENT BOUTONS ──────────────────────────────────────────────────────
+ 
+        # ── BRANCHEMENT BOUTONS ──────────────────────────────────────────────
         if msg_type == "interactive" and interactive_id:
-            # ← SAUVEGARDER le clic bouton comme message inbound
             _save_inbound(
                 client=client,
                 conversation=conversation,
@@ -160,6 +153,7 @@ def handle_inbound_message(
                 client_id=str(client.pk),
                 conversation_id=conversation.pk,
             )
+
 
         # ── ROUTING TEXTE LIBRE ───────────────────────────────────────────────────────
         #flow_mode = getattr(journey, "flow_mode", "") or ""
@@ -833,7 +827,7 @@ def _save_inbound(
     media_filename: str = "",
 ):
     from apps.conversations.models import Message, MessageDirection, MessageStatus
-
+ 
     defaults = {
         "conversation": conversation,
         "client": client,
@@ -843,17 +837,19 @@ def _save_inbound(
         "msg_type": msg_type,
         "timestamp": timezone.now(),
     }
-
-    # Ajouter les champs media seulement s'ils existent sur le modèle
-    # (protection si migration pas encore appliquée)
-    message_fields = {f.name for f in Message._meta.get_fields()}
-    if "media_url" in message_fields:
-        defaults["media_url"] = media_url or ""
-    if "media_mime_type" in message_fields:
-        defaults["media_mime_type"] = media_mime_type or ""
-    if "media_filename" in message_fields:
-        defaults["media_filename"] = media_filename or ""
-
+ 
+    # Protection: ajouter media fields seulement si la migration est appliquée
+    try:
+        message_fields = {f.name for f in Message._meta.get_fields()}
+        if "media_url" in message_fields:
+            defaults["media_url"] = media_url or ""
+        if "media_mime_type" in message_fields:
+            defaults["media_mime_type"] = media_mime_type or ""
+        if "media_filename" in message_fields:
+            defaults["media_filename"] = media_filename or ""
+    except Exception:
+        pass  # En cas d'erreur, continuer sans les champs media
+ 
     msg, _ = Message.objects.get_or_create(
         wa_message_id=message_id,
         defaults=defaults,

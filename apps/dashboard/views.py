@@ -985,22 +985,17 @@ class ClientMessagesView(ClientLookupMixin, APIView):
 class ManualMediaView(ClientLookupMixin, APIView):
     """
     POST /dashboard/clients/{id}/media/
-    Envoie un fichier media depuis l'agent vers le client WhatsApp.
+    Envoie un fichier media (image, audio, document) vers le client WhatsApp.
     Seulement si human_takeover est actif.
-    
-    multipart/form-data:
-        file: le fichier (image ou audio)
-        caption: texte optionnel
     """
     permission_classes = [IsStudioStaff]
     parser_classes = [MultiPartParser, FormParser]
  
     def post(self, request, pk):
         from services.whatsapp import send_image, send_audio, send_document
-        from services.media_service import MEDIA_DIR, MEDIA_URL_PREFIX
-        import uuid
+        from services.media_service import MEDIA_DIR, prepare_media_for_sending, get_public_url
+        import uuid as _uuid
         from pathlib import Path
-        from django.conf import settings
  
         client = self.get_client(pk)
  
@@ -1019,62 +1014,73 @@ class ManualMediaView(ClientLookupMixin, APIView):
             return Response({"error": "No file provided"}, status=status.HTTP_400_BAD_REQUEST)
  
         try:
-            # Sauvegarder le fichier localement
-            from services.media_service import MEDIA_DIR
             MEDIA_DIR.mkdir(parents=True, exist_ok=True)
  
-            ext = Path(uploaded_file.name).suffix.lower()
-            unique_name = f"agent_{uuid.uuid4().hex[:12]}{ext}"
+            # Sauvegarder le fichier original
+            ext = Path(uploaded_file.name).suffix.lower() or ".bin"
+            unique_name = f"agent_{_uuid.uuid4().hex[:12]}{ext}"
             file_path = MEDIA_DIR / unique_name
  
             with open(file_path, "wb") as f:
                 for chunk in uploaded_file.chunks():
                     f.write(chunk)
  
-            # URL publique du fichier
-            site_url = getattr(settings, "SITE_URL", "")
+            original_mime = uploaded_file.content_type or ""
             relative_url = f"{settings.MEDIA_URL}whatsapp/{unique_name}"
-            public_url = f"{site_url}{relative_url}"
  
-            mime = uploaded_file.content_type or ""
+            # ── Préparer pour envoi WhatsApp (conversion audio si nécessaire) ──
+            send_path, send_mime = prepare_media_for_sending(file_path, original_mime)
+            send_url = get_public_url(f"{settings.MEDIA_URL}whatsapp/{send_path.name}")
  
-            # Envoyer selon le type
-            if mime.startswith("image/"):
-                send_image(to=client.wa_number, image_url=public_url, caption=caption)
+            logger.info(
+                "Sending media | original=%s mime=%s → send=%s mime=%s url=%s",
+                file_path.name, original_mime, send_path.name, send_mime, send_url
+            )
+ 
+            # ── Envoyer selon le type ──────────────────────────────────────────
+            if send_mime.startswith("image/"):
+                send_image(to=client.wa_number, image_url=send_url, caption=caption)
                 msg_type = "image"
-            elif mime.startswith("audio/"):
-                send_audio(to=client.wa_number, audio_url=public_url)
+            elif send_mime.startswith("audio/"):
+                send_audio(to=client.wa_number, audio_url=send_url)
                 msg_type = "audio"
             else:
                 send_document(
                     to=client.wa_number,
-                    document_url=public_url,
+                    document_url=send_url,
                     filename=uploaded_file.name,
                     caption=caption,
                 )
                 msg_type = "document"
  
-            # Enregistrer en DB
-            import uuid as _uuid
+            # ── Enregistrer en DB ─────────────────────────────────────────────
             from apps.conversations.models import Message, MessageDirection, MessageStatus
-            from django.utils import timezone
- 
             conv = client.conversations.filter(window_status="open").first()
             if conv:
+                msg_defaults = {
+                    "conversation": conv,
+                    "client": client,
+                    "direction": MessageDirection.OUTBOUND,
+                    "status": MessageStatus.SENT,
+                    "content": caption or f"[{msg_type} sent by agent]",
+                    "msg_type": msg_type,
+                    "generated_by_ai": False,
+                    "approved_by_human": True,
+                    "timestamp": timezone.now(),
+                }
+                # Ajouter media fields si disponibles
+                from apps.conversations.models import Message as Msg
+                mf = {f.name for f in Msg._meta.get_fields()}
+                if "media_url" in mf:
+                    msg_defaults["media_url"] = relative_url
+                if "media_mime_type" in mf:
+                    msg_defaults["media_mime_type"] = original_mime
+                if "media_filename" in mf:
+                    msg_defaults["media_filename"] = uploaded_file.name
+ 
                 Message.objects.create(
                     wa_message_id=f"agent_media_{_uuid.uuid4().hex[:12]}",
-                    conversation=conv,
-                    client=client,
-                    direction=MessageDirection.OUTBOUND,
-                    status=MessageStatus.SENT,
-                    content=caption or f"[{msg_type} sent by agent]",
-                    msg_type=msg_type,
-                    media_url=relative_url,
-                    media_mime_type=mime,
-                    media_filename=uploaded_file.name,
-                    generated_by_ai=False,
-                    approved_by_human=True,
-                    timestamp=timezone.now(),
+                    **msg_defaults,
                 )
  
             logger.info(
@@ -1085,7 +1091,6 @@ class ManualMediaView(ClientLookupMixin, APIView):
                 "status": "sent",
                 "type": msg_type,
                 "url": relative_url,
-                "public_url": public_url,
             })
  
         except Exception as exc:
