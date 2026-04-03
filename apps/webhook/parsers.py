@@ -69,7 +69,9 @@ def _parse_message(msg: dict, contacts: list) -> Optional[InboundMessage]:
         message_id = msg["id"]
         from_number = msg["from"]
         timestamp = msg.get("timestamp", "")
-        msg_type = msg.get("msg_type")
+        msg_type = str(msg.get("type") or "text")
+        if msg_type == "<class 'type'>":
+            msg_type = "text"
 
         from_name = _resolve_name(from_number, contacts)
 
@@ -142,7 +144,7 @@ def _parse_message(msg: dict, contacts: list) -> Optional[InboundMessage]:
             from_number=from_number,
             from_name=from_name,
             timestamp=timestamp,
-            msg_type=msg_type,
+            msg_type=str(msg_type),
             text=text,
             media_id=media_id,
             media_mime_type=media_mime_type,

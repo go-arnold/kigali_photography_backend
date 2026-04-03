@@ -833,7 +833,7 @@ def _save_inbound(
         "direction": MessageDirection.INBOUND,
         "status": MessageStatus.RECEIVED,
         "content": text or f"[{msg_type}]",
-        "msg_type": msg_type,
+        "msg_type": msg_type if isinstance(msg_type, str) else str(msg_type),
         "timestamp": timezone.now(),
     }
  
