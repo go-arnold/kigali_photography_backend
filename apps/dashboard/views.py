@@ -834,15 +834,13 @@ class AnalyticsView(APIView):
                 combo_counts[combo] = combo_counts.get(combo, 0) + 1
 
             # Packages présentés = flow_mode a dépassé discovery
-            if j.flow_mode in ("awaiting_datetime, await_confirm, awaiting_payment, payment_confirmed") \
-               or j.selected_package:
+            if j.flow_mode in ("awaiting_datetime, await_confirm, awaiting_payment, payment_confirmed") or j.selected_package:
                 saw_packages += 1
 
             if j.selected_package:
                 chose_package += 1
 
-            if j.flow_mode in ( "payment_confirmed", "finalizing") \
-                or j.step in ("payment_confirmation", "finalizing"):
+            if j.flow_mode in ( "payment_confirmed", "finalizing") or j.step in ("payment_confirmation", "finalizing"):
                 confirmed_payment += 1
 
         # ── Talk to Agent ────────────────────────────────────────────────────
