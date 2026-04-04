@@ -20,7 +20,7 @@ class InboundMessage:
     from_number: str
     from_name: str
     timestamp: str
-    type: str                               # text | image | audio | document | interactive | call | unsupported
+    msg_type: str                               # text | image | audio | document | interactive | call | unsupported
     text: Optional[str] = None
     media_id: Optional[str] = None          # WhatsApp media ID (à télécharger)
     media_mime_type: Optional[str] = None   # image/jpeg | audio/ogg | application/pdf ...
