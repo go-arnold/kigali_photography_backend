@@ -169,7 +169,7 @@ async function openChat(pk, name, phone) {
 
   // Démarrer le polling toutes les 10 secondes
   S.chatPollingInterval = setInterval(() => {
-    if (S.chatClientId === pk && S.modal?.msg_type === "chat") {
+    if (S.chatClientId === pk && S.modal?.type === "chat") {
       pollChatMessages(pk);
     } else {
       stopChatPolling();
@@ -469,49 +469,44 @@ function stopVoiceRecording() {
 
 function renderMediaMessage(msg, isIn) {
   const mime = msg.media_mime_type || "";
-  const url = msg.media_url || "";
+  const url  = msg.media_url || "";
   const filename = msg.media_filename || "file";
- 
-  // Construire l'URL absolue
+
   const fullUrl = url.startsWith("http") || url.startsWith("blob:")
     ? url
     : (window.location.origin + url);
- 
+
   if (!fullUrl || fullUrl === window.location.origin) {
-    // Pas d'URL disponible
-    return `<div style="font-size:12px;opacity:0.7;font-style:italic">
-      [${msg.msg_type || "media"}]
-    </div>`;
+    return `<div style="font-size:12px;opacity:0.7;font-style:italic">[${msg.msg_type || "media"}]</div>`;
   }
- 
+
   if (mime.startsWith("image/") || msg.msg_type === "image") {
     return `
       <div style="max-width:220px;cursor:pointer" onclick="window.open('${fullUrl}','_blank')">
         <img src="${fullUrl}"
           style="width:100%;border-radius:8px;display:block;max-height:200px;object-fit:cover"
-          onerror="this.parentElement.innerHTML='<div style=\\"padding:8px;font-size:12px;color:#999\\">📷 Image</div>'"
-          alt="Image">
-        ${msg.content && !["[image]","[image sent by agent]"].includes(msg.content)
-          ? `<div style="font-size:12px;margin-top:4px;opacity:0.8">${esc(msg.content)}</div>`
-          : ""}
+          alt=""
+          onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"
+        >
+        <div style="display:none;padding:10px;font-size:13px;color:#666;align-items:center;gap:6px">
+          📷 <span>Image</span>
+        </div>
       </div>`;
   }
- 
+
   if (mime.startsWith("audio/") || msg.msg_type === "audio" || msg.msg_type === "voice") {
     return `
       <div style="min-width:220px;max-width:280px">
-        <div style="font-size:11px;opacity:0.75;margin-bottom:5px;display:flex;align-items:center;gap:4px">
-          🎙️ <span>${msg.msg_type === "voice" ? "Voice note" : "Audio"}</span>
+        <div style="font-size:11px;opacity:0.75;margin-bottom:5px">
+          🎙️ ${msg.msg_type === "voice" ? "Voice note" : "Audio"}
         </div>
         <audio controls style="width:100%;height:36px;outline:none" preload="metadata">
           <source src="${fullUrl}" type="${mime || 'audio/ogg'}">
           <source src="${fullUrl}">
-          <a href="${fullUrl}" target="_blank" style="color:inherit">▶ Play</a>
         </audio>
       </div>`;
   }
- 
-  // Document / autre
+
   return `
     <a href="${fullUrl}" target="_blank" style="
       display:flex;align-items:center;gap:10px;

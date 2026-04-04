@@ -151,7 +151,9 @@ MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
 
-SITE_URL = "https://senior-madeleine-matabar-93648cd5.koyeb.app/" 
+#SITE_URL = "https://senior-madeleine-matabar-93648cd5.koyeb.app/" 
+
+SITE_URL = env("SITE_URL", default="https://senior-madeleine-matabar-93648cd5.koyeb.app")
 
 WHATSAPP = {
     "PHONE_NUMBER_ID": env("WA_PHONE_NUMBER_ID"),

@@ -62,11 +62,15 @@ def download_and_save_media(
             logger.error("Could not download media from %s", download_url)
             return None
  
+        # Déduire l'extension
         ext = MIME_EXTENSIONS.get(mime_type, "")
         if not ext and filename:
             ext = Path(filename).suffix
         if not ext:
-            ext = ".bin"
+            # Déduire depuis les magic bytes du fichier
+            ext = _guess_extension_from_bytes(file_bytes)
+
+        unique_name = f"{uuid.uuid4().hex[:16]}{ext}"
  
         unique_name = f"{uuid.uuid4().hex[:16]}{ext}"
         file_path = MEDIA_DIR / unique_name
@@ -189,3 +193,19 @@ def _download_file(url: str) -> Optional[bytes]:
     except Exception as exc:
         logger.error("_download_file failed | url=%s error=%s", url, exc)
         return None
+    
+def _guess_extension_from_bytes(data: bytes) -> str:
+    """Devine l'extension depuis les magic bytes."""
+    if data[:3] == b'\xff\xd8\xff':
+        return ".jpg"
+    if data[:8] == b'\x89PNG\r\n\x1a\n':
+        return ".png"
+    if data[:4] == b'RIFF' and data[8:12] == b'WEBP':
+        return ".webp"
+    if data[:4] in (b'OggS',):
+        return ".ogg"
+    if data[:3] == b'ID3' or data[:2] == b'\xff\xfb':
+        return ".mp3"
+    if data[:4] == b'%PDF':
+        return ".pdf"
+    return ".bin"
