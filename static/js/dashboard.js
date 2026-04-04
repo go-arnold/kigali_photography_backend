@@ -286,40 +286,49 @@ async function sendMediaFromDashboard(pk) {
   const input = document.getElementById("chat-file-input");
   if (!input || !input.files.length) return;
   const file = input.files[0];
-  
-  const btn = document.getElementById("chat-media-btn");
-  if (btn) { btn.disabled = true; btn.textContent = "⏳"; }
+ 
+  // Reset input immédiatement pour éviter double déclenchement
+  const fileRef = file;
+  input.value = "";
+ 
+  toast("Sending…", "");
  
   try {
     const formData = new FormData();
-    formData.append("file", file);
-    
+    formData.append("file", fileRef);
+ 
     const r = await fetch(API_BASE + `/clients/${pk}/media/`, {
       method: "POST",
       credentials: "include",
       headers: { "X-CSRFToken": getCsrf() },
       body: formData,
     });
-    
+ 
     if (!r.ok) {
       const err = await r.json().catch(() => ({}));
       throw new Error(err.error || `HTTP ${r.status}`);
     }
-    
+ 
     const data = await r.json();
-    toast("Media sent ✓", "ok");
-    input.value = "";
-    
-    // Ajouter localement
+    toast("✓ Sent", "ok");
+ 
     const now = new Date().toISOString();
+    const localId = `local_media_${Date.now()}`;
+    const mime = fileRef.type || "";
+ 
+    // Pour les images: créer un URL objet pour prévisualisation immédiate
+    const localUrl = mime.startsWith("image/") || mime.startsWith("audio/")
+      ? URL.createObjectURL(fileRef)
+      : "";
+ 
     S.chatMessages.push({
-      id: `local_media_${Date.now()}`,
+      id: localId,
       direction: "outbound",
-      content: `[${data.type} sent]`,
+      content: fileRef.name || `[${data.type}]`,
       msg_type: data.type,
-      media_url: data.url,
-      media_mime_type: file.type,
-      media_filename: file.name,
+      media_url: data.url || localUrl,   // URL serveur en priorité
+      media_mime_type: mime,
+      media_filename: fileRef.name,
       timestamp: now,
       generated_by_ai: false,
       approved_by_human: true,
@@ -330,30 +339,69 @@ async function sendMediaFromDashboard(pk) {
       const list = document.getElementById("chat-msg-list");
       if (list) list.scrollTop = list.scrollHeight;
     }, 50);
-  } catch(e) {
+ 
+  } catch (e) {
     toast(e.message, "err");
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = "📎"; }
   }
 }
 
 async function startVoiceRecording(pk) {
+  if (S_recorder.recording) {
+    // Déjà en cours → arrêter
+    stopVoiceRecording();
+    return;
+  }
+ 
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
-    S_recorder = { stream, recorder, chunks: [], recording: true, pk };
     
+    // Utiliser audio/ogg;codecs=opus si disponible (plus compatible WhatsApp)
+    // Sinon fallback sur webm
+    let mimeType = "audio/ogg;codecs=opus";
+    if (!MediaRecorder.isTypeSupported(mimeType)) {
+      mimeType = "audio/webm;codecs=opus";
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        mimeType = "audio/webm";
+      }
+    }
+ 
+    const recorder = new MediaRecorder(stream, { mimeType });
+    S_recorder = { stream, recorder, chunks: [], recording: true, pk, mimeType };
+ 
     recorder.ondataavailable = (e) => {
-      if (e.data.size > 0) S_recorder.chunks.push(e.data);
+      if (e.data && e.data.size > 0) {
+        S_recorder.chunks.push(e.data);
+      }
     };
-    
+ 
     recorder.onstop = async () => {
-      const blob = new Blob(S_recorder.chunks, { type: "audio/webm" });
-      const file = new File([blob],`voice_${Date.now()}.webm`, { type: "audio/webm" });
+      // Vérifier qu'on a bien des données
+      const totalSize = S_recorder.chunks.reduce((acc, c) => acc + c.size, 0);
+      if (totalSize === 0) {
+        logger.warn && logger.warn("No audio data recorded");
+        toast("No audio recorded", "err");
+        S_recorder.stream.getTracks().forEach(t => t.stop());
+        S_recorder = { stream: null, recorder: null, chunks: [], recording: false };
+        return;
+      }
+ 
+      const actualMime = S_recorder.mimeType.split(";")[0]; // "audio/ogg" ou "audio/webm"
+      const ext = actualMime === "audio/ogg" ? ".ogg" : ".webm";
+      const blob = new Blob(S_recorder.chunks, { type: actualMime });
       
+      if (blob.size === 0) {
+        toast("Empty audio recording", "err");
+        S_recorder.stream.getTracks().forEach(t => t.stop());
+        S_recorder = { stream: null, recorder: null, chunks: [], recording: false };
+        return;
+      }
+ 
+      const fileName = `voice_${Date.now()}${ext}`;
+      const file = new File([blob], fileName, { type: actualMime });
+ 
       const formData = new FormData();
       formData.append("file", file);
-      
+ 
       try {
         const r = await fetch(API_BASE + `/clients/${S_recorder.pk}/media/`, {
           method: "POST",
@@ -361,18 +409,21 @@ async function startVoiceRecording(pk) {
           headers: { "X-CSRFToken": getCsrf() },
           body: formData,
         });
+ 
         if (r.ok) {
-          toast("Voice note sent ✓", "ok");
-          // Ajouter localement
+          const data = await r.json();
+          toast("✓ Voice note sent", "ok");
           const now = new Date().toISOString();
           const objUrl = URL.createObjectURL(blob);
+          const savedPk = S_recorder.pk;
+ 
           S.chatMessages.push({
             id: `local_voice_${Date.now()}`,
             direction: "outbound",
-            content: "[Voice note sent]",
+            content: "[Voice note]",
             msg_type: "voice",
-            media_url: objUrl,
-            media_mime_type: "audio/webm",
+            media_url: data.url || objUrl,
+            media_mime_type: actualMime,
             timestamp: now,
             generated_by_ai: false,
             approved_by_human: true,
@@ -384,22 +435,27 @@ async function startVoiceRecording(pk) {
             if (list) list.scrollTop = list.scrollHeight;
           }, 50);
         } else {
-          toast("Failed to send voice note", "err");
+          const err = await r.json().catch(() => ({}));
+          toast(err.error || "Failed to send voice note", "err");
         }
-      } catch(e) {
+      } catch (e) {
         toast(e.message, "err");
       }
-      
+ 
       // Nettoyage
       S_recorder.stream.getTracks().forEach(t => t.stop());
       S_recorder = { stream: null, recorder: null, chunks: [], recording: false };
+      render(); // Mettre à jour le bouton
     };
-    
-    recorder.start();
-    render(); // Mettre à jour le bouton en rouge
-    
-  } catch(e) {
-    toast("Microphone access denied: " + e.message, "err");
+ 
+    // Collecter des données toutes les 250ms pour éviter les chunks vides
+    recorder.start(250);
+    render(); // Bouton rouge
+    toast("🔴 Recording… tap again to stop", "");
+ 
+  } catch (e) {
+    toast("Microphone: " + e.message, "err");
+    S_recorder = { stream: null, recorder: null, chunks: [], recording: false };
   }
 }
 
@@ -415,46 +471,61 @@ function renderMediaMessage(msg, isIn) {
   const mime = msg.media_mime_type || "";
   const url = msg.media_url || "";
   const filename = msg.media_filename || "file";
-  
-  // Construire l'URL absolue si nécessaire
-  const fullUrl = url.startsWith("http") ? url : (window.location.origin + url);
-  
+ 
+  // Construire l'URL absolue
+  const fullUrl = url.startsWith("http") || url.startsWith("blob:")
+    ? url
+    : (window.location.origin + url);
+ 
+  if (!fullUrl || fullUrl === window.location.origin) {
+    // Pas d'URL disponible
+    return `<div style="font-size:12px;opacity:0.7;font-style:italic">
+      [${msg.msg_type || "media"}]
+    </div>`;
+  }
+ 
   if (mime.startsWith("image/") || msg.msg_type === "image") {
     return `
       <div style="max-width:220px;cursor:pointer" onclick="window.open('${fullUrl}','_blank')">
-        <img src="${fullUrl}" 
+        <img src="${fullUrl}"
           style="width:100%;border-radius:8px;display:block;max-height:200px;object-fit:cover"
-          onerror="this.style.display='none';this.nextSibling.style.display='block'"
+          onerror="this.parentElement.innerHTML='<div style=\\"padding:8px;font-size:12px;color:#999\\">📷 Image</div>'"
           alt="Image">
-        <div style="display:none;padding:8px;font-size:12px;color:#999">📷 Image (click to open)</div>
-        ${msg.content && msg.content !== "[image]" ? `<div style="font-size:12px;margin-top:4px;opacity:0.8">${esc(msg.content)}</div>` : ""}
+        ${msg.content && !["[image]","[image sent by agent]"].includes(msg.content)
+          ? `<div style="font-size:12px;margin-top:4px;opacity:0.8">${esc(msg.content)}</div>`
+          : ""}
       </div>`;
   }
-  
+ 
   if (mime.startsWith("audio/") || msg.msg_type === "audio" || msg.msg_type === "voice") {
     return `
-      <div style="min-width:200px">
-        <div style="font-size:11px;opacity:0.7;margin-bottom:4px">🎙️ Voice note</div>
-        <audio controls style="width:100%;height:32px;outline:none" preload="metadata">
+      <div style="min-width:220px;max-width:280px">
+        <div style="font-size:11px;opacity:0.75;margin-bottom:5px;display:flex;align-items:center;gap:4px">
+          🎙️ <span>${msg.msg_type === "voice" ? "Voice note" : "Audio"}</span>
+        </div>
+        <audio controls style="width:100%;height:36px;outline:none" preload="metadata">
           <source src="${fullUrl}" type="${mime || 'audio/ogg'}">
-          <a href="${fullUrl}" style="color:#fff;font-size:12px">▶ Play audio</a>
+          <source src="${fullUrl}">
+          <a href="${fullUrl}" target="_blank" style="color:inherit">▶ Play</a>
         </audio>
       </div>`;
   }
-  
+ 
   // Document / autre
   return `
     <a href="${fullUrl}" target="_blank" style="
-      display:flex;align-items:center;gap:8px;
+      display:flex;align-items:center;gap:10px;
       color:inherit;text-decoration:none;
-      background:rgba(255,255,255,0.1);
-      border-radius:8px;padding:8px 12px;
-      min-width:180px;
+      background:rgba(255,255,255,0.12);
+      border-radius:10px;padding:10px 14px;
+      min-width:180px;max-width:250px;
     ">
-      <span style="font-size:24px">${_docIcon(mime)}</span>
-      <div>
-        <div style="font-size:13px;font-weight:600">${esc(filename)}</div>
-        <div style="font-size:11px;opacity:0.7">Tap to open</div>
+      <span style="font-size:28px">${_docIcon(mime)}</span>
+      <div style="overflow:hidden">
+        <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+          ${esc(filename)}
+        </div>
+        <div style="font-size:11px;opacity:0.65">Tap to open</div>
       </div>
     </a>`;
 }
@@ -1286,15 +1357,15 @@ function renderModal() {
 
       <!-- Bouton adaptatif: Send si texte, Record si vide -->
       ${isRecording
-        ? `<button onclick="stopVoiceRecording()" style="
+        ? `<button onclick="stopVoiceRecording()" 
+            style="
             width:44px;height:44px;border-radius:50%;border:none;cursor:pointer;
             background:#ef4444;color:#fff;font-size:18px;flex-shrink:0;
             animation:pulse 1s infinite;
           " title="Stop recording">⏹</button>`
         : `<button
             id="chat-send-btn"
-            style="
-              width:44px;height:44px;border-radius:50%;border:none;cursor:pointer;
+            style="width:44px;height:44px;border-radius:50%;border:none;cursor:pointer;
               background:#25D366;color:#fff;font-size:20px;flex-shrink:0;
               transition:background 0.2s;
             "
