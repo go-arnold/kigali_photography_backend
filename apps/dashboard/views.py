@@ -993,107 +993,85 @@ class ManualMediaView(ClientLookupMixin, APIView):
  
     def post(self, request, pk):
         from services.whatsapp import send_image, send_audio, send_document
-        from services.media_service import MEDIA_DIR, prepare_media_for_sending, get_public_url
-        from django.conf import settings
-        import uuid as _uuid
-        from pathlib import Path
- 
+        from services.media_service import prepare_agent_media_for_whatsapp
+
         client = self.get_client(pk)
- 
-        # Vérifier que human takeover est actif
+
         journey = getattr(client, "journey_state", None)
         if not journey or not journey.human_takeover:
             return Response(
                 {"error": "Human takeover must be active to send media"},
                 status=status.HTTP_403_FORBIDDEN,
             )
- 
+
         uploaded_file = request.FILES.get("file")
         caption = request.data.get("caption", "")
- 
+
         if not uploaded_file:
             return Response({"error": "No file provided"}, status=status.HTTP_400_BAD_REQUEST)
- 
+
         try:
-            MEDIA_DIR.mkdir(parents=True, exist_ok=True)
- 
-            # Sauvegarder le fichier original
-            ext = Path(uploaded_file.name).suffix.lower() or ".bin"
-            unique_name = f"agent_{_uuid.uuid4().hex[:12]}{ext}"
-            file_path = MEDIA_DIR / unique_name
- 
-            with open(file_path, "wb") as f:
-                for chunk in uploaded_file.chunks():
-                    f.write(chunk)
- 
+            file_bytes = uploaded_file.read()
             original_mime = uploaded_file.content_type or ""
-            relative_url = f"{settings.MEDIA_URL}whatsapp/{unique_name}"
- 
-            # ── Préparer pour envoi WhatsApp (conversion audio si nécessaire) ──
-            send_path, send_mime = prepare_media_for_sending(file_path, original_mime)
-            send_url = get_public_url(f"{settings.SITE_URL}whatsapp/{send_path.name}")
- 
-            logger.info(
-                "Sending media | original=%s mime=%s → send=%s mime=%s url=%s",
-                file_path.name, original_mime, send_path.name, send_mime, send_url
+            original_filename = uploaded_file.name or "file"
+
+            # Upload sur Supabase + conversion audio si nécessaire
+            public_url, final_mime, msg_type = prepare_agent_media_for_whatsapp(
+                file_bytes=file_bytes,
+                original_filename=original_filename,
+                mime_type=original_mime,
             )
- 
-            # ── Envoyer selon le type ──────────────────────────────────────────
-            if send_mime.startswith("image/"):
-                send_image(to=client.wa_number, image_url=send_url, caption=caption)
-                msg_type = "image"
-            elif send_mime.startswith("audio/"):
-                send_audio(to=client.wa_number, audio_url=send_url)
-                msg_type = "audio"
+
+            if not public_url:
+                return Response(
+                    {"error": "Failed to upload file to storage"},
+                    status=status.HTTP_502_BAD_GATEWAY,
+                )
+
+            # Envoyer via WhatsApp
+            if msg_type == "image":
+                send_image(to=client.wa_number, image_url=public_url, caption=caption)
+            elif msg_type == "audio":
+                send_audio(to=client.wa_number, audio_url=public_url)
             else:
                 send_document(
                     to=client.wa_number,
-                    document_url=send_url,
-                    filename=uploaded_file.name,
+                    document_url=public_url,
+                    filename=original_filename,
                     caption=caption,
                 )
-                msg_type = "document"
- 
-            # ── Enregistrer en DB ─────────────────────────────────────────────
+
+            # Enregistrer en DB
+            import uuid as _uuid
             from apps.conversations.models import Message, MessageDirection, MessageStatus
             conv = client.conversations.filter(window_status="open").first()
             if conv:
-                msg_defaults = {
-                    "conversation": conv,
-                    "client": client,
-                    "direction": MessageDirection.OUTBOUND,
-                    "status": MessageStatus.SENT,
-                    "content": caption or f"[{msg_type} sent by agent]",
-                    "msg_type": msg_type,
-                    "generated_by_ai": False,
-                    "approved_by_human": True,
-                    "timestamp": timezone.now(),
-                }
-                # Ajouter media fields si disponibles
-                from apps.conversations.models import Message as Msg
-                mf = {f.name for f in Msg._meta.get_fields()}
-                if "media_url" in mf:
-                    msg_defaults["media_url"] = relative_url
-                if "media_mime_type" in mf:
-                    msg_defaults["media_mime_type"] = original_mime
-                if "media_filename" in mf:
-                    msg_defaults["media_filename"] = uploaded_file.name
- 
                 Message.objects.create(
                     wa_message_id=f"agent_media_{_uuid.uuid4().hex[:12]}",
-                    **msg_defaults,
+                    conversation=conv,
+                    client=client,
+                    direction="outbound",
+                    status="sent",
+                    content=caption or f"[{msg_type} sent by agent]",
+                    msg_type=msg_type,
+                    generated_by_ai=False,
+                    approved_by_human=True,
+                    media_url=public_url,
+                    media_mime_type=final_mime,
+                    media_filename=original_filename,
+                    timestamp=timezone.now(),
                 )
- 
+
             logger.info(
-                "Agent media sent | client=%s type=%s file=%s by=%s",
-                client.wa_number, msg_type, unique_name, request.user.username
+                "Agent media sent | client=%s type=%s url=%s by=%s",
+                client.wa_number, msg_type, public_url, request.user.username,
             )
             return Response({
                 "status": "sent",
-                "msg_type": msg_type,
-                "url": relative_url,
+                "type": msg_type,
+                "url": public_url,
             })
- 
+
         except Exception as exc:
             logger.error("ManualMediaView failed: %s", exc)
             return Response({"error": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)

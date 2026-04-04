@@ -150,6 +150,12 @@ STATICFILES_STORAGE = "django.contrib.staticfiles.storage.StaticFilesStorage"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
+#--------media data
+
+SUPABASE_URL = env("SUPABASE_URL")
+SUPABASE_KEY = env("SUPABASE_KEY")
+#--------fin media data
+
 
 #SITE_URL = "https://senior-madeleine-matabar-93648cd5.koyeb.app/" 
 
