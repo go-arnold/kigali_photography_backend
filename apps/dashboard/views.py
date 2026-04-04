@@ -834,14 +834,15 @@ class AnalyticsView(APIView):
                 combo_counts[combo] = combo_counts.get(combo, 0) + 1
 
             # Packages présentés = flow_mode a dépassé discovery
-            if j.flow_mode in ("awaiting_datetime", "awaiting_payment", "await_confirm", "question") \
+            if j.flow_mode in ("awaiting_datetime, await_confirm, awaiting_payment, payment_confirmed") \
                or j.selected_package:
                 saw_packages += 1
 
             if j.selected_package:
                 chose_package += 1
 
-            if j.step == "payment_confirmation":
+            if j.flow_mode in ( "payment_confirmed", "finalizing") \
+                or j.step in ("payment_confirmation", "finalizing"):
                 confirmed_payment += 1
 
         # ── Talk to Agent ────────────────────────────────────────────────────
@@ -993,85 +994,111 @@ class ManualMediaView(ClientLookupMixin, APIView):
  
     def post(self, request, pk):
         from services.whatsapp import send_image, send_audio, send_document
-        from services.media_service import prepare_agent_media_for_whatsapp
-
+        from services.media_service import MEDIA_DIR, prepare_media_for_sending, get_public_url
+        from django.conf import settings
+        import uuid as _uuid
+        from pathlib import Path
+ 
         client = self.get_client(pk)
-
+ 
         journey = getattr(client, "journey_state", None)
         if not journey or not journey.human_takeover:
             return Response(
                 {"error": "Human takeover must be active to send media"},
                 status=status.HTTP_403_FORBIDDEN,
             )
-
+ 
         uploaded_file = request.FILES.get("file")
         caption = request.data.get("caption", "")
-
+ 
         if not uploaded_file:
             return Response({"error": "No file provided"}, status=status.HTTP_400_BAD_REQUEST)
-
+ 
         try:
-            file_bytes = uploaded_file.read()
+            MEDIA_DIR.mkdir(parents=True, exist_ok=True)
+ 
+            # 1. Sauvegarder localement
+            ext = Path(uploaded_file.name).suffix.lower() or ".bin"
+            unique_name = f"agent_{_uuid.uuid4().hex[:12]}{ext}"
+            file_path = MEDIA_DIR / unique_name
+ 
+            with open(file_path, "wb") as f:
+                for chunk in uploaded_file.chunks():
+                    f.write(chunk)
+ 
             original_mime = uploaded_file.content_type or ""
-            original_filename = uploaded_file.name or "file"
-
-            # Upload sur Supabase + conversion audio si nécessaire
-            public_url, final_mime, msg_type = prepare_agent_media_for_whatsapp(
-                file_bytes=file_bytes,
-                original_filename=original_filename,
-                mime_type=original_mime,
-            )
-
-            if not public_url:
+ 
+            # 2. Préparer (conversion audio si nécessaire)
+            send_path, send_mime = prepare_media_for_sending(file_path, original_mime)
+ 
+            # 3. ← CORRECTION CRITIQUE : uploader vers Supabase pour URL publique
+            send_url = get_public_url(send_path, send_mime)
+ 
+            if not send_url:
                 return Response(
-                    {"error": "Failed to upload file to storage"},
+                    {"error": "Could not get public URL for media — check Supabase config"},
                     status=status.HTTP_502_BAD_GATEWAY,
                 )
-
-            # Envoyer via WhatsApp
-            if msg_type == "image":
-                send_image(to=client.wa_number, image_url=public_url, caption=caption)
-            elif msg_type == "audio":
-                send_audio(to=client.wa_number, audio_url=public_url)
+ 
+            logger.info(
+                "Sending media | file=%s mime=%s url=%s",
+                send_path.name, send_mime, send_url
+            )
+ 
+            # 4. Envoyer vers WhatsApp
+            if send_mime.startswith("image/"):
+                send_image(to=client.wa_number, image_url=send_url, caption=caption)
+                msg_type = "image"
+            elif send_mime.startswith("audio/"):
+                send_audio(to=client.wa_number, audio_url=send_url)
+                msg_type = "audio"
             else:
                 send_document(
                     to=client.wa_number,
-                    document_url=public_url,
-                    filename=original_filename,
+                    document_url=send_url,
+                    filename=uploaded_file.name,
                     caption=caption,
                 )
-
-            # Enregistrer en DB
-            import uuid as _uuid
+                msg_type = "document"
+ 
+            # 5. Enregistrer en DB
             from apps.conversations.models import Message, MessageDirection, MessageStatus
             conv = client.conversations.filter(window_status="open").first()
             if conv:
+                msg_defaults = {
+                    "conversation": conv,
+                    "client": client,
+                    "direction": MessageDirection.OUTBOUND,
+                    "status": MessageStatus.SENT,
+                    "content": caption or f"[{msg_type} sent by agent]",
+                    "msg_type": msg_type,
+                    "generated_by_ai": False,
+                    "approved_by_human": True,
+                    "timestamp": timezone.now(),
+                }
+                mf = {f.name for f in Message._meta.get_fields()}
+                if "media_url" in mf:
+                    msg_defaults["media_url"] = send_url        # ← URL Supabase
+                if "media_mime_type" in mf:
+                    msg_defaults["media_mime_type"] = send_mime
+                if "media_filename" in mf:
+                    msg_defaults["media_filename"] = uploaded_file.name
+ 
                 Message.objects.create(
                     wa_message_id=f"agent_media_{_uuid.uuid4().hex[:12]}",
-                    conversation=conv,
-                    client=client,
-                    direction="outbound",
-                    status="sent",
-                    content=caption or f"[{msg_type} sent by agent]",
-                    msg_type=msg_type,
-                    generated_by_ai=False,
-                    approved_by_human=True,
-                    media_url=public_url,
-                    media_mime_type=final_mime,
-                    media_filename=original_filename,
-                    timestamp=timezone.now(),
+                    **msg_defaults,
                 )
-
+ 
             logger.info(
                 "Agent media sent | client=%s type=%s url=%s by=%s",
-                client.wa_number, msg_type, public_url, request.user.username,
+                client.wa_number, msg_type, send_url, request.user.username
             )
             return Response({
                 "status": "sent",
-                "type": msg_type,
-                "url": public_url,
+                "msg_type": msg_type,
+                "url": send_url,     # ← URL Supabase pour affichage dashboard
             })
-
+ 
         except Exception as exc:
             logger.error("ManualMediaView failed: %s", exc)
             return Response({"error": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)

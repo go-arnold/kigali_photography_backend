@@ -154,6 +154,7 @@ MEDIA_ROOT = BASE_DIR / "media"
 
 SUPABASE_URL = env("SUPABASE_URL")
 SUPABASE_KEY = env("SUPABASE_KEY")
+SUPABASE_BUCKET= env("SUPABASE_BUCKET")
 #--------fin media data
 
 
