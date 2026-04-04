@@ -142,7 +142,7 @@ def _parse_message(msg: dict, contacts: list) -> Optional[InboundMessage]:
             from_number=from_number,
             from_name=from_name,
             timestamp=timestamp,
-            type=msg_type,
+            msg_type=msg_type,
             text=text,
             media_id=media_id,
             media_mime_type=media_mime_type,
