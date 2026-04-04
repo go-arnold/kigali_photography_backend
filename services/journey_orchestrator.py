@@ -76,9 +76,9 @@ def handle_inbound_message(
     text: str,
     timestamp: str,
     interactive_id: Optional[str] = None,
-    media_id: Optional[str] = None,
-    media_mime_type: Optional[str] = None,
-    media_filename: Optional[str] = None,
+    media_id: Optional[str] = None,           # ← NOUVEAU
+    media_mime_type: Optional[str] = None,    # ← NOUVEAU
+    media_filename: Optional[str] = None,     # ← NOUVEAU
 ) -> OrchestratorResult:
  
     try:
@@ -105,9 +105,9 @@ def handle_inbound_message(
                 from_number=from_number,
                 msg_type=msg_type,
                 text=text,
-                media_id=media_id,
-                media_mime_type=media_mime_type,
-                media_filename=media_filename,
+                media_id=media_id,        # ← nouveau param à ajouter à handle_inbound_message
+                media_mime_type=media_mime_type,  # ← nouveau param
+                media_filename=media_filename,    # ← nouveau param
             )
  
         # ── BRANCHEMENT BOUTONS ──────────────────────────────────────────────
@@ -1392,15 +1392,15 @@ def _handle_media_or_special(
     client, journey, conversation, message_id, from_number,
     msg_type, text, media_id, media_mime_type, media_filename,
 ):
-    # \"\"\"
-    # Gère les messages non-texte :
-    # - image     → télécharger + sauvegarder + répondre si AI active
-    # - voice     → télécharger + sauvegarder + répondre si AI active
-    # - audio     → télécharger + sauvegarder
-    # - document  → télécharger + sauvegarder + répondre si AI active
-    # - call      → message automatique
-    # - sticker   → message sympa
-    # \"\"\"
+#     \"\"\"
+#     Gère les messages non-texte :
+#     - image     → télécharger + sauvegarder + répondre si AI active
+#     - voice     → télécharger + sauvegarder + répondre si AI active
+#     - audio     → télécharger + sauvegarder
+#     - document  → télécharger + sauvegarder + répondre si AI active
+#     - call      → message automatique
+#     - sticker   → message sympa
+#     \"\"\"
     from services.whatsapp import send_text as _send_text
     from services.media_service import download_and_save_media
  
@@ -1563,7 +1563,6 @@ def _handle_media_or_special(
         tokens_used=0,
     )
  
- 
 # ─── PHASE/STEP ADVANCEMENT ───────────────────────────────────────────────────
  
 def advance_journey(journey, phase: str, step: str) -> None:
@@ -1598,6 +1597,8 @@ def advance_journey(journey, phase: str, step: str) -> None:
         )
     except Exception as exc:
         logger.warning("advance_journey failed: %s", exc)
+""")
+ 
 
 
 

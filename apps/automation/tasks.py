@@ -103,7 +103,7 @@ def process_inbound_message(
             message_id=message_id,
             from_number=from_number,
             from_name=from_name,
-            msg_type=type,
+            msg_type=msg_type,
             text=text,
             timestamp=timestamp,
             interactive_id=interactive_id,

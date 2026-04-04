@@ -1,3 +1,11 @@
+"""
+Parse raw Meta WhatsApp webhook payloads into clean Python dicts.
+ 
+Meta sends a deeply nested structure. This module flattens it into
+a consistent shape used everywhere else in the system.
+ 
+Supported message types: text, image, audio, document, interactive, call
+"""
 import logging
 from dataclasses import dataclass, field
 from typing import Optional
@@ -12,12 +20,11 @@ class InboundMessage:
     from_number: str
     from_name: str
     timestamp: str
-    type: str          # text | image | audio | voice | document | interactive | call | unsupported
+    type: str                               # text | image | audio | document | interactive | call | unsupported
     text: Optional[str] = None
-    msg_type: str= "text"
-    media_id: Optional[str] = None
-    media_mime_type: Optional[str] = None
-    media_filename: Optional[str] = None
+    media_id: Optional[str] = None          # WhatsApp media ID (à télécharger)
+    media_mime_type: Optional[str] = None   # image/jpeg | audio/ogg | application/pdf ...
+    media_filename: Optional[str] = None    # Pour documents uniquement
     interactive_id: Optional[str] = None
     interactive_title: Optional[str] = None
     raw: dict = field(default_factory=dict)
@@ -62,8 +69,6 @@ def _parse_message(msg: dict, contacts: list) -> Optional[InboundMessage]:
         message_id = msg["id"]
         from_number = msg["from"]
         timestamp = msg.get("timestamp", "")
- 
-        # ← CORRECTION CRITIQUE : la clé Meta s'appelle "type", pas "msg_type"
         msg_type = msg.get("type", "unsupported")
  
         from_name = _resolve_name(from_number, contacts)
@@ -82,6 +87,7 @@ def _parse_message(msg: dict, contacts: list) -> Optional[InboundMessage]:
             img = msg.get("image", {})
             media_id = img.get("id")
             media_mime_type = img.get("mime_type", "image/jpeg")
+            # Caption si présent
             caption = img.get("caption", "")
             if caption:
                 text = caption
@@ -90,7 +96,7 @@ def _parse_message(msg: dict, contacts: list) -> Optional[InboundMessage]:
             audio = msg.get("audio", {})
             media_id = audio.get("id")
             media_mime_type = audio.get("mime_type", "audio/ogg")
-            # WhatsApp distingue voice notes (voice=True) des fichiers audio
+            # Les voice notes ont voice=True
             is_voice = audio.get("voice", False)
             msg_type = "voice" if is_voice else "audio"
  
@@ -110,7 +116,6 @@ def _parse_message(msg: dict, contacts: list) -> Optional[InboundMessage]:
  
         elif msg_type == "interactive":
             interactive = msg.get("interactive", {})
-            # ← CORRECTION CRITIQUE : la clé s'appelle "type", pas "msg_type"
             reply_type = interactive.get("type")
             if reply_type == "button_reply":
                 interactive_id = interactive["button_reply"]["id"]
@@ -121,14 +126,12 @@ def _parse_message(msg: dict, contacts: list) -> Optional[InboundMessage]:
                 interactive_title = interactive["list_reply"]["title"]
                 text = interactive_title
  
+        # WhatsApp call attempt — Meta envoie un webhook spécial
         elif msg_type == "system":
             system = msg.get("system", {})
-            # ← CORRECTION : "type" pas "msg_type"
             if system.get("type") == "call":
                 msg_type = "call"
                 text = "[Missed call]"
-            else:
-                msg_type = "unsupported"
  
         else:
             logger.debug("Unsupported message type: %s", msg_type)
@@ -172,4 +175,3 @@ def _resolve_name(phone: str, contacts: list) -> str:
         if contact.get("wa_id") == phone:
             return contact.get("profile", {}).get("name", phone)
     return phone
- 
