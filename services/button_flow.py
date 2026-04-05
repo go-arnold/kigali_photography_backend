@@ -466,8 +466,18 @@ def _present_packages(from_number: str, journey, client) -> None:
     if session_type == "home":
         _present_premium_package(from_number, journey, client,
                                   extras_cost, includes_line, msgs, lang)
+        try:
+            from services.journey_orchestrator import advance_journey
+            advance_journey(journey, "packages", "presented")
+        except Exception:
+            pass
     else:
         _present_studio_packages(from_number, extras_cost, includes_line, msgs, client)
+        try:
+            from services.journey_orchestrator import advance_journey
+            advance_journey(journey, "packages", "presented")
+        except Exception:
+            pass
 
 
 def _present_studio_packages(
