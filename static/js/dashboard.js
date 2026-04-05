@@ -1355,14 +1355,23 @@ function renderModal() {
       ></textarea>
 
       <!-- Bouton adaptatif: Send si texte, Record si vide -->
-      <button
+      
+
+      ${isRecording
+        ? `<button onclick="stopVoiceRecording()" 
+            style="
+            width:44px;height:44px;border-radius:50%;border:none;cursor:pointer;
+            background:#ef4444;color:#fff;font-size:18px;flex-shrink:0;
+            animation:pulse 1s infinite;
+          " title="Stop recording">⏹</button>`
+        : `<button
         id="chat-send-btn"
         style="width:44px;height:44px;border-radius:50%;border:none;cursor:pointer;
           background:#25D366;color:#fff;font-size:20px;flex-shrink:0;transition:background 0.2s;"
         onclick="handleSendOrRecord(${m.pk})"
         title="Send or record voice"
-      >🎙️</button>
-
+      >🎙️</button>`
+      }
     </div>
     <div style="font-size:10px;color:#999;margin-top:4px;text-align:center">
       Enter to send · Shift+Enter for newline · 📎 for files
