@@ -87,10 +87,6 @@ def download_and_save_media(
     mime_type: str = "",
     filename: str = "",
 ) -> Optional[str]:
-    """
-    Télécharge un media WhatsApp, le sauvegarde localement ET l\'uploade vers Supabase.
-    Retourne l\'URL publique Supabase (ou URL locale en fallback).
-    """
     try:
         MEDIA_DIR.mkdir(parents=True, exist_ok=True)
  
@@ -102,11 +98,17 @@ def download_and_save_media(
         if not file_bytes:
             return None
  
-        ext = MIME_EXTENSIONS.get(mime_type, "")
+        # ← CORRECTION : normaliser le MIME (enlever paramètres comme ";codecs=opus")
+        # "audio/ogg; codecs=opus" → "audio/ogg"
+        # "audio/ogg;codecs=opus"  → "audio/ogg"
+        clean_mime = mime_type.split(";")[0].strip().lower() if mime_type else ""
+ 
+        ext = MIME_EXTENSIONS.get(clean_mime, "")
         if not ext and filename:
             ext = Path(filename).suffix
         if not ext:
-            ext = ".bin"
+            # Deviner depuis les bytes
+            ext = _guess_extension_from_bytes(file_bytes)
  
         unique_name = f"{uuid.uuid4().hex[:16]}{ext}"
         file_path = MEDIA_DIR / unique_name
@@ -114,14 +116,15 @@ def download_and_save_media(
         with open(file_path, "wb") as f:
             f.write(file_bytes)
  
-        logger.info("Media saved locally | %s (%s bytes)", unique_name, len(file_bytes))
+        logger.info("Media saved locally | %s (%s bytes) mime=%s clean=%s",
+                    unique_name, len(file_bytes), mime_type, clean_mime)
  
-        # ← NOUVEAU : uploader vers Supabase
-        public_url = _supabase_upload(file_path, unique_name, mime_type or "application/octet-stream")
+        # Upload vers Supabase
+        upload_mime = clean_mime or "application/octet-stream"
+        public_url = _supabase_upload(file_path, unique_name, upload_mime)
         if public_url:
             return public_url
  
-        # Fallback : URL locale (fonctionne pour dashboard mais pas WhatsApp)
         site_url = getattr(settings, "SITE_URL", "").rstrip("/")
         return f"{site_url}{MEDIA_URL}whatsapp/{unique_name}"
  
@@ -129,7 +132,26 @@ def download_and_save_media(
         logger.error("download_and_save_media failed | media_id=%s: %s", media_id, exc)
         return None
  
- 
+def _guess_extension_from_bytes(data: bytes) -> str:
+    """Deviner l'extension depuis les magic bytes."""
+    if data[:3] == b'xffxd8xff':
+        return ".jpg"
+    if data[:8] == b'x89PNGrnx1an':
+        return ".png"
+    if data[:4] == b'RIFF' and data[8:12] == b'WEBP':
+        return ".webp"
+    if data[:4] == b'OggS':
+        return ".ogg"
+    if data[:3] == b'ID3' or (len(data) >= 2 and data[:2] == b'xffxfb'):
+        return ".mp3"
+    if data[:4] == b'%PDF':
+        return ".pdf"
+    if data[:4] == b'ftyp' or (len(data) > 8 and data[4:8] == b'ftyp'):
+        return ".m4a"
+    # Vérifier webm (EBML header)
+    if data[:4] == b'x1ax45xdfxa3':
+        return ".webm"
+    return ".ogg"  # fallback audio (mieux que .bin)
 # ── Audio conversion ──────────────────────────────────────────────────────────
  
 def convert_audio_for_whatsapp(file_path: Path, original_mime: str) -> tuple[Path, str]:
