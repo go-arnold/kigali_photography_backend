@@ -837,7 +837,7 @@ class AnalyticsView(APIView):
             # ── saw_packages : client a VU les packages ────────────────────────
             # ← CORRECTION : accolades {} pas parenthèses () — c'est un SET
             SAW_PACKAGE_MODES = {
-                "awaiting_datetime", "await_confirm",
+                "presented_packages","awaiting_datetime", "await_confirm",
                 "awaiting_payment", "payment_confirmed",
             }
             if fm in SAW_PACKAGE_MODES or j.selected_package:
@@ -854,7 +854,7 @@ class AnalyticsView(APIView):
             PAYMENT_CONFIRMED_STEPS = {"payment_confirmation", "finalizing"}
             if fm in PAYMENT_CONFIRMED_MODES or j.step in PAYMENT_CONFIRMED_STEPS:
                 confirmed_payment += 1
-                
+
         # ── Talk to Agent ────────────────────────────────────────────────────
         talk_to_agent_count = ApprovalQueue.objects.filter(
             created_at__gte=date_from,
