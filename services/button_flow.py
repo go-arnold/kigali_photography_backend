@@ -652,6 +652,11 @@ def _handle_payment_confirmed(from_number: str, journey, client) -> str:
     journey.flag_human_takeover("Client confirmed payment via button")
 
     advance_journey(journey, "booking", "payment_confirmed")
+     
+    # ← CORRECTION : mettre aussi flow_mode = "payment_confirmed" pour analytics
+    journey.flow_mode = "payment_confirmed"
+    journey.save(update_fields=["flow_mode", "updated_at"])
+
 
     # Construire le formulaire de booking pour le dashboard
     pkg  = journey.selected_package or "?"

@@ -347,21 +347,22 @@ async function sendMediaFromDashboard(pk) {
 
 async function startVoiceRecording(pk) {
   if (S_recorder.recording) {
-    // Déjà en cours → arrêter
     stopVoiceRecording();
     return;
   }
  
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    
-    // Utiliser audio/ogg;codecs=opus si disponible (plus compatible WhatsApp)
-    // Sinon fallback sur webm
-    let mimeType = "audio/ogg;codecs=opus";
+ 
+    // Ordre de préférence : webm (universel) → ogg → mp4
+    let mimeType = "audio/webm;codecs=opus";
     if (!MediaRecorder.isTypeSupported(mimeType)) {
-      mimeType = "audio/webm;codecs=opus";
+      mimeType = "audio/webm";
       if (!MediaRecorder.isTypeSupported(mimeType)) {
-        mimeType = "audio/webm";
+        mimeType = "audio/ogg;codecs=opus";
+        if (!MediaRecorder.isTypeSupported(mimeType)) {
+          mimeType = "audio/mp4";
+        }
       }
     }
  
@@ -375,53 +376,63 @@ async function startVoiceRecording(pk) {
     };
  
     recorder.onstop = async () => {
-      // Vérifier qu'on a bien des données
-      const totalSize = S_recorder.chunks.reduce((acc, c) => acc + c.size, 0);
-      if (totalSize === 0) {
-        logger.warn && logger.warn("No audio data recorded");
-        toast("No audio recorded", "err");
+      // ← CRITIQUE : sauvegarder AVANT le reset (évite la race condition)
+      const savedPk   = S_recorder.pk;
+      const savedMime = S_recorder.mimeType || "audio/webm";
+      const chunks    = [...(S_recorder.chunks || [])];
+ 
+      // Nettoyage immédiat du stream
+      if (S_recorder.stream) {
         S_recorder.stream.getTracks().forEach(t => t.stop());
-        S_recorder = { stream: null, recorder: null, chunks: [], recording: false };
+      }
+      S_recorder = { stream: null, recorder: null, chunks: [], recording: false };
+      updateSendBtn(); // remettre le bouton en vert
+      render();
+ 
+      // Vérifier qu'on a des données
+      const totalSize = chunks.reduce((acc, c) => acc + c.size, 0);
+      if (totalSize === 0) {
+        toast("No audio recorded — try again", "err");
         return;
       }
  
-      const actualMime = S_recorder.mimeType.split(";")[0]; // "audio/ogg" ou "audio/webm"
-      const ext = actualMime === "audio/ogg" ? ".ogg" : ".webm";
-      const blob = new Blob(S_recorder.chunks, { type: actualMime });
-      
+      const actualMime = savedMime.split(";")[0]; // "audio/webm" ou "audio/ogg"
+      const ext = actualMime.includes("ogg") ? ".ogg" : ".webm";
+      const blob = new Blob(chunks, { type: actualMime });
+ 
       if (blob.size === 0) {
-        toast("Empty audio recording", "err");
-        S_recorder.stream.getTracks().forEach(t => t.stop());
-        S_recorder = { stream: null, recorder: null, chunks: [], recording: false };
+        toast("Empty recording — try again", "err");
         return;
       }
+ 
+      toast("Sending voice note…", "");
  
       const fileName = `voice_${Date.now()}${ext}`;
       const file = new File([blob], fileName, { type: actualMime });
- 
       const formData = new FormData();
       formData.append("file", file);
  
       try {
-        const r = await fetch(API_BASE + `/clients/${S_recorder.pk}/media/`, {
+        const r = await fetch(API_BASE + `/clients/${savedPk}/media/`, {
           method: "POST",
           credentials: "include",
           headers: { "X-CSRFToken": getCsrf() },
           body: formData,
         });
  
+        let data = {};
+        try { data = await r.json(); } catch {}
+ 
         if (r.ok) {
-          const data = await r.json();
           toast("✓ Voice note sent", "ok");
-          const now = new Date().toISOString();
           const objUrl = URL.createObjectURL(blob);
-          const savedPk = S_recorder.pk;
+          const now = new Date().toISOString();
  
           S.chatMessages.push({
             id: `local_voice_${Date.now()}`,
             direction: "outbound",
             content: "[Voice note]",
-            msg_type: "voice",
+            msg_type: "audio",
             media_url: data.url || objUrl,
             media_mime_type: actualMime,
             timestamp: now,
@@ -435,34 +446,32 @@ async function startVoiceRecording(pk) {
             if (list) list.scrollTop = list.scrollHeight;
           }, 50);
         } else {
-          const err = await r.json().catch(() => ({}));
-          toast(err.error || "Failed to send voice note", "err");
+          toast((data.error || `Send failed HTTP ${r.status}`), "err");
+          console.error("Voice note send error:", r.status, data);
         }
       } catch (e) {
-        toast(e.message, "err");
+        toast("Network error: " + e.message, "err");
+        console.error("Voice note exception:", e);
       }
- 
-      // Nettoyage
-      S_recorder.stream.getTracks().forEach(t => t.stop());
-      S_recorder = { stream: null, recorder: null, chunks: [], recording: false };
-      render(); // Mettre à jour le bouton
     };
  
-    // Collecter des données toutes les 250ms pour éviter les chunks vides
-    recorder.start(250);
-    render(); // Bouton rouge
+    recorder.start(250); // chunk toutes les 250ms
+    updateSendBtn();     // bouton rouge ⏹
+    render();
     toast("🔴 Recording… tap again to stop", "");
  
   } catch (e) {
     toast("Microphone: " + e.message, "err");
     S_recorder = { stream: null, recorder: null, chunks: [], recording: false };
+    updateSendBtn();
   }
 }
 
 function stopVoiceRecording() {
   if (S_recorder.recording && S_recorder.recorder) {
-    S_recorder.recorder.stop();
+    S_recorder.recorder.stop(); // déclenche onstop async
     S_recorder.recording = false;
+    updateSendBtn();
     render();
   }
 }
@@ -1338,45 +1347,22 @@ function renderModal() {
         id="chat-input"
         placeholder="Type a message…"
         rows="1"
-        style="
-          flex:1;resize:none;padding:10px 14px;
-          border:1px solid #ddd;border-radius:20px;
-          font-size:14px;font-family:inherit;
-          background:#fff;outline:none;
-          max-height:120px;overflow-y:auto;
-          line-height:1.4;
-        "
-        oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px'"
+        style="flex:1;resize:none;padding:10px 14px;border:1px solid #ddd;
+          border-radius:20px;font-size:14px;font-family:inherit;
+          background:#fff;outline:none;max-height:120px;overflow-y:auto;line-height:1.4;"
+        oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px';updateSendBtn()"
         onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChatMessage(${m.pk})}"
       ></textarea>
 
       <!-- Bouton adaptatif: Send si texte, Record si vide -->
-      ${isRecording
-        ? `<button onclick="stopVoiceRecording()" 
-            style="
-            width:44px;height:44px;border-radius:50%;border:none;cursor:pointer;
-            background:#ef4444;color:#fff;font-size:18px;flex-shrink:0;
-            animation:pulse 1s infinite;
-          " title="Stop recording">⏹</button>`
-        : `<button
-            id="chat-send-btn"
-            style="width:44px;height:44px;border-radius:50%;border:none;cursor:pointer;
-              background:#25D366;color:#fff;font-size:20px;flex-shrink:0;
-              transition:background 0.2s;
-            "
-            onclick="
-              const val = document.getElementById('chat-input')?.value?.trim();
-              if (val) {
-                sendChatMessage(${m.pk});
-              } else {
-                startVoiceRecording(${m.pk});
-              }
-            "
-            title="Send message or record voice"
-          >
-            ${document.getElementById('chat-input')?.value?.trim() ? '➤' : '🎙️'}
-          </button>`
-      }
+      <button
+        id="chat-send-btn"
+        style="width:44px;height:44px;border-radius:50%;border:none;cursor:pointer;
+          background:#25D366;color:#fff;font-size:20px;flex-shrink:0;transition:background 0.2s;"
+        onclick="handleSendOrRecord(${m.pk})"
+        title="Send or record voice"
+      >🎙️</button>
+
     </div>
     <div style="font-size:10px;color:#999;margin-top:4px;text-align:center">
       Enter to send · Shift+Enter for newline · 📎 for files
@@ -1662,6 +1648,32 @@ function renderLogin() {
       </button>
     </div>
   </div>`;
+}
+
+function updateSendBtn() {
+  const btn = document.getElementById("chat-send-btn");
+  if (!btn) return;
+  const val = document.getElementById("chat-input")?.value?.trim();
+  if (S_recorder.recording) {
+    btn.textContent = "⏹";
+    btn.style.background = "#ef4444";
+  } else {
+    btn.textContent = val ? "➤" : "🎙️";
+    btn.style.background = "#25D366";
+  }
+}
+ 
+function handleSendOrRecord(pk) {
+  if (S_recorder.recording) {
+    stopVoiceRecording();
+    return;
+  }
+  const val = document.getElementById("chat-input")?.value?.trim();
+  if (val) {
+    sendChatMessage(pk);
+  } else {
+    startVoiceRecording(pk);
+  }
 }
 
 async function doLogin() {

@@ -806,43 +806,55 @@ class AnalyticsView(APIView):
 
         for j in journeys_in_period:
             state = j.discovery_state or {}
-
+            fm = j.flow_mode or ""
+ 
             # Discovery complète si session_type est défini
             if state.get("session_type"):
                 completed_discovery += 1
-
-                # Session type
                 if state.get("session_type") == "home":
                     discovery_home += 1
                 else:
                     discovery_studio += 1
-
-                # Extras
+ 
                 f = state.get("frames", False)
                 c = state.get("cake",   False)
                 v = state.get("video",  False)
-
+ 
                 if f:  discovery_frames_yes += 1
                 else:  discovery_frames_no  += 1
                 if c:  discovery_cake_yes   += 1
                 else:  discovery_cake_no    += 1
                 if v:  discovery_video_yes  += 1
                 else:  discovery_video_no   += 1
-
-                # Combo
-                combo = f"{'Frames ' if f else ''}{'Cake ' if c else ''}{'Video' if v else ''}".strip() or "No extras"
+ 
+                combo = (
+                    ("Frames " if f else "") +
+                    ("Cake "   if c else "") +
+                    ("Video"   if v else "")
+                ).strip() or "No extras"
                 combo_counts[combo] = combo_counts.get(combo, 0) + 1
-
-            # Packages présentés = flow_mode a dépassé discovery
-            if j.flow_mode in ("awaiting_datetime, await_confirm, awaiting_payment, payment_confirmed") or j.selected_package:
+ 
+            # ── saw_packages : client a VU les packages ────────────────────────
+            # ← CORRECTION : accolades {} pas parenthèses () — c'est un SET
+            SAW_PACKAGE_MODES = {
+                "awaiting_datetime", "await_confirm",
+                "awaiting_payment", "payment_confirmed",
+            }
+            if fm in SAW_PACKAGE_MODES or j.selected_package:
                 saw_packages += 1
-
+ 
+            # ── chose_package : client a CHOISI un package ────────────────────
             if j.selected_package:
                 chose_package += 1
-
-            if j.flow_mode in ( "payment_confirmed", "finalizing") or j.step in ("payment_confirmation", "finalizing"):
+ 
+            # ── confirmed_payment : client a PAYÉ ─────────────────────────────
+            # flow_mode = "payment_confirmed" (bouton btn_paid)
+            # OU step = "payment_confirmation" / "finalizing" (pipeline IA)
+            PAYMENT_CONFIRMED_MODES = {"payment_confirmed", "finalizing"}
+            PAYMENT_CONFIRMED_STEPS = {"payment_confirmation", "finalizing"}
+            if fm in PAYMENT_CONFIRMED_MODES or j.step in PAYMENT_CONFIRMED_STEPS:
                 confirmed_payment += 1
-
+                
         # ── Talk to Agent ────────────────────────────────────────────────────
         talk_to_agent_count = ApprovalQueue.objects.filter(
             created_at__gte=date_from,
@@ -1100,3 +1112,4 @@ class ManualMediaView(ClientLookupMixin, APIView):
         except Exception as exc:
             logger.error("ManualMediaView failed: %s", exc)
             return Response({"error": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
+
