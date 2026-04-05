@@ -202,4 +202,92 @@ def _extract_wamid(response: dict) -> str:
         return response["messages"][0]["id"]
     except (KeyError, IndexError):
         return "unknown"
+
+#_______________________NEW FOR SEND AUDIO UPDATES
+def upload_media(file_path, mime_type: str) -> str | None:
+    """
+    Upload un fichier directement vers WhatsApp Media API.
+    Retourne le media_id (string) ou None si échec.
+    
+    Cette méthode est plus fiable que "link" car le fichier
+    est stocké sur les serveurs de Meta.
+    """
+    import httpx
+    from pathlib import Path
+    
+    try:
+        upload_url = f"https://graph.facebook.com/v20.0/{_PHONE_ID}/media"
+        
+        with open(file_path, "rb") as f:
+            file_bytes = f.read()
+        
+        with httpx.Client(timeout=60) as client:
+            resp = client.post(
+                upload_url,
+                headers={"Authorization": f"Bearer {settings.WHATSAPP['ACCESS_TOKEN']}"},
+                files={"file": (Path(file_path).name, file_bytes, mime_type)},
+                data={"messaging_product": "whatsapp"},
+            )
+        
+        if resp.status_code == 200:
+            media_id = resp.json().get("id")
+            logger.info("Media uploaded to WhatsApp | media_id=%s mime=%s size=%s",
+                       media_id, mime_type, len(file_bytes))
+            return media_id
+        else:
+            logger.error("WhatsApp media upload failed | status=%s body=%s",
+                        resp.status_code, resp.text[:300])
+            return None
+            
+    except Exception as exc:
+        logger.error("upload_media failed: %s", exc)
+        return None
  
+ 
+def send_audio_by_id(to: str, media_id: str) -> dict:
+    """
+    Envoie un audio via son media_id (uploadé sur WhatsApp).
+    Plus fiable que send_audio() avec une URL externe.
+    """
+    payload = {
+        "messaging_product": "whatsapp",
+        "recipient_type": "individual",
+        "to": to,
+        "type": "audio",
+        "audio": {"id": media_id},
+    }
+    result = _post(payload)
+    logger.info("Audio sent by id to %s | wamid=%s", to, _extract_wamid(result))
+    return result
+ 
+ 
+def send_image_by_id(to: str, media_id: str, caption: str = "") -> dict:
+    """Envoie une image via son media_id."""
+    payload = {
+        "messaging_product": "whatsapp",
+        "recipient_type": "individual",
+        "to": to,
+        "type": "image",
+        "image": {"id": media_id, **({"caption": caption} if caption else {})},
+    }
+    result = _post(payload)
+    logger.info("Image sent by id to %s | wamid=%s", to, _extract_wamid(result))
+    return result
+ 
+ 
+def send_document_by_id(to: str, media_id: str, filename: str = "document", caption: str = "") -> dict:
+    """Envoie un document via son media_id."""
+    payload = {
+        "messaging_product": "whatsapp",
+        "recipient_type": "individual",
+        "to": to,
+        "type": "document",
+        "document": {
+            "id": media_id,
+            "filename": filename,
+            **({"caption": caption} if caption else {}),
+        },
+    }
+    result = _post(payload)
+    logger.info("Document sent by id to %s | wamid=%s", to, _extract_wamid(result))
+    return result

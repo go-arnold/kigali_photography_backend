@@ -1027,8 +1027,23 @@ class ManualMediaView(ClientLookupMixin, APIView):
         try:
             MEDIA_DIR.mkdir(parents=True, exist_ok=True)
  
-            # 1. Sauvegarder localement
-            ext = Path(uploaded_file.name).suffix.lower() or ".bin"
+            # 1. Infos du fichier reçu
+            original_mime = uploaded_file.content_type or ""
+            original_size = uploaded_file.size
+            original_name = uploaded_file.name or "file"
+ 
+            logger.info(
+                "ManualMediaView | client=%s file=%s mime=%s size=%s bytes",
+                client.wa_number, original_name, original_mime, original_size
+            )
+ 
+            # Fichier vide ?
+            if original_size == 0:
+                logger.error("ManualMediaView | EMPTY FILE received | client=%s", client.wa_number)
+                return Response({"error": "Empty file received — recording may have failed"}, status=400)
+ 
+            # 2. Sauvegarder localement
+            ext = Path(original_name).suffix.lower() or ".bin"
             unique_name = f"agent_{_uuid.uuid4().hex[:12]}{ext}"
             file_path = MEDIA_DIR / unique_name
  
@@ -1036,42 +1051,57 @@ class ManualMediaView(ClientLookupMixin, APIView):
                 for chunk in uploaded_file.chunks():
                     f.write(chunk)
  
-            original_mime = uploaded_file.content_type or ""
+            actual_size = file_path.stat().st_size
+            logger.info("ManualMediaView | saved locally | %s (%s bytes)", unique_name, actual_size)
  
-            # 2. Préparer (conversion audio si nécessaire)
+            # 3. Préparer (conversion audio si nécessaire)
             send_path, send_mime = prepare_media_for_sending(file_path, original_mime)
+            logger.info(
+                "ManualMediaView | after prepare | send_path=%s send_mime=%s",
+                send_path.name, send_mime
+            )
  
-            # 3. ← CORRECTION CRITIQUE : uploader vers Supabase pour URL publique
+            # 4. Upload vers Supabase
             send_url = get_public_url(send_path, send_mime)
+            logger.info("ManualMediaView | Supabase URL = %s", send_url)
  
-            if not send_url:
+            if not send_url or "supabase" not in send_url:
+                logger.error("ManualMediaView | No Supabase URL! Got: %s", send_url)
                 return Response(
-                    {"error": "Could not get public URL for media — check Supabase config"},
+                    {"error": f"Storage upload failed. URL={send_url}. Check SUPABASE_URL/KEY/BUCKET settings."},
                     status=status.HTTP_502_BAD_GATEWAY,
                 )
  
-            logger.info(
-                "Sending media | file=%s mime=%s url=%s",
-                send_path.name, send_mime, send_url
-            )
+            # 5. Test que l'URL est accessible (optionnel mais utile)
+            # import httpx
+            # try:
+            #     check = httpx.head(send_url, timeout=5)
+            #     logger.info("ManualMediaView | URL check status=%s", check.status_code)
+            # except Exception as e:
+            #     logger.warning("ManualMediaView | URL not reachable: %s", e)
  
-            # 4. Envoyer vers WhatsApp
+            # 6. Envoyer via WhatsApp
             if send_mime.startswith("image/"):
-                send_image(to=client.wa_number, image_url=send_url, caption=caption)
                 msg_type = "image"
+                logger.info("ManualMediaView | sending image | url=%s", send_url)
+                result = send_image(to=client.wa_number, image_url=send_url, caption=caption)
             elif send_mime.startswith("audio/"):
-                send_audio(to=client.wa_number, audio_url=send_url)
                 msg_type = "audio"
+                logger.info("ManualMediaView | sending audio | mime=%s url=%s", send_mime, send_url)
+                result = send_audio(to=client.wa_number, audio_url=send_url)
             else:
-                send_document(
+                msg_type = "document"
+                logger.info("ManualMediaView | sending document | url=%s", send_url)
+                result = send_document(
                     to=client.wa_number,
                     document_url=send_url,
-                    filename=uploaded_file.name,
+                    filename=original_name,
                     caption=caption,
                 )
-                msg_type = "document"
  
-            # 5. Enregistrer en DB
+            logger.info("ManualMediaView | WhatsApp result = %s", result)
+ 
+            # 7. Enregistrer en DB
             from apps.conversations.models import Message, MessageDirection, MessageStatus
             conv = client.conversations.filter(window_status="open").first()
             if conv:
@@ -1088,28 +1118,25 @@ class ManualMediaView(ClientLookupMixin, APIView):
                 }
                 mf = {f.name for f in Message._meta.get_fields()}
                 if "media_url" in mf:
-                    msg_defaults["media_url"] = send_url        # ← URL Supabase
+                    msg_defaults["media_url"] = send_url
                 if "media_mime_type" in mf:
                     msg_defaults["media_mime_type"] = send_mime
                 if "media_filename" in mf:
-                    msg_defaults["media_filename"] = uploaded_file.name
+                    msg_defaults["media_filename"] = original_name
  
                 Message.objects.create(
                     wa_message_id=f"agent_media_{_uuid.uuid4().hex[:12]}",
                     **msg_defaults,
                 )
  
-            logger.info(
-                "Agent media sent | client=%s type=%s url=%s by=%s",
-                client.wa_number, msg_type, send_url, request.user.username
-            )
             return Response({
                 "status": "sent",
                 "msg_type": msg_type,
-                "url": send_url,     # ← URL Supabase pour affichage dashboard
+                "url": send_url,
+                "size_bytes": actual_size,
+                "mime": send_mime,
             })
  
         except Exception as exc:
-            logger.error("ManualMediaView failed: %s", exc)
+            logger.error("ManualMediaView EXCEPTION | client=%s error=%s", client.wa_number, exc, exc_info=True)
             return Response({"error": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
-

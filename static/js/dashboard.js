@@ -1877,11 +1877,11 @@ ${L ? '<div class="loading"><span class="spin"></span>Loading analytics…</div>
   <div style="padding:20px">
     ${[
       ["👥 New Clients",         d.funnel.total_clients,        d.funnel.total_clients, "#02032f"],
-      ["💬 Started Conversation",d.funnel.started_conversation, d.funnel.total_clients, "#29272f48"],
-      ["✅ Answered Discovery", d.funnel.completed_discovery,  d.funnel.total_clients, "#29272f48"],
-      ["📦 Saw Packages",        d.funnel.saw_packages,         d.funnel.total_clients, "#29272f48"],
-      ["🎯 Chose a Package",     d.funnel.chose_package,        d.funnel.total_clients, "#29272f48"],
-      ["💳 Confirmed Payment",   d.funnel.confirmed_payment,    d.funnel.total_clients, "#29272f48"],
+      ["💬 Started Conversation",d.funnel.started_conversation, d.funnel.total_clients, "#697ecfdf"],
+      ["✅ Answered Discovery", d.funnel.completed_discovery,  d.funnel.total_clients, "#697ecfdf"],
+      ["📦 Saw Packages",        d.funnel.saw_packages,         d.funnel.total_clients, "#697ecfdf"],
+      ["🎯 Chose a Package",     d.funnel.chose_package,        d.funnel.total_clients, "#697ecfdf"],
+      ["💳 Confirmed Payment",   d.funnel.confirmed_payment,    d.funnel.total_clients, "#697ecfdf"],
     ].map(([label, val, total, color]) => `
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
         <div style="width:200px;font-size:13px">${label}</div>
@@ -1899,10 +1899,10 @@ ${L ? '<div class="loading"><span class="spin"></span>Loading analytics…</div>
   <div class="panel-head"><h2>🎛️ Discovery Preferences</h2></div>
   <div style="padding:20px">
     ${[
-      ["📍 Session", "studio", "home", d.discovery.session.studio, d.discovery.session.home, "#29272f48", "#2f0c9648"],
-      ["🖼️ Frames",  "Yes",    "No",   d.discovery.frames.yes,    d.discovery.frames.no,    "#29272f48", "#923a3a"],
-      ["🎂 Cake",    "Yes",    "No",   d.discovery.cake.yes,      d.discovery.cake.no,      "#29272f48", "#923a3a"],
-      ["🎬 Video",   "Yes",    "No",   d.discovery.video.yes,     d.discovery.video.no,     "#29272f48", "#923a3a"],
+      ["📍 Session", "studio", "home", d.discovery.session.studio, d.discovery.session.home, "#697ecfdf", "#121111"],
+      ["🖼️ Frames",  "Yes",    "No",   d.discovery.frames.yes,    d.discovery.frames.no,    "#697ecfdf", "#923a3a"],
+      ["🎂 Cake",    "Yes",    "No",   d.discovery.cake.yes,      d.discovery.cake.no,      "#697ecfdf", "#923a3a"],
+      ["🎬 Video",   "Yes",    "No",   d.discovery.video.yes,     d.discovery.video.no,     "#697ecfdf", "#923a3a"],
     ].map(([label, l1, l2, v1, v2, c1, c2]) => {
       const total = v1 + v2;
       const p1 = total ? Math.round(v1/total*100) : 0;
