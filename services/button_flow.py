@@ -463,16 +463,23 @@ def _present_packages(from_number: str, journey, client) -> None:
 
     includes_line = ", ".join(extras_lines) if extras_lines else None
 
+    # ← NOUVEAU : marquer que les packages ont été présentés
+    journey.flow_mode = "packages_presented"
+    journey.save(update_fields=["flow_mode", "updated_at"])
+    try:
+        from services.journey_orchestrator import advance_journey
+        advance_journey(journey, "packages", "presented")
+    except Exception:
+        pass
+    
     if session_type == "home":
         _present_premium_package(from_number, journey, client,
                                   extras_cost, includes_line, msgs, lang)
-        journey.flow_mode = "presented_packages"
-        journey.save(update_fields=["presented_packages", "flow_mode", "updated_at"])
+        
        
     else:
         _present_studio_packages(from_number, extras_cost, includes_line, msgs, client)
-        journey.flow_mode = "presented_packages"
-        journey.save(update_fields=["presented_packages", "flow_mode", "updated_at"])
+        
         
 
 

@@ -1299,8 +1299,8 @@ function renderModal() {
     const textColor = (isInteractive || msg.generated_by_ai) ? "#fff" : "#333";
     const border = (!isInteractive && !msg.generated_by_ai) ? "border:1px solid #e0e0e0;" : "";
     const senderLabel = msg.generated_by_ai
-      ? "🤖 Julie · AI"
-      : "👤 You · Staff";
+      ?  "👤 You · Staff"
+      :  "🤖 Bot, Julie · AI ";
     const senderColor = msg.generated_by_ai ? "#25D366" : "#128C7E";
 
     return `
@@ -1876,12 +1876,12 @@ ${L ? '<div class="loading"><span class="spin"></span>Loading analytics…</div>
   <div class="panel-head"><h2>🔽 Conversion Funnel</h2></div>
   <div style="padding:20px">
     ${[
-      ["👥 New Clients",         d.funnel.total_clients,        d.funnel.total_clients, "#6366f1"],
-      ["💬 Started Conversation",d.funnel.started_conversation, d.funnel.total_clients, "#8b5cf6"],
-      ["✅ Completed Discovery", d.funnel.completed_discovery,  d.funnel.total_clients, "#06b6d4"],
-      ["📦 Saw Packages",        d.funnel.saw_packages,         d.funnel.total_clients, "#10b981"],
-      ["🎯 Chose a Package",     d.funnel.chose_package,        d.funnel.total_clients, "#f59e0b"],
-      ["💳 Confirmed Payment",   d.funnel.confirmed_payment,    d.funnel.total_clients, "#ef4444"],
+      ["👥 New Clients",         d.funnel.total_clients,        d.funnel.total_clients, "#02032f"],
+      ["💬 Started Conversation",d.funnel.started_conversation, d.funnel.total_clients, "#29272f48"],
+      ["✅ Answered Discovery", d.funnel.completed_discovery,  d.funnel.total_clients, "#29272f48"],
+      ["📦 Saw Packages",        d.funnel.saw_packages,         d.funnel.total_clients, "#29272f48"],
+      ["🎯 Chose a Package",     d.funnel.chose_package,        d.funnel.total_clients, "#29272f48"],
+      ["💳 Confirmed Payment",   d.funnel.confirmed_payment,    d.funnel.total_clients, "#29272f48"],
     ].map(([label, val, total, color]) => `
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
         <div style="width:200px;font-size:13px">${label}</div>
@@ -1899,10 +1899,10 @@ ${L ? '<div class="loading"><span class="spin"></span>Loading analytics…</div>
   <div class="panel-head"><h2>🎛️ Discovery Preferences</h2></div>
   <div style="padding:20px">
     ${[
-      ["📍 Session", "studio", "home", d.discovery.session.studio, d.discovery.session.home, "#6366f1", "#8b5cf6"],
-      ["🖼️ Frames",  "Yes",    "No",   d.discovery.frames.yes,    d.discovery.frames.no,    "#10b981", "#ef4444"],
-      ["🎂 Cake",    "Yes",    "No",   d.discovery.cake.yes,      d.discovery.cake.no,      "#f59e0b", "#ef4444"],
-      ["🎬 Video",   "Yes",    "No",   d.discovery.video.yes,     d.discovery.video.no,     "#06b6d4", "#ef4444"],
+      ["📍 Session", "studio", "home", d.discovery.session.studio, d.discovery.session.home, "#29272f48", "#2f0c9648"],
+      ["🖼️ Frames",  "Yes",    "No",   d.discovery.frames.yes,    d.discovery.frames.no,    "#29272f48", "#923a3a"],
+      ["🎂 Cake",    "Yes",    "No",   d.discovery.cake.yes,      d.discovery.cake.no,      "#29272f48", "#923a3a"],
+      ["🎬 Video",   "Yes",    "No",   d.discovery.video.yes,     d.discovery.video.no,     "#29272f48", "#923a3a"],
     ].map(([label, l1, l2, v1, v2, c1, c2]) => {
       const total = v1 + v2;
       const p1 = total ? Math.round(v1/total*100) : 0;

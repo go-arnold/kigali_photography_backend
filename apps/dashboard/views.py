@@ -837,7 +837,7 @@ class AnalyticsView(APIView):
             # ── saw_packages : client a VU les packages ────────────────────────
             # ← CORRECTION : accolades {} pas parenthèses () — c'est un SET
             SAW_PACKAGE_MODES = {
-                "presented_packages","awaiting_datetime", "await_confirm",
+                 "packages_presented","awaiting_datetime", "await_confirm",
                 "awaiting_payment", "payment_confirmed",
             }
             if fm in SAW_PACKAGE_MODES or j.selected_package:
