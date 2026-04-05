@@ -1042,56 +1042,47 @@ class ManualMediaView(ClientLookupMixin, APIView):
             logger.info("Agent file | %s mime=%s size=%s",
                        unique_name, original_mime, file_path.stat().st_size)
  
-            # Préparer (conversion audio webm→ogg si nécessaire)
             send_path, send_mime = prepare_media_for_sending(file_path, original_mime)
  
+            # ← TOUJOURS uploader vers Supabase pour avoir une URL d'affichage
+            display_url = get_public_url(send_path, send_mime) or ""
+            logger.info("Supabase display URL: %s", display_url)
+ 
             sent = False
-            display_url = ""
+            msg_type = "document"
  
             if send_mime.startswith("image/"):
                 msg_type = "image"
-                # Images : URL Supabase (WhatsApp supporte bien)
-                display_url = get_public_url(send_path, send_mime)
                 if display_url:
                     send_image(to=client.wa_number, image_url=display_url, caption=caption)
                     sent = True
  
             elif send_mime.startswith("audio/"):
                 msg_type = "audio"
-                # Audio : upload direct vers WhatsApp (plus fiable que URL)
+                # Méthode 1 : upload direct WhatsApp (plus fiable)
                 media_id = upload_media(send_path, send_mime)
                 if media_id:
                     send_audio_by_id(to=client.wa_number, media_id=media_id)
                     sent = True
-                    logger.info("Audio sent via WA upload | media_id=%s", media_id)
-                else:
-                    # Fallback : URL Supabase
-                    display_url = get_public_url(send_path, send_mime)
-                    if display_url:
-                        send_audio(to=client.wa_number, audio_url=display_url)
-                        sent = True
-                        logger.info("Audio sent via Supabase URL fallback | url=%s", display_url)
- 
-                # URL pour affichage dashboard
-                if not display_url:
-                    try:
-                        display_url = get_public_url(send_path, send_mime)
-                    except Exception:
-                        display_url = f"/media/whatsapp/{send_path.name}"
+                    logger.info("Audio sent via WA media_id=%s", media_id)
+                elif display_url:
+                    # Fallback URL
+                    send_audio(to=client.wa_number, audio_url=display_url)
+                    sent = True
+                    logger.info("Audio sent via Supabase URL fallback")
  
             else:
                 msg_type = "document"
-                display_url = get_public_url(send_path, send_mime)
                 if display_url:
                     send_document(to=client.wa_number, document_url=display_url,
                                  filename=original_name, caption=caption)
                     sent = True
  
             if not sent:
-                return Response({"error": "Could not send — storage or upload failed"},
+                return Response({"error": "Send failed — check storage config"},
                                status=status.HTTP_502_BAD_GATEWAY)
  
-            # Enregistrer en DB
+            # Enregistrer en DB avec display_url
             from apps.conversations.models import Message, MessageDirection, MessageStatus
             conv = client.conversations.filter(window_status="open").first()
             if conv:
@@ -1108,7 +1099,7 @@ class ManualMediaView(ClientLookupMixin, APIView):
                 }
                 mf = {f.name for f in Message._meta.get_fields()}
                 if "media_url" in mf:
-                    msg_defaults["media_url"] = display_url
+                    msg_defaults["media_url"] = display_url  # ← toujours rempli maintenant
                 if "media_mime_type" in mf:
                     msg_defaults["media_mime_type"] = send_mime
                 if "media_filename" in mf:
