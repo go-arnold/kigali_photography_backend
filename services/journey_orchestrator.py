@@ -452,7 +452,7 @@ def handle_inbound_message(
             text_words = text.strip().lower().split() if text else []
             SHORT_SAFE_WORDS = {
                 "ok", "yes", "no", "silver", "gold", "starter",
-                "studio", "home", "package"
+                "studio", "home", "package", "discount", "frames", "video","cake",
             }
             is_short_safe = (
                 len(text_words) <= 3
@@ -463,10 +463,10 @@ def handle_inbound_message(
                 and not is_short_safe
                 and not journey.human_takeover
             ):
-                journey.flag_human_takeover("Client writes in Kinyarwanda — human agent required")
+                journey.flag_human_takeover("Ai may tend to loose context — human agent required")
                 _notify_human_takeover(
                     client, conversation,
-                    reason="Kinyarwanda client — needs human agent"
+                    reason="Ai may tend to loose context — needs human agent"
                 )
                 return OrchestratorResult(
                     success=True,
