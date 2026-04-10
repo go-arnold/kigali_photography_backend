@@ -116,7 +116,7 @@ def handle_inbound_message(
             )
         except Exception as e:
             print("❌ PUSH ERROR:", e)
-            pass
+            
  
         # ── MEDIA / CALL HANDLING ────────────────────────────────────────────
         # ← Maintenant client/journey/conversation sont définis

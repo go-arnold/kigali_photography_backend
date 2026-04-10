@@ -1174,6 +1174,7 @@ def send_push_notification(title: str, body: str, url: str = "/"):
     Envoie une notification push à tous les agents abonnés.
     Appelé depuis ManualTakeoverView, webhook, etc.
     """
+    print("🚀 send_push_notification CALLED")
     try:
         from apps.dashboard.models import PushSubscription
         from pywebpush import webpush, WebPushException
@@ -1191,20 +1192,31 @@ def send_push_notification(title: str, body: str, url: str = "/"):
             "icon": "/static/img/logo.png",
         })
 
+        import json
+        from pywebpush import webpush, WebPushException
+
         for sub in subscriptions:
             try:
+                subscription_info = sub.subscription_json
+                if isinstance(subscription_info, str):
+                    subscription_info = json.loads(subscription_info)
+
                 webpush(
-                    subscription_info=sub.subscription_json,
-                    data=payload,
+                    subscription_info=subscription_info,
+                    data=json.dumps({
+                        "title": title,
+                        "body": body,
+                    }),
                     vapid_private_key=settings.VAPID_PRIVATE_KEY,
                     vapid_claims={
                         "sub": f"mailto:{settings.VAPID_CLAIMS_EMAIL}"
                     },
+                    headers={"TTL": "60"},
                 )
+
             except WebPushException as exc:
+                print("ERROR BODY:", exc.response and exc.response.text)
                 logger.warning("Push failed for %s: %s", sub.user.username, exc)
-                if "410" in str(exc) or "404" in str(exc):
-                    sub.delete()
 
     except Exception as exc:
         logger.error("send_push_notification failed: %s", exc)
