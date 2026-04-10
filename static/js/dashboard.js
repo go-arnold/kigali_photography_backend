@@ -1854,7 +1854,7 @@ function render() {
         
         <!-- Bouton notifications -->
         ${S_push.supported ? `
-        <button onclick="togglePushNotifications()" >
+        <button onclick="togglePushNotifications()" class="mb-10" >
           ${S_push.subscribed
             ? '🔔 Notifications ON'
             : S_push.permission === 'denied'
