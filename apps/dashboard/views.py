@@ -1206,10 +1206,7 @@ def send_push_notification(title: str, body: str, url: str = "/"):
                 print("📤 SENDING PUSH TO:", subscription_info)
                 webpush(
                     subscription_info=subscription_info,
-                    data=json.dumps({
-                        "title": "TEST",
-                        "body": "HELLO WORLD",
-                    }),
+                    data=payload,
                     vapid_private_key=settings.VAPID_PRIVATE_KEY,
                     vapid_claims={
                         "sub": f"mailto:{settings.VAPID_CLAIMS_EMAIL}"
