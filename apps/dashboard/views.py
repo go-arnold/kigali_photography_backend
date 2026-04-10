@@ -21,6 +21,7 @@ Design: thin views, logic in services. Every action logged.
 import logging
 
 from django.db.models import Sum, Count, Q
+from django.http import JsonResponse
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.response import Response
@@ -1200,12 +1201,14 @@ def send_push_notification(title: str, body: str, url: str = "/"):
                 subscription_info = sub.subscription_json
                 if isinstance(subscription_info, str):
                     subscription_info = json.loads(subscription_info)
+                    print(subscription_info["endpoint"])
 
+                print("📤 SENDING PUSH TO:", subscription_info)
                 webpush(
                     subscription_info=subscription_info,
                     data=json.dumps({
-                        "title": title,
-                        "body": body,
+                        "title": "TEST",
+                        "body": "HELLO WORLD",
                     }),
                     vapid_private_key=settings.VAPID_PRIVATE_KEY,
                     vapid_claims={
@@ -1215,8 +1218,15 @@ def send_push_notification(title: str, body: str, url: str = "/"):
                 )
 
             except WebPushException as exc:
-                print("ERROR BODY:", exc.response and exc.response.text)
-                logger.warning("Push failed for %s: %s", sub.user.username, exc)
-
+                print("🔥 WEBPUSH ERROR:", repr(exc))
+                
+                if exc.response:
+                    print("🔥 RESPONSE:", exc.response.text)
+                else:
+                    print("🔥 NO RESPONSE FROM PUSH SERVICE")
     except Exception as exc:
         logger.error("send_push_notification failed: %s", exc)
+
+def test_push(request):
+    send_push_notification("TEST", "HELLO")
+    return JsonResponse({"ok": True})

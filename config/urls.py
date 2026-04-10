@@ -5,6 +5,7 @@ from django.conf.urls.static import static
 
 from apps.dashboard.spa_view import DashboardAppView
 from apps.webhook.views import  ping
+from apps.dashboard import views
 
 
 urlpatterns = [
@@ -13,6 +14,8 @@ urlpatterns = [
     path("api/webhook/", include("apps.webhook.urls")),
     path("api/dashboard/", include("apps.dashboard.urls")),
     path("ping/", ping),
+    path("test-push/", views.test_push),
+
     
 ]
 
