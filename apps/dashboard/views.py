@@ -1216,7 +1216,6 @@ def send_push_notification(title: str, body: str, url: str = "/"):
             except WebPushException as exc:
                 print("ERROR BODY:", exc.response and exc.response.text)
                 logger.warning("Push failed for %s: %s", sub.user.username, exc)
-    except WebPushException as exc:
-                        logger.warning("Push failed for %s: %s", sub.user.username, exc)
-                        if "410" in str(exc) or "404" in str(exc):
-                            sub.delete()
+
+    except Exception as exc:
+        logger.error("send_push_notification failed: %s", exc)
