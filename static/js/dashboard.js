@@ -608,7 +608,7 @@ async function initPushNotifications() {
   S_push.permission = Notification.permission;
 
   try {
-    const reg = await navigator.serviceWorker.register('/static/sw.js', { scope: '/' });
+    const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
     const sub = await reg.pushManager.getSubscription();
     S_push.subscribed = !!sub;
   } catch(e) {
