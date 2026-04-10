@@ -1203,7 +1203,7 @@ def send_push_notification(title: str, body: str, url: str = "/"):
                     subscription_info = json.loads(subscription_info)
                     print(subscription_info["endpoint"])
 
-                print("📤 SENDING PUSH TO:", subscription_info)
+                    print("📤 SENDING PUSH TO:", subscription_info)
                 webpush(
                     subscription_info=subscription_info,
                     data=payload,
