@@ -595,6 +595,87 @@ async function overrideJourney(pk, data) {
   } catch (e) { toast(e.message, "err"); }
 }
 
+// ─── Push Notifications added ───────────────────────────────────────────────────────
+
+let S_push = { supported: false, permission: "default", subscribed: false };
+
+async function initPushNotifications() {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+    S_push.supported = false;
+    return;
+  }
+  S_push.supported = true;
+  S_push.permission = Notification.permission;
+
+  try {
+    const reg = await navigator.serviceWorker.register("/sw.js");
+    const sub = await reg.pushManager.getSubscription();
+    S_push.subscribed = !!sub;
+  } catch(e) {
+    console.warn("Push init failed:", e);
+  }
+}
+
+async function togglePushNotifications() {
+  if (!S_push.supported) {
+    toast("Push notifications not supported in this browser", "err");
+    return;
+  }
+
+  if (S_push.subscribed) {
+    // Se désabonner
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      if (sub) {
+        await sub.unsubscribe();
+        await req("DELETE", "/push/subscribe/");
+      }
+      S_push.subscribed = false;
+      S_push.permission = "default";
+      toast("Notifications disabled", "ok");
+      render();
+    } catch(e) { toast(e.message, "err"); }
+    return;
+  }
+
+  // Demander la permission
+  const permission = await Notification.requestPermission();
+  S_push.permission = permission;
+
+  if (permission !== "granted") {
+    toast("Permission denied — enable notifications in browser settings", "err");
+    render();
+    return;
+  }
+
+  try {
+    // Récupérer la clé VAPID publique
+    const keyData = await req("GET", "/push/vapid-key/");
+    const publicKey = keyData.public_key;
+
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: _urlBase64ToUint8Array(publicKey),
+    });
+
+    await req("POST", "/push/subscribe/", { subscription: sub.toJSON() });
+    S_push.subscribed = true;
+    toast("✓ Notifications enabled — you'll be alerted for new client activity", "ok");
+    render();
+  } catch(e) {
+    toast("Could not enable notifications: " + e.message, "err");
+  }
+}
+
+function _urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+}
+
 // Booking actions
 async function saveBooking(data, editId) {
   try {
@@ -1770,6 +1851,23 @@ function render() {
       </div>
       <div class="sb-footer">
         <div class="sb-user">@${esc(S.user)}</div>
+        
+        <!-- Bouton notifications -->
+        ${S_push.supported ? `
+        <button onclick="togglePushNotifications()" style="
+          background:none;border:none;cursor:pointer;
+          font-size:11px;color:${S_push.subscribed ? '#25D366' : '#999'};
+          padding:4px 0;display:flex;align-items:center;gap:4px;
+          width:100%;
+        ">
+          ${S_push.subscribed
+            ? '🔔 Notifications ON'
+            : S_push.permission === 'denied'
+              ? '🔕 Blocked in browser'
+              : '🔕 Enable notifications'
+          }
+        </button>` : ''}
+        
         <button class="sb-signout" onclick="doLogout()">Sign out</button>
       </div>
     </nav>
@@ -1793,6 +1891,7 @@ function render() {
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 function startDashboard() {
   nav("overview");
+  initPushNotifications(); //Notifications added
   setInterval(() => {
     if (S.page === "overview") { fetchStats(); fetchApprovals(); }
   }, 30000);

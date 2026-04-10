@@ -429,6 +429,13 @@ class HumanTakeoverView(ClientLookupMixin, APIView):
         if enable:
             journey.flag_human_takeover(reason)
             action = "takeover_enabled"
+            # Notifications added
+            send_push_notification(
+                title=f"👤 Client needs help — {client.name or client.wa_number}",
+                body=reason[:100],
+                url=f"/?client={client.pk}",
+            )
+
         else:
             journey.human_takeover = False
             journey.takeover_reason = ""
@@ -683,15 +690,26 @@ def _schedule_birthday_messages(booking):
 
     nine_am = datetime.time(9, 0, 0)  # ← Fix: datetime.time() direct, pas de .replace()
 
+    # Juste avant la définition de schedules
+    pronoun = {"boy": "him", "girl": "her"}.get(booking.child_gender or "", "them")
+    parent_name = booking.parent_name or "there"
+
     schedules = [
         (next_bday - datetime.timedelta(days=7), ScheduledMessageType.BIRTHDAY_REMINDER,
-         f"Hi! {booking.child_name}'s birthday is in 1 week 🎂 Would you like to book a session to capture this special milestone?"),
+        f"Hey {parent_name}! It’s Julie from Kp kids studio 😊. I noticed that {booking.child_name} has birthday coming up next week, just wanted to wish {pronoun}, A happy birthday in advance and hope it’s a special one for your family. It’s been some time since we last worked together, and I just wanted to reconnect and say hello."),
         (next_bday - datetime.timedelta(days=1), ScheduledMessageType.BIRTHDAY_REMINDER,
-         f"Tomorrow is {booking.child_name}'s big day! 🎉 Wishing you a wonderful celebration!"),
+        f"Hey {parent_name}! Tomorrow is {booking.child_name}'s big day! 🎉 Wishing you a wonderful celebration!"),
         (next_bday, ScheduledMessageType.BIRTHDAY_WISH,
-         f"Happy Birthday {booking.child_name}! 🎂🎈 Wishing you a magical day full of joy and laughter! From the KP Kids Studio family 💕"),
+        f"parent:{parent_name}|child:{booking.child_name}|pronoun:{pronoun}"),
+        #Hey Judith! 😊  
+        # It’s Elyse from Kp kids studio.
+
+        # I noticed that today is Elga's birthday 🎉  
+        # Just wanted to wish her a happy birthday and hope you have a beautiful celebration planned.
+
+        # Sending you and your family good vibes and hopefully we’ll get to create more memories together again sometime.
         (next_bday.replace(year=next_bday.year + 1) - datetime.timedelta(days=7), ScheduledMessageType.BIRTHDAY_REMINDER,
-         f"Hi! {booking.child_name}'s birthday is coming up again 🎂 Time flies! Would you like to book a session to capture this year's milestone?"),
+        f"Hey! {booking.child_name}'s birthday is coming up again 🎂 Time flies! Would you like to book a session to capture this year's milestone?"),
     ]
 
     created = 0
@@ -1115,3 +1133,78 @@ class ManualMediaView(ClientLookupMixin, APIView):
         except Exception as exc:
             logger.error("ManualMediaView failed: %s", exc, exc_info=True)
             return Response({"error": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
+        
+
+#Notifications added
+class PushSubscriptionView(APIView):
+    """
+    POST /dashboard/push/subscribe/   → sauvegarder subscription
+    DELETE /dashboard/push/subscribe/ → supprimer subscription
+    """
+    permission_classes = [IsStudioStaff]
+
+    def post(self, request):
+        from apps.dashboard.models import PushSubscription
+        sub_data = request.data.get("subscription")
+        if not sub_data:
+            return Response({"error": "No subscription data"}, status=400)
+        
+        PushSubscription.objects.update_or_create(
+            user=request.user,
+            defaults={"subscription_json": sub_data},
+        )
+        return Response({"status": "subscribed"})
+
+    def delete(self, request):
+        from apps.dashboard.models import PushSubscription
+        PushSubscription.objects.filter(user=request.user).delete()
+        return Response({"status": "unsubscribed"})
+
+
+class PushVapidKeyView(APIView):
+    """GET /dashboard/push/vapid-key/ → retourne la clé publique VAPID"""
+    permission_classes = [IsStudioStaff]
+
+    def get(self, request):
+        from django.conf import settings
+        return Response({"public_key": settings.VAPID_PUBLIC_KEY})
+
+def send_push_notification(title: str, body: str, url: str = "/"):
+    """
+    Envoie une notification push à tous les agents abonnés.
+    Appelé depuis ManualTakeoverView, webhook, etc.
+    """
+    try:
+        from apps.dashboard.models import PushSubscription
+        from pywebpush import webpush, WebPushException
+        from django.conf import settings
+        import json
+
+        subscriptions = PushSubscription.objects.all()
+        if not subscriptions.exists():
+            return
+
+        payload = json.dumps({
+            "title": title,
+            "body": body,
+            "url": url,
+            "icon": "/static/img/logo.png",
+        })
+
+        for sub in subscriptions:
+            try:
+                webpush(
+                    subscription_info=sub.subscription_json,
+                    data=payload,
+                    vapid_private_key=settings.VAPID_PRIVATE_KEY,
+                    vapid_claims={
+                        "sub": f"mailto:{settings.VAPID_CLAIMS_EMAIL}"
+                    },
+                )
+            except WebPushException as exc:
+                logger.warning("Push failed for %s: %s", sub.user.username, exc)
+                if "410" in str(exc) or "404" in str(exc):
+                    sub.delete()
+
+    except Exception as exc:
+        logger.error("send_push_notification failed: %s", exc)

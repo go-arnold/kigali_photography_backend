@@ -93,6 +93,29 @@ def handle_inbound_message(
             wa_number=from_number,
             name=from_name,
         )
+        #Notifications added
+        try:
+            from apps.dashboard.views import send_push_notification
+            
+            # Construire un aperçu du message
+            if msg_type == "interactive" and interactive_id:
+                preview = f"[Button: {interactive_id}]"
+            elif msg_type in ("image", "audio", "voice", "document"):
+                preview = f"[{msg_type.capitalize()}]"
+            elif text:
+                preview = text[:80] + ("…" if len(text) > 80 else "")
+            else:
+                preview = f"[{msg_type}]"
+            
+            client_label = client.name or from_number
+            
+            send_push_notification(
+                title=f"💬 {client_label}",
+                body=preview,
+                url=f"/?client={client.pk}",
+            )
+        except Exception:
+            pass
  
         # ── MEDIA / CALL HANDLING ────────────────────────────────────────────
         # ← Maintenant client/journey/conversation sont définis
@@ -1340,6 +1363,16 @@ def _notify_human_takeover(
     logger.warning(
         "Human takeover triggered | client=%s reason=%s", client.wa_number, reason
     )
+
+    # Notifications added
+    try:
+        from apps.dashboard.views import send_push_notification
+        send_push_notification(
+            title=f"🔔 {client.name or client.wa_number} needs attention",
+            body=reason[:100],
+        )
+    except Exception:
+        pass
 
 
 

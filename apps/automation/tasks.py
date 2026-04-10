@@ -214,8 +214,24 @@ def _dispatch_scheduled(scheduled, send_text_fn, send_template_fn):
     # Kinyarwanda : pas de template RW approuvé possible facilement → fallback EN
 
     if msg_type == ScheduledMessageType.BIRTHDAY_WISH:
-        # Toujours un template — fenêtre 24h probablement fermée
         child_name = _extract_child_name_from_content(content)
+        
+        # Déduire le pronom depuis le contenu ou depuis le client
+        # Le contenu peut contenir "him" ou "her" selon le genre enregistré
+        pronoun = "them"  # neutre par défaut
+        if "him" in content.lower():
+            pronoun = "him"
+        elif "her" in content.lower():
+            pronoun = "her"
+        
+        # Récupérer le nom du parent depuis le client
+        
+        parent_name = _extract_from_structured_content(content, "parent") or client.name or "there"
+        child_name  = _extract_from_structured_content(content, "child") or _extract_child_name_from_content(content)
+        pronoun     = _extract_from_structured_content(content, "pronoun") or "them"
+
+            
+        
         send_template_fn(
             to=client.wa_number,
             template_name="kp_birthday_wish",
@@ -223,7 +239,9 @@ def _dispatch_scheduled(scheduled, send_text_fn, send_template_fn):
             components=[{
                 "type": "body",
                 "parameters": [
-                    {"type": "text", "text": child_name},
+                    {"type": "text", "text": parent_name},  # {{j}} → nom du parent
+                    {"type": "text", "text": child_name},   # {{d}} → prénom enfant
+                    {"type": "text", "text": pronoun},      # {{g}} → him/her/them
                 ],
             }],
         )
@@ -524,16 +542,30 @@ def _render_birthday_wish(child, language: str) -> str:
         f"Thank you for letting us be part of your family's journey! 📸✨"
     )
 
+#Notifications added
 def _extract_child_name_from_content(content: str) -> str:
-    """Extract child first name from pre-rendered birthday message content."""
+    # Nouveau format structuré
+    if "child:" in content and "|" in content:
+        for part in content.split("|"):
+            if part.startswith("child:"):
+                return part.replace("child:", "").strip()
+    
+    # Ancien format regex
     import re
-    # Patterns : "Happy Birthday Emma!" / "Hi! Emma's birthday" / "wonderful Emma!"
     for pattern in [
         r"Birthday (?:to the wonderful )?([A-Za-zÀ-ÿ\-']+)[!,\s]",
         r"Hi!\s+([A-Za-zÀ-ÿ\-']+)'s birthday",
-        r"Muramutse.*?wa ([A-Za-zÀ-ÿ\-']+)[!\s]",
     ]:
         match = re.search(pattern, content)
         if match:
             return match.group(1)
     return "your child"
+
+
+def _extract_from_structured_content(content: str, key: str) -> str:
+    """Extrait une valeur du format parent:X|child:Y|pronoun:Z"""
+    if key + ":" in content:
+        for part in content.split("|"):
+            if part.startswith(key + ":"):
+                return part.replace(key + ":", "").strip()
+    return ""

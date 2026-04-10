@@ -157,6 +157,11 @@ SUPABASE_KEY = env("SUPABASE_KEY")
 SUPABASE_BUCKET= env("SUPABASE_BUCKET")
 #--------fin media data
 
+#___________Notifications added
+VAPID_PUBLIC_KEY = env("VAPID_PUBLIC_KEY")
+VAPID_PRIVATE_KEY = env("VAPID_PRIVATE_KEY")
+VAPID_CLAIMS_EMAIL = env("VAPID_CLAIMS_EMAIL", default="brucehenry226@gmail.com")
+#___________end notif
 
 #SITE_URL = "https://senior-madeleine-matabar-93648cd5.koyeb.app/" 
 

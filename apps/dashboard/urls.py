@@ -58,6 +58,14 @@ urlpatterns = [
 
 ]
 
+#Notifications added
+from .views import PushSubscriptionView, PushVapidKeyView
+
+urlpatterns += [
+    path("push/subscribe/", PushSubscriptionView.as_view()),
+    path("push/vapid-key/", PushVapidKeyView.as_view()),
+]
+
 
 
 # from django.urls import path
