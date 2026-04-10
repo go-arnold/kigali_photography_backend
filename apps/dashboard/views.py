@@ -1208,3 +1208,4 @@ def send_push_notification(title: str, body: str, url: str = "/"):
 
     except Exception as exc:
         logger.error("send_push_notification failed: %s", exc)
+        
