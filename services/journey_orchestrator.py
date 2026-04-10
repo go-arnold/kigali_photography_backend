@@ -114,8 +114,8 @@ def handle_inbound_message(
                 body=preview,
                 url=f"/?client={client.pk}",
             )
-        except Exception:
-            pass
+        except Exception as e:
+            print("❌ PUSH ERROR:", e)
  
         # ── MEDIA / CALL HANDLING ────────────────────────────────────────────
         # ← Maintenant client/journey/conversation sont définis
