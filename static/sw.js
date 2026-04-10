@@ -5,24 +5,23 @@ self.addEventListener("push", function(event) {
   if (!event.data) return;
 
   let data = {};
-  try { data = event.data.json(); } catch(e) { data = { title: "KP Kids Studio", body: event.data.text() }; }
+  try { data = event.data.json(); } catch(e) { 
+    data = { title: "KP Kids Studio", body: event.data.text() }; 
+  }
 
   const options = {
     body: data.body || "",
-    icon: data.icon || "/static/img/logo.png",
-    badge: "/static/img/badge.png",
+    icon: "/static/img/logo.png",
+    // PAS de badge
     vibrate: [200, 100, 200],
     tag: "kp-notification",
     renotify: true,
     data: { url: data.url || "/" },
-    actions: [
-      { action: "open", title: "Open Dashboard" },
-      { action: "dismiss", title: "Dismiss" },
-    ],
   };
 
   event.waitUntil(
     self.registration.showNotification(data.title || "KP Kids Studio", options)
+      .catch(err => console.error("showNotification failed:", err))
   );
 });
 
@@ -48,3 +47,4 @@ self.addEventListener("notificationclick", function(event) {
     })
   );
 });
+
