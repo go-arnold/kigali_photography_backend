@@ -211,7 +211,15 @@ CELERY_BEAT_SCHEDULE = {
         "task": "automation.schedule_birthday_messages",
         "schedule": crontab(hour=7, minute=0),
     },
+    #added for supabase small requests.
+    "ping-supabase": {
+        "task": "automation.ping_supabase",
+        "schedule": 60 * 60 * 48,  # every 48h
+    },
+
 }
+
+
 
 
 # CORS_ALLOWED_ORIGINS = env.list(

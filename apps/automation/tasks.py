@@ -365,6 +365,39 @@ def expire_approval_items():
         expired.update(status=ApprovalStatus.EXPIRED)
         logger.info("Expired %s stale approval items", count)
 
+#ping Supabase pour eviter les avertissements
+
+@shared_task(
+    name="automation.ping_supabase",
+    acks_late=True,
+)
+def ping_supabase():
+    """
+    Keeps Supabase project alive by making a lightweight request.
+    Supabase pauses free projects after 7 days of inactivity.
+    Runs every 48h via Celery Beat.
+    """
+    try:
+        from django.conf import settings
+        import httpx
+
+        # Lister les fichiers du bucket — requête légère, ne coûte rien
+        url = f"{settings.SUPABASE_URL}/storage/v1/bucket"
+        headers = {
+            "Authorization": f"Bearer {settings.SUPABASE_KEY}",
+            "apikey": settings.SUPABASE_KEY,
+        }
+
+        with httpx.Client(timeout=10) as client:
+            resp = client.get(url, headers=headers)
+
+        logger.info(
+            "Supabase ping | status=%s", resp.status_code
+        )
+
+    except Exception as exc:
+        logger.warning("Supabase ping failed: %s", exc)
+
 
 # Conversation summarization
 
