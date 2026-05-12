@@ -36,6 +36,11 @@ class InstagramMessage(models.Model):
     
     media_url = models.URLField(max_length=500, blank=True, default="")
     
+    # AI metadata (outbound only)
+    model_used = models.CharField(max_length=60, blank=True)
+    tokens_input = models.PositiveIntegerField(default=0)
+    tokens_output = models.PositiveIntegerField(default=0)
+    
     timestamp = models.DateTimeField(default=timezone.now)
     created_at = models.DateTimeField(auto_now_add=True)
 

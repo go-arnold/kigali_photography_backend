@@ -134,7 +134,9 @@ def handle_instagram_message(sender_id: str, message_text: str, message_id: str,
                 client=client,
                 conversation=conversation,
                 text=ai_response.text,
-                model=ai_response.model
+                model=ai_response.model,
+                tokens_input=ai_response.input_tokens,
+                tokens_output=ai_response.output_tokens
             )
 
             # 9. Send response via Instagram
@@ -435,7 +437,7 @@ def _save_inbound(client, conversation, mid, text):
     )
     return msg
 
-def _save_outbound(client, conversation, text, model=""):
+def _save_outbound(client, conversation, text, model="", tokens_input=0, tokens_output=0):
     return InstagramMessage.objects.create(
         ig_mid=f"out_{uuid.uuid4().hex[:12]}",
         conversation=conversation,
@@ -443,6 +445,8 @@ def _save_outbound(client, conversation, text, model=""):
         direction="outbound",
         content=text,
         model_used=model,
+        tokens_input=tokens_input,
+        tokens_output=tokens_output,
         timestamp=timezone.now(),
     )
 
