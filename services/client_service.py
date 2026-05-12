@@ -21,16 +21,22 @@ from apps.conversations.models import Conversation
 logger = logging.getLogger(__name__)
 
 
-def get_or_create_client(wa_number: str, name: str = "") -> tuple[Client, bool]:
+def get_or_create_client(wa_number: str, name: str = "", ig_user_id: str = "") -> tuple[Client, bool]:
     """
-    Upsert a client by WhatsApp number.
+    Upsert a client by WhatsApp number or Instagram ID.
     Returns (client, created).
-    Updates name if provided and different.
     """
-    client, created = Client.objects.get_or_create(
-        wa_number=wa_number,
-        defaults={"name": name, "status": ClientStatus.NEW},
-    )
+    if ig_user_id:
+        client, created = Client.objects.get_or_create(
+            ig_user_id=ig_user_id,
+            defaults={"wa_number": wa_number, "name": name, "status": ClientStatus.NEW},
+        )
+    else:
+        client, created = Client.objects.get_or_create(
+            wa_number=wa_number,
+            defaults={"name": name, "status": ClientStatus.NEW},
+        )
+        
     if not created and name and client.name != name:
         client.name = name
         client.save(update_fields=["name", "updated_at"])
@@ -85,14 +91,14 @@ def get_or_create_conversation(client: Client) -> tuple[Conversation, bool]:
 
 @transaction.atomic
 def onboard_client(
-    wa_number: str, name: str = "", referral: str = ""
+    wa_number: str, name: str = "", referral: str = "", ig_user_id: str = ""
 ) -> tuple[Client, JourneyState, Conversation, bool]:
     """
     Full onboarding: ensure client + journey + conversation exist.
     Returns (client, journey, conversation, is_new_client).
     Used at the start of every inbound message processing.
     """
-    client, is_new = get_or_create_client(wa_number, name)
+    client, is_new = get_or_create_client(wa_number, name, ig_user_id)
 
     if referral and not client.referral_source:
         client.referral_source = referral
