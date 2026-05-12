@@ -41,6 +41,18 @@ def handle_instagram_message(sender_id: str, message_text: str, message_id: str,
             ig_user_id=sender_id
         )
 
+        # 1.1 Fetch Real Instagram Name if placeholder
+        if client.name.startswith("IG User"):
+            try:
+                from services.instagram_service import get_user_profile
+                profile = get_user_profile(sender_id)
+                if profile and profile.get("name"):
+                    client.name = profile["name"]
+                    client.save(update_fields=["name", "updated_at"])
+                    logger.info("Updated IG client name: %s -> %s", sender_id, client.name)
+            except Exception as e:
+                logger.warning("Failed to fetch IG profile for %s: %s", sender_id, e)
+
         # 2. Get/Create Instagram Conversation
         conversation = _get_or_create_conversation(client)
 

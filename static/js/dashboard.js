@@ -2175,6 +2175,7 @@ function pageInstagram() {
   return `
 <div class="panel">
   <div class="panel-head">
+    <span style="font-size:15px">📷</span>
     <h2>Instagram DMs</h2>
     <span class="count">${list.length}</span>
     <div class="panel-actions">
@@ -2191,7 +2192,7 @@ function pageInstagram() {
           <td><div class="name">${esc(c.name || "Unknown")}</div></td>
           <td class="mono" style="font-size:11px">${esc(c.ig_user_id)}</td>
           <td><div class="trunc muted">${esc(c.last_message?.content || "—")}</div></td>
-          <td class="mono muted" style="font-size:11px">${ago(c.last_message?.timestamp)}</td>
+          <td class="mono muted" style="font-size:11px">${ago(c.last_message?.timestamp || c.last_contact)}</td>
           <td><div class="flex aic gap1">
             <button class="btn btn-ghost btn-xs" onclick="openInstagramChat('${c.ig_user_id}','${esc(c.name || "Client")}')">💬 Chat</button>
           </div></td>
@@ -2211,6 +2212,12 @@ async function openInstagramChat(igUserId, name) {
   try {
     const data = await req("GET", `/instagram/clients/${igUserId}/messages/`);
     set({ chatMessages: data || [], chatLoading: false });
+    
+    // Scroll to bottom
+    setTimeout(() => {
+      const el = document.getElementById("ig-chat-list");
+      if (el) el.scrollTop = el.scrollHeight;
+    }, 100);
   } catch (e) {
     set({ chatLoading: false });
     toast(e.message, "err");
@@ -2222,40 +2229,8 @@ async function sendInstagramManual(igUserId, message) {
   try {
     await req("POST", `/instagram/clients/${igUserId}/message/`, { message: message.trim() });
     toast("Message sent", "ok");
+    
+    // Refresh chat
     openInstagramChat(igUserId, S.modal.name); 
   } catch (e) { toast(e.message, "err"); }
-}
-
-// Instagram Page Functions
-function pageInstagram() {
-  const list = S.instagramClients;
-  return `
-<div class="panel">
-  <div class="panel-head">
-    <span style="font-size:15px">📷</span>
-    <h2>Instagram DMs</h2>
-    <span class="count">${list.length}</span>
-    <div class="panel-actions">
-      <button class="refresh" onclick="fetchInstagramClients()">↻ Refresh</button>
-    </div>
-  </div>
-  ${S.instagramLoading
-    ? '<div class="loading"><span class="spin"></span>Loading…</div>'
-    : list.length === 0
-      ? \`<div class="empty"><div class="empty-icon">📷</div><h3>No Instagram DMs found</h3><p>Wait for customers to DM you on Instagram</p></div>\`
-      : \`<div class="table-wrap"><table>
-        <thead><tr><th>User</th><th>Last Seen</th><th>Actions</th></tr></thead>
-        <tbody>\${list.map((c) => \`<tr>
-          <td>
-            <div class="name">\${esc(c.name || "Instagram User")}</div>
-            <div class="phone muted" style="font-size:11px">\${esc(c.ig_user_id)}</div>
-          </td>
-          <td class="mono muted" style="font-size:11px">\${ago(c.last_contact)}</td>
-          <td><div class="flex aic gap1">
-            <button class="btn btn-ghost btn-sm" onclick="openInstagramChat('\${c.ig_user_id}', '\${esc(c.name || "User")}')">💬 Chat</button>
-          </div></td>
-        </tr>\`).join("")}</tbody>
-      </table></div>\`
-  }
-</div>\`;
 }
