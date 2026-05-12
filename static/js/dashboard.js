@@ -92,6 +92,8 @@ let S = {
   analyticsPeriod: "30d",
   analyticsFrom: "",
   analyticsTo: "",
+  instagramClients: [],
+  instagramLoading: false,
   //message dashboard view ajoute
   chatClientId: null,        // ID du client en cours de chat
   chatMessages: [],          // Messages chargés
@@ -132,6 +134,16 @@ async function fetchBookings() {
   } catch { set({ bookingsLoading: false }); }
 }
 
+async function fetchInstagramClients() {
+  set({ instagramLoading: true });
+  try {
+    set({
+      instagramClients: (await req("GET", "/instagram/clients/")) || [],
+      instagramLoading: false,
+    });
+  } catch { set({ instagramLoading: false }); }
+}
+
 async function fetchDetail(pk) {
   set({ detailLoading: true, detail: null });
   try { set({ detail: await req("GET", `/clients/${pk}/`), detailLoading: false }); }
@@ -145,6 +157,7 @@ function nav(page) {
   if (page === "clients") fetchClients();
   if (page === "bookings") fetchBookings();
   if (page === "analytics") fetchAnalytics();
+  if (page === "instagram") fetchInstagramClients();
 }
 
 //_______________________________________autres fetcher
@@ -1713,6 +1726,32 @@ function renderModal() {
   </div>`;
 }
 
+  if (m.type === "instagramChat") {
+    inner = `
+    <div class="modal modal-lg">
+      <div class="modal-head">
+        <h3>Instagram DM — ${esc(m.name)}</h3>
+        <button class="btn btn-ghost btn-icon btn-sm" onclick="closeModal()">✕</button>
+      </div>
+      <div class="modal-body" id="ig-chat-list" style="height:400px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:15px;background:#f0f2f5">
+        ${S.chatLoading ? '<div class="loading"><span class="spin"></span></div>' : 
+          S.chatMessages.length === 0 ? '<div class="empty">No messages</div>' :
+          S.chatMessages.map(msg => `
+            <div style="align-self:${msg.direction === 'inbound' ? 'flex-start' : 'flex-end'};background:${msg.direction === 'inbound' ? '#fff' : '#0084ff'};color:${msg.direction === 'inbound' ? '#000' : '#fff'};padding:8px 12px;border-radius:18px;max-width:80%;box-shadow:0 1px 1px rgba(0,0,0,0.1)">
+              ${esc(msg.content)}
+              <div style="font-size:10px;opacity:0.7;margin-top:4px;text-align:right">${fmtDateTime(msg.timestamp)}</div>
+            </div>
+          `).join("")}
+      </div>
+      <div class="modal-foot">
+        <div class="flex aic gap1 w100">
+          <input class="f-input" id="ig-msg-input" type="text" placeholder="Type a message…" style="flex:1" onkeydown="if(event.key==='Enter')sendInstagramManual('${m.igUserId}', this.value)">
+          <button class="btn btn-accent" onclick="sendInstagramManual('${m.igUserId}', document.getElementById('ig-msg-input').value)">Send</button>
+        </div>
+      </div>
+    </div>`;
+  }
+
   return `<div class="overlay" onclick="if(event.target===this)closeModal()">${inner}</div>`;
 }
 
@@ -1812,6 +1851,7 @@ function render() {
     { id: "overview", icon: "◈", label: "Overview" },
     { id: "approvals", icon: "🔔", label: "Approvals", badge: pendingCount || "" },
     { id: "clients", icon: "👥", label: "Clients" },
+    { id: "instagram", icon: "📷", label: "Instagram DM" },
     { id: "bookings", icon: "📸", label: "Bookings" },
     { id: "analytics", icon: "📊", label: "Analytics" },
   ];
@@ -1820,6 +1860,7 @@ function render() {
     overview: pageOverview,
     approvals: pageApprovals,
     clients: pageClients,
+    instagram: pageInstagram,
     bookings: pageBookings,
     analytics: pageAnalytics, 
   }[page]?.() || "";
@@ -1828,6 +1869,7 @@ function render() {
     overview: "Overview",
     approvals: "Approval Queue",
     clients: "Clients",
+    instagram: "Instagram DMs",
     bookings: "Bookings",
     analytics: "Analytics",
   };
@@ -2126,4 +2168,60 @@ ${L ? '<div class="loading"><span class="spin"></span>Loading analytics…</div>
 </div>
 </div>
 `}`;
+}
+
+function pageInstagram() {
+  const list = S.instagramClients || [];
+  return `
+<div class="panel">
+  <div class="panel-head">
+    <h2>Instagram DMs</h2>
+    <span class="count">${list.length}</span>
+    <div class="panel-actions">
+      <button class="refresh" onclick="fetchInstagramClients()">↻ Refresh</button>
+    </div>
+  </div>
+  ${S.instagramLoading
+    ? '<div class="loading"><span class="spin"></span>Loading…</div>'
+    : list.length === 0
+      ? `<div class="empty"><div class="empty-icon">📷</div><h3>No Instagram messages yet</h3><p>They appear once someone DMs the studio</p></div>`
+      : `<div class="table-wrap"><table>
+        <thead><tr><th>Client</th><th>Instagram ID</th><th>Last Message</th><th>Time</th><th>Actions</th></tr></thead>
+        <tbody>${list.map((c) => `<tr>
+          <td><div class="name">${esc(c.name || "Unknown")}</div></td>
+          <td class="mono" style="font-size:11px">${esc(c.ig_user_id)}</td>
+          <td><div class="trunc muted">${esc(c.last_message?.content || "—")}</div></td>
+          <td class="mono muted" style="font-size:11px">${ago(c.last_message?.timestamp)}</td>
+          <td><div class="flex aic gap1">
+            <button class="btn btn-ghost btn-xs" onclick="openInstagramChat('${c.ig_user_id}','${esc(c.name || "Client")}')">💬 Chat</button>
+          </div></td>
+        </tr>`).join("")}</tbody>
+      </table></div>`
+  }
+</div>`;
+}
+
+async function openInstagramChat(igUserId, name) {
+  set({
+    modal: { type: "instagramChat", igUserId, name },
+    chatMessages: [],
+    chatLoading: true,
+  });
+  
+  try {
+    const data = await req("GET", `/instagram/clients/${igUserId}/messages/`);
+    set({ chatMessages: data || [], chatLoading: false });
+  } catch (e) {
+    set({ chatLoading: false });
+    toast(e.message, "err");
+  }
+}
+
+async function sendInstagramManual(igUserId, message) {
+  if (!message?.trim()) return;
+  try {
+    await req("POST", `/instagram/clients/${igUserId}/message/`, { message: message.trim() });
+    toast("Message sent", "ok");
+    openInstagramChat(igUserId, S.modal.name); 
+  } catch (e) { toast(e.message, "err"); }
 }

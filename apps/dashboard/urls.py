@@ -64,6 +64,9 @@ from .views import PushSubscriptionView, PushVapidKeyView
 urlpatterns += [
     path("push/subscribe/", PushSubscriptionView.as_view()),
     path("push/vapid-key/", PushVapidKeyView.as_view()),
+    path("instagram/clients/", views.InstagramClientListView.as_view()),
+    path("instagram/clients/<str:ig_user_id>/messages/", views.InstagramMessagesView.as_view()),
+    path("instagram/clients/<str:ig_user_id>/message/", views.InstagramManualMessageView.as_view()),
 ]
 
 

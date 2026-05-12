@@ -33,6 +33,11 @@ class Client(models.Model):
     """A photography studio client identified by their WhatsApp number."""
 
     wa_number = models.CharField(max_length=20, unique=True, db_index=True)
+    ig_user_id = models.CharField(
+        max_length=50, blank=True, default="",
+        db_index=True,
+        help_text="Instagram sender ID for DM bot"
+    )
     name = models.CharField(max_length=120, blank=True)
     status = models.CharField(
         max_length=20,

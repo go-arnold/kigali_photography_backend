@@ -602,3 +602,47 @@ def _extract_from_structured_content(content: str, key: str) -> str:
             if part.startswith(key + ":"):
                 return part.replace(key + ":", "").strip()
     return ""
+
+@shared_task(
+    bind=True,
+    max_retries=3,
+    default_retry_delay=10,
+    acks_late=True,
+    name="automation.process_instagram_message",
+)
+def process_instagram_message(
+    self,
+    sender_id: str,
+    message_text: str,
+    message_id: str,
+    timestamp: str,
+):
+    """
+    Instagram message processing pipeline.
+    """
+    if not _acquire_processing_lock(message_id):
+        logger.warning("Duplicate task for IG message %s — skipping", message_id)
+        return
+
+    logger.info(
+        "Processing IG | id=%s from=%s text='%s'",
+        message_id,
+        sender_id,
+        (message_text or "")[:80],
+    )
+
+    try:
+        from services.instagram_service import mark_as_seen
+        mark_as_seen(sender_id)
+
+        from services.instagram_orchestrator import handle_instagram_message
+        handle_instagram_message(
+            sender_id=sender_id,
+            message_text=message_text,
+            message_id=message_id,
+            timestamp_ms=timestamp,
+        )
+
+    except Exception as exc:
+        logger.exception("IG Pipeline error for message %s: %s", message_id, exc)
+        raise self.retry(exc=exc, countdown=2**self.request.retries * 5)

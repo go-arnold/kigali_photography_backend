@@ -13,6 +13,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/webhook/", include("apps.webhook.urls")),
     path("api/dashboard/", include("apps.dashboard.urls")),
+    path("api/instagram/", include("apps.instagram.urls")),
     path("ping/", ping),
     path("test-push/", views.test_push),
 

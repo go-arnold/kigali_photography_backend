@@ -34,6 +34,7 @@ LOCAL_APPS = [
     "apps.automation",
     "apps.rag",
     "apps.dashboard",
+    "apps.instagram",
 ]
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
@@ -172,6 +173,15 @@ WHATSAPP = {
     "ACCESS_TOKEN": env("WA_ACCESS_TOKEN"),
     "WEBHOOK_VERIFY_TOKEN": env("WA_WEBHOOK_VERIFY_TOKEN"),
     "APP_SECRET": env("WA_APP_SECRET"),
+    "BASE_URL": "https://graph.facebook.com/v20.0",
+}
+
+INSTAGRAM = {
+    "PAGE_ACCESS_TOKEN": env("IG_PAGE_ACCESS_TOKEN", default=""),
+    "APP_SECRET": env("IG_APP_SECRET", default=""),
+    "WEBHOOK_VERIFY_TOKEN": env("IG_WEBHOOK_VERIFY_TOKEN", default=""),
+    "PAGE_ID": env("IG_PAGE_ID", default=""),
+    "INSTAGRAM_ACCOUNT_ID": env("IG_INSTAGRAM_ACCOUNT_ID", default=""),
     "BASE_URL": "https://graph.facebook.com/v20.0",
 }
 
