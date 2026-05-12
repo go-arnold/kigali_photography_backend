@@ -14,22 +14,31 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
-_BASE_URL = settings.INSTAGRAM.get("BASE_URL", "https://graph.facebook.com/v20.0")
-_PAGE_ACCESS_TOKEN = settings.INSTAGRAM.get("PAGE_ACCESS_TOKEN", "")
-_MESSAGES_URL = f"{_BASE_URL}/me/messages"
 _TIMEOUT = 15
 
-def _headers() -> dict:
+def _get_config():
     return {
-        "Authorization": f"Bearer {_PAGE_ACCESS_TOKEN}",
-        "Content-Type": "application/json",
+        "base_url": settings.INSTAGRAM.get("BASE_URL", "https://graph.facebook.com/v20.0"),
+        "token": settings.INSTAGRAM.get("PAGE_ACCESS_TOKEN", "").strip(),
     }
 
 def _post(payload: dict) -> dict:
+    config = _get_config()
+    messages_url = f"{config['base_url']}/me/messages"
+    
+    if not config['token']:
+        logger.error("Instagram PAGE_ACCESS_TOKEN is missing in settings")
+        raise ValueError("Instagram PAGE_ACCESS_TOKEN is missing")
+
     with httpx.Client(timeout=_TIMEOUT) as client:
-        # Instagram uses a different endpoint structure: /me/messages
-        params = {"access_token": _PAGE_ACCESS_TOKEN}
-        response = client.post(_MESSAGES_URL, json=payload, headers={"Content-Type": "application/json"})
+        # Pass the access token as a query parameter
+        params = {"access_token": config['token']}
+        response = client.post(
+            messages_url, 
+            json=payload, 
+            params=params,
+            headers={"Content-Type": "application/json"}
+        )
 
     if response.status_code != 200:
         logger.error(
@@ -85,10 +94,11 @@ def get_user_profile(ig_user_id: str) -> dict:
     Get user profile info (name) from Instagram.
     Requires 'instagram_manage_messages' permission.
     """
-    url = f"{_BASE_URL}/{ig_user_id}"
+    config = _get_config()
+    url = f"{config['base_url']}/{ig_user_id}"
     params = {
         "fields": "name,profile_pic",
-        "access_token": _PAGE_ACCESS_TOKEN
+        "access_token": config['token']
     }
     with httpx.Client(timeout=_TIMEOUT) as client:
         response = client.get(url, params=params)
