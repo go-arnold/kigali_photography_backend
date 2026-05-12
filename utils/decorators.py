@@ -44,7 +44,26 @@ def signature_required(view_func):
 
         if not verify_signature(request):
             logger.warning(
-                "Invalid webhook signature from %s", request.META.get("REMOTE_ADDR")
+                "Invalid WhatsApp webhook signature from %s", request.META.get("REMOTE_ADDR")
+            )
+            return Response({"error": "Invalid signature"}, status=403)
+        return view_func(self, request, *args, **kwargs)
+
+    return wrapped
+
+
+def instagram_signature_required(view_func):
+    """
+    Validate signature from Meta for Instagram before processing.
+    """
+
+    @wraps(view_func)
+    def wrapped(self, request, *args, **kwargs):
+        from utils.instagram_security import verify_instagram_signature
+
+        if not verify_instagram_signature(request):
+            logger.warning(
+                "Invalid Instagram webhook signature from %s", request.META.get("REMOTE_ADDR")
             )
             return Response({"error": "Invalid signature"}, status=403)
         return view_func(self, request, *args, **kwargs)

@@ -3,7 +3,7 @@ from django.conf import settings
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
-from utils.instagram_security import verify_instagram_signature
+from utils.decorators import instagram_signature_required
 from apps.automation.tasks import process_instagram_message
 
 logger = logging.getLogger(__name__)
@@ -23,11 +23,8 @@ class InstagramWebhookView(APIView):
         logger.warning("Instagram webhook verification failed")
         return Response({"error": "Verification failed"}, status=403)
 
+    @instagram_signature_required
     def post(self, request):
-        if not verify_instagram_signature(request):
-            logger.warning("Invalid Instagram signature")
-            return Response({"error": "Invalid signature"}, status=403)
-
         body = request.data
         if body.get("object") not in ["instagram", "page"]:
             return Response({"status": "ignored"}, status=200)
