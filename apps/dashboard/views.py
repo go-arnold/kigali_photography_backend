@@ -1297,3 +1297,39 @@ class InstagramManualMessageView(APIView):
         except Exception as e:
             logger.error("Failed to send manual IG message: %s", e)
             return Response({"error": str(e)}, status=500)
+
+class InstagramApprovalQueueListView(APIView):
+    """List pending Instagram approval items."""
+    permission_classes = [IsStudioStaff]
+
+    def get(self, request):
+        from apps.instagram.models import InstagramApprovalQueue
+        from apps.instagram.serializers import InstagramApprovalQueueSerializer
+
+        status_filter = request.query_params.get("status", "pending")
+        qs = InstagramApprovalQueue.objects.filter(status=status_filter).select_related("client").order_by("-created_at")
+        serializer = InstagramApprovalQueueSerializer(qs, many=True)
+        return Response(serializer.data)
+
+class InstagramApprovalApproveView(APIView):
+    """Approve an Instagram AI suggestion."""
+    permission_classes = [IsStudioStaff]
+
+    def post(self, request, pk):
+        from apps.instagram.models import InstagramApprovalQueue
+        from services.instagram_service import send_text
+
+        try:
+            approval = InstagramApprovalQueue.objects.get(pk=pk)
+        except InstagramApprovalQueue.DoesNotExist:
+            return Response({"error": "Not found"}, status=404)
+
+        approval.approve(request.user, notes=request.data.get("notes", ""))
+        
+        # Send to Instagram
+        try:
+            send_text(approval.client.ig_user_id, approval.ai_suggestion)
+            return Response({"status": "approved"})
+        except Exception as e:
+            logger.error("Failed to send approved IG message: %s", e)
+            return Response({"error": str(e)}, status=500)

@@ -2,17 +2,12 @@
 Instagram AI Orchestrator
 ==========================
 Pure AI conversation system for Instagram DMs.
-Follows mandates from services/INSTAGRAM_AI.md.
+Follows mandates from services/INSTAGRAM_AI.md and GEMINI.md.
 
-Differences from WhatsApp:
-1. NO BUTTONS. NO QUICK REPLIES. NO INTERACTIVE ELEMENTS.
-2. Uses InstagramConversation and InstagramMessage models.
-3. Client identified by ig_user_id.
-4. Pure AI conversation flow guided by state (JourneyState).
+KP Kids Studio | Kigali, Rwanda
 """
 
 import logging
-import json
 import uuid
 from typing import Optional
 from django.utils import timezone
@@ -35,6 +30,7 @@ def handle_instagram_message(sender_id: str, message_text: str, message_id: str,
     try:
         # 1. Onboard / Get Client
         from services.client_service import onboard_client
+        # Use ig_ prefix for wa_number to avoid conflicts with real WhatsApp numbers
         client, journey, _, is_new = onboard_client(
             wa_number=f"ig_{sender_id}"[:20],
             name=f"IG User {sender_id[:8]}",
@@ -77,26 +73,22 @@ def handle_instagram_message(sender_id: str, message_text: str, message_id: str,
             pass
 
         # 6. AI Pipeline
-        # Language detection — lock on first meaningful message and never flip.
-        if message_text and not client.language_locked:
+        # Language detection — lock on first meaningful message
+        if message_text and len(message_text.strip()) > 3 and not client.language_locked:
             try:
                 detected = detect_language(message_text)
             except Exception:
                 detected = "en"
-            # Lock the client's language immediately (sticky). This prevents
-            # mid-conversation flips when users mix words from other languages.
             client.language = detected
             client.language_locked = True
             client.save(update_fields=["language", "language_locked", "updated_at"])
 
-        # History for state detection and context
+        # History for context
         recent_msgs = _get_recent_messages(conversation)
         
-        # Discovery State Detection (Extract YES/NO from latest user message if in discovery)
-        _update_discovery_state(journey, recent_msgs)
-
-        # Calculate packages based on updated discovery state
-        package_prices = _calculate_instagram_packages(journey.discovery_state)
+        # Discovery State Extraction (AI handles this usually, but we help it)
+        # We don't surgically update discovery_state here to let AI be more flexible,
+        # but we do keep track of what has been answered in the prompt.
 
         # RAG retrieval
         rag_context = retrieve_context(
@@ -104,6 +96,9 @@ def handle_instagram_message(sender_id: str, message_text: str, message_id: str,
             journey_phase=journey.phase,
             language=client.language
         )
+
+        # Package calculation for the prompt
+        package_prices = _calculate_instagram_packages(journey.discovery_state)
 
         # Build SPECIAL Instagram System Prompt
         system_prompt = build_instagram_system_prompt(
@@ -117,9 +112,12 @@ def handle_instagram_message(sender_id: str, message_text: str, message_id: str,
 
         # Build message context
         summary_text = getattr(conversation.summary, 'summary_text', None) if hasattr(conversation, 'summary') else None
+        # We need to exclude the current message from history because build_messages_context adds it
+        history = recent_msgs[:-1] if len(recent_msgs) > 0 else []
+        
         messages = build_messages_context(
             conversation_summary=summary_text,
-            recent_messages=recent_msgs[:-1], # Don't include the new message again as build_messages_context appends it
+            recent_messages=history,
             new_message=message_text or "[image/special message]"
         )
 
@@ -132,6 +130,8 @@ def handle_instagram_message(sender_id: str, message_text: str, message_id: str,
 
         if ai_response.ok:
             # 7. Record Tokens
+            from services.client_service import record_tokens
+            record_tokens(client, ai_response.total_tokens)
             logger.info("IG AI Usage | client=%s in=%s out=%s", sender_id, ai_response.input_tokens, ai_response.output_tokens)
 
             # 8. Save Outbound Message
@@ -147,8 +147,9 @@ def handle_instagram_message(sender_id: str, message_text: str, message_id: str,
             # 9. Send response via Instagram
             send_text(sender_id, ai_response.text)
 
-            # 10. Update Journey Flow Mode & Step based on AI response
-            _update_flow_after_response(journey, ai_response.text)
+            # 10. Update Journey Flow & State based on AI response
+            # This is where we detect if discovery completed or if human takeover is needed
+            _post_process_ai_response(journey, ai_response.text, message_text)
 
         conversation.touch()
         client.update_last_contact()
@@ -167,6 +168,7 @@ def build_instagram_system_prompt(
     """
     Builds the specialized Instagram AI system prompt as mandated by INSTAGRAM_AI.md.
     """
+    # Stickiness rule: Respond in the detected language only.
     lang_instruction = {
         "en": "Respond ONLY in English. Never switch languages. If the user mixes languages, reply in English only.",
         "fr": "Réponds UNIQUEMENT en français. Ne change jamais de langue. Si l'utilisateur mélange les langues, réponds en français uniquement.",
@@ -182,31 +184,32 @@ LANGUAGE RULE: {lang_instruction}
 
 YOUR PERSONA:
 - Name: Julie
-- Warm, professional, helpful, never robotic
-- You represent a premium children's photography studio
-- Always polite, patient, and encouraging
+- Warm, professional, helpful, never robotic.
+- You represent a premium children's photography studio.
+- Always polite, patient, and encouraging.
+- Use emojis sparingly but warmly (😊 📸 🎂 🎉 🙏).
 
 STUDIO INFORMATION:
 - Name: KP Kids Studio (also known as Kigali Photography)
-- Location: Kicukiro, BRGD Plaza, opposite IPRC, next to SAWA CITY Supermarket, Kigali
-- Hours: Monday–Saturday, 9 AM – 6 PM
-- WhatsApp for detailed questions: +250795820170
-- Specialty: Children's photoshoots, family sessions, studio and home sessions
+- Location: Kicukiro, BRGD Plaza, opposite IPRC, next to SAWA CITY Supermarket, Kigali.
+- Hours: Monday–Saturday, 9 AM – 6 PM.
+- WhatsApp for detailed questions: +250795820170.
+- Specialty: Children's photoshoots, family sessions, studio and home sessions.
 
-PRICING (EXACT — never invent):
-Studio packages (base prices, before extras):
+PRICING (EXACT — NEVER INVENT):
+Studio packages (Base prices):
   - Starter: 50,000 RWF | 1h | 8 edited photos
   - Silver:  70,000 RWF | 1h | 12 edited photos
   - Gold:    100,000 RWF | 1.5h | 18 edited photos
-Home session:
+Home session (Fixed price):
   - Premium: 200,000 RWF | 2h | 30 photos
-All unedited photos are also included.
+All packages include all unedited photos.
 Extras:
   - 2 A5 Frames: +20,000 RWF
   - Birthday Cake: +30,000 RWF
   - Highlight Video (15-30sec): +29,000 RWF
-  - Cake + Video bundle: +50,000 RWF (NOT 59,000)
-Booking fee: 20,000 RWF via MTN MoMo 798741 (Kigali Photography Ltd)
+  - Cake + Video bundle: +50,000 RWF (Special bundle price)
+Booking fee: 20,000 RWF via MTN MoMo 798741 (Kigali Photography Ltd).
 NO DISCOUNTS UNDER ANY CIRCUMSTANCES.
 
 CURRENT CLIENT STATE:
@@ -216,156 +219,71 @@ Conversation mode: {flow_mode}
 {f"Current package prices (STRICTLY USE THESE): {current_packages}" if current_packages else ""}
 
 FLOW RULES:
-1. If flow_mode is "new" or client just greeted → welcome warmly, offer help options (Booking, Prices, Location, Questions)
-2. If client asks about location → give exact address, ask if more help needed
-3. If client asks about prices → invite to quick discovery questions (1 min)
-   If client refuses discovery → show base packages without extras
-4. During discovery → ask ONE question at a time, not two, track answers.
-   Questions: 1. Photo type? 2. Studio or Home? 3. Frames? 4. Cake? 5. Video?
-5. After all discovery questions answered → calculate exact prices and present EXACTLY 3 packages (Starter, Silver, Gold for studio OR just Premium for home).
-6. After packages shown → wait for client to choose or ask questions
-7. If client chooses package → ask for preferred date/time
-8. If client gives date/time → acknowledge warmly, say a member of the team will confirm.
-9. If client asks about discount → refuse politely (max 2 times, then request human takeover)
-10. If client asks to add/remove extras after packages shown → recalculate and show again
+1. GREETING: Welcome warmly, offer options (Booking, Prices, Location, Questions).
+2. PRICES: Invite to a quick discovery (1 min) to calculate their exact package.
+3. DISCOVERY: Ask ONE question at a time. Track answers for:
+   - Photo type (Child or Family?)
+   - Session type (Studio or Home?)
+   - Frames (Would you like 2 A5 frames?)
+   - Cake (Would you like a birthday cake included?)
+   - Video (Would you like a highlight video?)
+4. PRESENTATION: After all discovery info is known, present the EXACT packages.
+   - For Studio: Show Starter, Silver, Gold with their totals (Base + Extras).
+   - For Home: Show the Premium package with its total.
+5. BOOKING: If they choose a package, ask for their preferred date and time.
+6. HANDOVER: Once they give a date/time, tell them a team member will confirm availability shortly.
+7. OBJECTIONS: If they ask for a discount, politely refuse. Max 2 refusals before handover.
+
+CONSTRAINTS:
+- NO MARKDOWN: Instagram does not support **bold**, *italic*, or bullet points. Use plain text.
+- NO BUTTONS: Never use WhatsApp button syntax like [Button text].
+- NO NUMBERED MENUS: Do not say "Reply 1 for X". Keep it natural.
+- MAX 3-4 SENTENCES: Keep messages concise and easy to read.
 
 KNOWLEDGE BASE:
 {rag_context if rag_context else "No additional context available."}
 
-RESPONSE STYLE:
-- Maximum 3-4 sentences per message unless presenting packages
-- No bullet point overload — keep it conversational
-- Do NOT use markdown or asterisks for bold/italic (Instagram does not render Markdown). Use plain text only.
-- Use emojis sparingly but warmly (😊 📸 🎂 🎉 🙏)
-- NEVER use WhatsApp-style button syntax [Button text]
-- NEVER say "press 1" or "click here" — pure text conversation
-- If you don't know something → apologize and suggest contacting +250795820170
-- If confused twice → politely request human takeover
-
-HUMAN TAKEOVER TRIGGERS (you must request human takeover if):
-- Client explicitly asks for human agent
-- Client gives preferred date/time (availability check needed)
-- Client insists on discount more than twice
-- Client seems upset or frustrated
-- You cannot understand client after 2 attempts
-When requesting human takeover, always say a warm goodbye message first.
+HUMAN TAKEOVER TRIGGERS:
+- Client asks for a real person.
+- Client provides a preferred date/time (needs availability check).
+- Client insists on a discount after 2 refusals.
+- Client seems angry or frustrated.
+- You are confused and cannot help after 2 attempts.
+Always say a warm goodbye before handing over to a human.
 
 NEVER:
-- Invent prices not listed above
-- Promise availability without human confirmation
-- Offer discounts
-- Switch languages mid-conversation
-- Send buttons, numbered menus, or quick replies
-- Repeat discovery questions already answered
-- Mention WhatsApp buttons or interactive menus
+- Invent prices.
+- Promise availability (say 'we will check').
+- Offer discounts.
+- Switch languages mid-conversation.
+- Send buttons or interactive elements.
 """
 
 def _extract_yes_no(text: str) -> Optional[bool]:
     """Detect affirmative/negative from any language."""
     text = text.lower().strip()
+    YES_SIGNALS = ["yes", "yeah", "yep", "sure", "ok", "okay", "oui", "d'accord", "yego", "ndabishaka", "ni byiza"]
+    NO_SIGNALS = ["no", "nope", "not", "non", "pas", "oya", "hoya", "sinshaka"]
     
-    YES_SIGNALS = [
-        "yes", "yeah", "yep", "sure", "ok", "okay", "of course",
-        "absolutely", "definitely", "please", "add", "include", "with",
-        "oui", "bien sûr", "ok", "d'accord", "ajouter",
-        "yego", "nziza", "ndashaka", "ngomba", "twaze",
-        "1", "true",
-    ]
-    NO_SIGNALS = [
-        "no", "nope", "not", "without", "skip", "remove", "don't",
-        "non", "pas", "sans", "enlever", "retirer",
-        "oya", "hoya", "sinjye", "ntashaka", "ntabwo",
-        "0", "false",
-    ]
-    
-    for signal in YES_SIGNALS:
-        if signal in text: return True
-    for signal in NO_SIGNALS:
-        if signal in text: return False
+    for s in YES_SIGNALS:
+        if s in text: return True
+    for s in NO_SIGNALS:
+        if s in text: return False
     return None
 
-def _build_discovery_context(discovery_state: dict) -> str:
-    """Formats the discovery state for the system prompt."""
-    if not discovery_state:
-        return "Discovery not started yet."
-    
-    lines = ["Discovery State:"]
-    for key, val in discovery_state.items():
-        val_str = "Yes" if val is True else ("No" if val is False else (val or "Unknown"))
-        lines.append(f"- {key}: {val_str}")
-    return "\n".join(lines)
-
-def _update_discovery_state(journey: JourneyState, recent_msgs: list):
-    """
-    Scans history to detect discovery answers and update JourneyState.
-    """
-    if not recent_msgs: return
-    
-    # We only care about the very last user message IF the assistant asked a discovery question
-    last_user_msg = next((m for m in reversed(recent_msgs) if m.get("role") == "user"), None)
-    if not last_user_msg: return
-    
-    # Find the assistant question preceding this user message
-    user_idx = -1
-    for i, m in enumerate(recent_msgs):
-        if m == last_user_msg:
-            user_idx = i
-            break
-            
-    if user_idx <= 0: return
-    
-    last_assistant_q = recent_msgs[user_idx - 1]
-    if last_assistant_q.get("role") != "assistant": return
-    
-    q_text = last_assistant_q.get("content", "").lower()
-    ans_text = last_user_msg.get("content", "").lower()
-    
-    ds = journey.discovery_state or {}
-    
-    # Photo Type
-    if "child" in q_text and "family" in q_text:
-        if "child" in ans_text: ds["photo_type"] = "child"
-        elif "family" in ans_text: ds["photo_type"] = "family"
-    
-    # Session Type
-    if "studio or home" in q_text or "rugo" in q_text:
-        if any(w in ans_text for w in ["home", "rugo", "maison", "mu rugo"]):
-            ds["session_type"] = "home"
-        elif any(w in ans_text for w in ["studio", "i kicukiro", "at the studio"]):
-            ds["session_type"] = "studio"
-            
-    # Yes/No Extras
-    val = _extract_yes_no(ans_text)
-    if val is not None:
-        if "frame" in q_text or "cadre" in q_text: ds["frames"] = val
-        if "cake" in q_text or "umutsima" in q_text: ds["cake"] = val
-        if "video" in q_text or "videwo" in q_text: ds["video"] = val
-
-    journey.discovery_state = ds
-    
-    # Auto-advance discovery steps/phase based on ds completeness
-    if ds.get("photo_type") and ds.get("session_type"):
-        if ds.get("session_type") == "home":
-            # Home sessions don't need frames question (usually) but we follow mandates
-            pass
-        
-    journey.save(update_fields=["discovery_state", "updated_at"])
-
 def _calculate_instagram_packages(ds: dict) -> str:
-    """Standard pricing engine from services/INSTAGRAM_AI.md."""
-    if not ds: return ""
+    """Pricing engine matching services/INSTAGRAM_AI.md."""
+    if not ds or "session_type" not in ds:
+        return ""
     
-    base = {"Starter": 50000, "Silver": 70000, "Gold": 100000}
     extras_cost = 0
     extras_list = []
-
     if ds.get("frames"):
         extras_cost += 20000
-        extras_list.append("2 A5 Photo Frames")
-    
+        extras_list.append("2 A5 Frames")
     if ds.get("cake") and ds.get("video"):
         extras_cost += 50000
-        extras_list.append("Birthday Cake + Highlight Video Bundle")
+        extras_list.append("Cake + Video Bundle")
     elif ds.get("cake"):
         extras_cost += 30000
         extras_list.append("Birthday Cake")
@@ -376,53 +294,112 @@ def _calculate_instagram_packages(ds: dict) -> str:
     session_type = ds.get("session_type", "studio")
     if session_type == "home":
         total = 200000 + extras_cost
-        result = f"HOME SESSION (Premium Package):\n"
-        result += f"- Price: {total:,} RWF\n"
-        result += f"- Includes: 30 Edited Photos, All Unedited Photos"
-        if extras_list: result += f", {', '.join(extras_list)}"
-        return result
+        return f"PREMIUM HOME PACKAGE: {total:,} RWF (includes all extras chosen)"
     
-    # Studio packages
-    result = "STUDIO SESSION PACKAGES:\n"
+    base = {"Starter": 50000, "Silver": 70000, "Gold": 100000}
+    lines = []
     for name, price in base.items():
         total = price + extras_cost
-        photos = 8 if name == "Starter" else (12 if name == "Silver" else 18)
-        duration = "1.5h" if name == "Gold" else "1h"
-        result += f"- {name}: {total:,} RWF | {duration} | {photos} Edited Photos"
-        if extras_list: result += f" | Includes: {', '.join(extras_list)}"
-        result += "\n"
-    
-    return result
+        lines.append(f"{name}: {total:,} RWF")
+    return " | ".join(lines)
 
-def _update_flow_after_response(journey: JourneyState, ai_text: str):
-    """Auto-advance flow_mode based on AI response content."""
-    text = ai_text.lower()
+def _build_discovery_context(ds: dict) -> str:
+    if not ds: return "Discovery: Not started."
+    summary = []
+    for k, v in ds.items():
+        val = "Yes" if v is True else ("No" if v is False else v)
+        summary.append(f"{k}: {val}")
+    return "Discovery State: " + ", ".join(summary)
+
+def _post_process_ai_response(journey: JourneyState, ai_text: str, user_text: str):
+    """
+    Updates JourneyState based on what Julie said and what the user said.
+    """
+    ai_text_lower = ai_text.lower()
+    user_text_lower = user_text.lower()
     
-    # Discovery detected
-    if "first," in text or "d'abord" in text or "mbere na mbere" in text:
-        journey.flow_mode = "discovery"
-        journey.step = JourneyStep.ONBOARDING
+    # 1. Update Discovery State (Heuristics to help the prompt)
+    ds = journey.discovery_state or {}
     
-    # Packages shown
-    if "starter" in text and "silver" in text and "gold" in text:
+    # Simple extraction for mandatory fields
+    if "home" in user_text_lower or "rugo" in user_text_lower:
+        ds["session_type"] = "home"
+    elif "studio" in user_text_lower or "i kicukiro" in user_text_lower:
+        ds["session_type"] = "studio"
+        
+    if "family" in user_text_lower:
+        ds["photo_type"] = "family"
+    elif "child" in user_text_lower:
+        ds["photo_type"] = "child"
+
+    # Extras detection based on Julie's questions
+    val = _extract_yes_no(user_text_lower)
+    if val is not None:
+        # We look at history to see what was asked
+        # For simplicity in this orchestrator, we rely on AI to track state, 
+        # but we can also look at Julie's last message if needed.
+        pass
+
+    journey.discovery_state = ds
+
+    # 2. Detect Flow Transitions
+    if "starter" in ai_text_lower and "silver" in ai_text_lower:
         journey.flow_mode = "packages_shown"
         journey.phase = JourneyPhase.BOOKING
         journey.step = JourneyStep.PACKAGE_PRESENTATION
-        
-    # Chosen package -> awaiting date
-    if any(w in text for w in ["what date", "quelle date", "ni ryari"]):
+    
+    if "date" in ai_text_lower or "time" in ai_text_lower or "ryari" in ai_text_lower:
         journey.flow_mode = "awaiting_datetime"
-        
-    # Human takeover trigger detection in AI text
-    if any(w in text for w in ["member of our team", "shortly", "patient", "ihangana"]):
-        journey.human_takeover = True
-        journey.flow_mode = "human_takeover"
-        # Trigger email if date given
-        if "checking availability" in text:
-            journey.step = JourneyStep.AVAILABILITY_CHECK
-            # (In production, we'd trigger the email here)
 
-    journey.save(update_fields=["flow_mode", "phase", "step", "human_takeover", "updated_at"])
+    # 3. Human Takeover Detection
+    # If client gives a date/time, Julie will say "team member will confirm"
+    # We trigger takeover here.
+    TAKEOVER_PHRASES = ["team member", "agent", "confirm availability", "shortly", "patient"]
+    if any(p in ai_text_lower for p in TAKEOVER_PHRASES):
+        journey.human_takeover = True
+        journey.takeover_reason = "Date/Time provided - availability check needed"
+        journey.flow_mode = "human_takeover"
+        
+        # Trigger push notification
+        try:
+            from apps.dashboard.views import send_push_notification
+            send_push_notification(
+                title=f"📸 New Booking Inquiry — {journey.client.name}",
+                body=f"Client provided date/time on Instagram: {user_text[:50]}...",
+                url=f"/?client={journey.client.pk}"
+            )
+        except Exception:
+            pass
+
+    journey.save(update_fields=["discovery_state", "flow_mode", "phase", "step", "human_takeover", "takeover_reason", "updated_at"])
+    
+    # 4. Queue for Approval if needed
+    if journey.human_takeover:
+        _queue_for_approval(
+            client=journey.client,
+            conversation=InstagramConversation.objects.filter(client=journey.client, is_open=True).first(),
+            ai_suggestion=ai_text,
+            ai_reasoning=journey.takeover_reason,
+            heat_score=journey.heat_score,
+            action="escalate"
+        )
+
+def _queue_for_approval(client, conversation, ai_suggestion, ai_reasoning, heat_score, action):
+    from apps.instagram.models import InstagramApprovalQueue
+    
+    InstagramApprovalQueue.objects.get_or_create(
+        client=client,
+        conversation=conversation,
+        status="pending",
+        defaults={
+            "action": action,
+            "ai_suggestion": ai_suggestion,
+            "ai_reasoning": ai_reasoning,
+            "heat_score_at_suggestion": heat_score,
+            "expires_at": timezone.now() + timezone.timedelta(hours=48),
+        }
+    )
+    logger.info("Queued IG approval | client=%s action=%s", client.ig_user_id, action)
 
 def _get_or_create_conversation(client) -> InstagramConversation:
     conv = InstagramConversation.objects.filter(client=client, is_open=True).first()
@@ -437,7 +414,7 @@ def _save_inbound(client, conversation, mid, text):
             "conversation": conversation,
             "client": client,
             "direction": "inbound",
-            "content": text or "[special message]",
+            "content": text or "[image/special]",
             "timestamp": timezone.now(),
         }
     )

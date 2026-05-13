@@ -2234,3 +2234,138 @@ async function sendInstagramManual(igUserId, message) {
     openInstagramChat(igUserId, S.modal.name); 
   } catch (e) { toast(e.message, "err"); }
 }
+
+// ─── INSTAGRAM EXTENSIONS ──────────────────────────────────────────────────
+
+async function fetchInstagramApprovals() {
+  set({ instagramApprovalsLoading: true });
+  try {
+    const data = await req("GET", "/instagram/approvals/?status=pending");
+    set({ instagramApprovals: data || [], instagramApprovalsLoading: false });
+  } catch (e) {
+    set({ instagramApprovalsLoading: false });
+    toast(e.message, "err");
+  }
+}
+
+function openInstagramApproval(id) {
+  const a = S.instagramApprovals.find(x => x.id === id);
+  if (!a) return;
+  set({ modal: { type: "instagramApproval", data: a } });
+}
+
+async function approveInstagramItem(id, notes = "") {
+  try {
+    await req("POST", `/instagram/approvals/${id}/approve/`, { notes });
+    toast("Approved and sent", "ok");
+    closeModal();
+    fetchInstagramApprovals();
+  } catch (e) { toast(e.message, "err"); }
+}
+
+// Override pageInstagram to include approvals
+const originalPageInstagram = pageInstagram;
+pageInstagram = function() {
+  const clients = S.instagramClients || [];
+  const approvals = S.instagramApprovals || [];
+  
+  return `
+  <div class="panel mb4">
+    <div class="panel-head">
+      <span style="font-size:15px">🔔</span>
+      <h2>Instagram Approvals</h2>
+      <span class="count">${approvals.length}</span>
+      <div class="panel-actions">
+        <button class="refresh" onclick="fetchInstagramApprovals()">↻ Refresh</button>
+      </div>
+    </div>
+    ${S.instagramApprovalsLoading ? '<div class="loading"><span class="spin"></span></div>' :
+      approvals.length === 0 ? '<div class="empty">No pending approvals</div>' :
+      `<div class="table-wrap"><table>
+        <thead><tr><th>Client</th><th>Action</th><th>AI Suggestion</th><th>Heat</th><th>Time</th><th>Actions</th></tr></thead>
+        <tbody>${approvals.map(a => `<tr>
+          <td><div class="name">${esc(a.client_name)}</div></td>
+          <td><span class="badge ba">${esc(a.action)}</span></td>
+          <td><div class="trunc muted">${esc(a.ai_suggestion)}</div></td>
+          <td>${heatBadge(a.heat_label)}</td>
+          <td class="mono muted" style="font-size:11px">${ago(a.created_at)}</td>
+          <td><button class="btn btn-green btn-xs" onclick="openInstagramApproval(${a.id})">Review</button></td>
+        </tr>`).join("")}</tbody>
+      </table></div>`
+    }
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <span style="font-size:15px">📷</span>
+      <h2>Instagram DMs</h2>
+      <span class="count">${clients.length}</span>
+      <div class="panel-actions">
+        <button class="refresh" onclick="fetchInstagramClients()">↻ Refresh</button>
+      </div>
+    </div>
+    ${S.instagramLoading ? '<div class="loading"><span class="spin"></span></div>' :
+      clients.length === 0 ? '<div class="empty">No messages yet</div>' :
+      `<div class="table-wrap"><table>
+        <thead><tr><th>Client</th><th>Instagram ID</th><th>Last Message</th><th>Time</th><th>Actions</th></tr></thead>
+        <tbody>${clients.map(c => `<tr>
+          <td><div class="name">${esc(c.name || "Unknown")}</div></td>
+          <td class="mono" style="font-size:11px">${esc(c.ig_user_id)}</td>
+          <td><div class="trunc muted">${esc(c.last_message?.content || "—")}</div></td>
+          <td class="mono muted" style="font-size:11px">${ago(c.last_message?.timestamp || c.last_contact)}</td>
+          <td><button class="btn btn-ghost btn-xs" onclick="openInstagramChat('${c.ig_user_id}','${esc(c.name || "Client")}')">💬 Chat</button></td>
+        </tr>`).join("")}</tbody>
+      </table></div>`
+    }
+  </div>
+  `;
+};
+
+// Extend renderModal to support instagramApproval
+const originalRenderModal = renderModal;
+renderModal = function() {
+  const m = S.modal;
+  if (m && m.type === "instagramApproval") {
+    const a = m.data;
+    const inner = `
+    <div class="modal">
+      <div class="modal-head">
+        <h3>Review Instagram Approval</h3>
+        <button class="btn btn-ghost btn-icon btn-sm" onclick="closeModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="d-grid mb4">
+          <div class="d-item"><div class="d-label">Client</div><div class="d-val">${esc(a.client_name)}</div></div>
+          <div class="d-item"><div class="d-label">Platform</div><div class="d-val">Instagram</div></div>
+          <div class="d-item"><div class="d-label">Action</div><div class="d-val"><span class="badge ba">${esc(a.action)}</span></div></div>
+          <div class="d-item"><div class="d-label">Heat</div><div class="d-val">${heatBadge(a.heat_label)} ${a.heat_score_at_suggestion}</div></div>
+        </div>
+        <div class="ai-box">
+          <div class="ai-box-label">AI Suggestion (Instagram)</div>
+          <div class="ai-box-text">${esc(a.ai_suggestion || "No suggestion")}</div>
+          ${a.ai_reasoning ? `<div class="ai-box-reason">${esc(a.ai_reasoning)}</div>` : ""}
+        </div>
+        <div class="f-group mt4">
+          <label class="f-label">Notes (optional)</label>
+          <textarea class="f-input" id="ig-ap-notes" rows="2" placeholder="Add context…"></textarea>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-accent" onclick="approveInstagramItem(${a.id}, document.getElementById('ig-ap-notes').value)">Approve & Send to Instagram</button>
+      </div>
+    </div>`;
+    return `<div class="overlay" onclick="if(event.target===this)closeModal()">${inner}</div>`;
+  }
+  return originalRenderModal();
+};
+
+// Auto-fetch IG data if on IG page
+const originalSet = set;
+set = function(patch) {
+  originalSet(patch);
+  if (patch.page === "instagram") {
+    fetchInstagramClients();
+    fetchInstagramApprovals();
+  }
+};

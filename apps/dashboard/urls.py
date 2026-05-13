@@ -67,6 +67,8 @@ urlpatterns += [
     path("instagram/clients/", views.InstagramClientListView.as_view()),
     path("instagram/clients/<str:ig_user_id>/messages/", views.InstagramMessagesView.as_view()),
     path("instagram/clients/<str:ig_user_id>/message/", views.InstagramManualMessageView.as_view()),
+    path("instagram/approvals/", views.InstagramApprovalQueueListView.as_view()),
+    path("instagram/approvals/<int:pk>/approve/", views.InstagramApprovalApproveView.as_view()),
 ]
 
 
