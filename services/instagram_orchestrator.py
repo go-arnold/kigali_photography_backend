@@ -77,12 +77,17 @@ def handle_instagram_message(sender_id: str, message_text: str, message_id: str,
             pass
 
         # 6. AI Pipeline
-        # Language detection (if not locked)
+        # Language detection — lock on first meaningful message and never flip.
         if message_text and not client.language_locked:
-            detected_lang = detect_language(message_text)
-            if detected_lang != client.language:
-                client.language = detected_lang
-                client.save(update_fields=["language", "updated_at"])
+            try:
+                detected = detect_language(message_text)
+            except Exception:
+                detected = "en"
+            # Lock the client's language immediately (sticky). This prevents
+            # mid-conversation flips when users mix words from other languages.
+            client.language = detected
+            client.language_locked = True
+            client.save(update_fields=["language", "language_locked", "updated_at"])
 
         # History for state detection and context
         recent_msgs = _get_recent_messages(conversation)
@@ -163,9 +168,9 @@ def build_instagram_system_prompt(
     Builds the specialized Instagram AI system prompt as mandated by INSTAGRAM_AI.md.
     """
     lang_instruction = {
-        "en": "Respond ONLY in English. Never switch languages.",
-        "fr": "Réponds UNIQUEMENT en français. Ne change jamais de langue.",
-        "rw": "Subiza mu Kinyarwanda GUSA. Ntiuhindure ururimi.",
+        "en": "Respond ONLY in English. Never switch languages. If the user mixes languages, reply in English only.",
+        "fr": "Réponds UNIQUEMENT en français. Ne change jamais de langue. Si l'utilisateur mélange les langues, réponds en français uniquement.",
+        "rw": "Subiza mu Kinyarwanda GUSA. Ntiuhindure ururimi. Niba umukiliya avanze indimi, subiza mu Kinyarwanda gusa.",
     }.get(language, "Respond in the language the client uses.")
 
     discovery_context = _build_discovery_context(discovery_state)
@@ -195,7 +200,7 @@ Studio packages (base prices, before extras):
   - Gold:    100,000 RWF | 1.5h | 18 edited photos
 Home session:
   - Premium: 200,000 RWF | 2h | 30 photos
-All packages include ALL unedited photos.
+All unedited photos are also included.
 Extras:
   - 2 A5 Frames: +20,000 RWF
   - Birthday Cake: +30,000 RWF
@@ -215,7 +220,7 @@ FLOW RULES:
 2. If client asks about location → give exact address, ask if more help needed
 3. If client asks about prices → invite to quick discovery questions (1 min)
    If client refuses discovery → show base packages without extras
-4. During discovery → ask ONE question at a time, track answers.
+4. During discovery → ask ONE question at a time, not two, track answers.
    Questions: 1. Photo type? 2. Studio or Home? 3. Frames? 4. Cake? 5. Video?
 5. After all discovery questions answered → calculate exact prices and present EXACTLY 3 packages (Starter, Silver, Gold for studio OR just Premium for home).
 6. After packages shown → wait for client to choose or ask questions
@@ -230,6 +235,7 @@ KNOWLEDGE BASE:
 RESPONSE STYLE:
 - Maximum 3-4 sentences per message unless presenting packages
 - No bullet point overload — keep it conversational
+- Do NOT use markdown or asterisks for bold/italic (Instagram does not render Markdown). Use plain text only.
 - Use emojis sparingly but warmly (😊 📸 🎂 🎉 🙏)
 - NEVER use WhatsApp-style button syntax [Button text]
 - NEVER say "press 1" or "click here" — pure text conversation
