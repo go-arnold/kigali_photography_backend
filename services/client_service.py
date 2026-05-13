@@ -147,17 +147,13 @@ def is_budget_exceeded(client: Client, conversation: Conversation) -> bool:
 
 
 def record_tokens(
-    client: Client, conversation: Conversation, input_tokens: int, output_tokens: int
+    client: Client, conversation, input_tokens: int, output_tokens: int
 ):
     """Atomically record token usage at both conversation and client level."""
     total = input_tokens + output_tokens
-    conversation.add_tokens(total)
-    # Client.objects.filter(pk=client.pk).update(
-    #     lifetime_tokens_used=Client.lifetime_tokens_used.__class__(
-    #         "lifetime_tokens_used"
-    #     )
-    #     + total
-    # )
+    if hasattr(conversation, "add_tokens"):
+        conversation.add_tokens(total)
+    
     from django.db.models import F
     Client.objects.filter(pk=client.pk).update(
         lifetime_tokens_used=F("lifetime_tokens_used") + total

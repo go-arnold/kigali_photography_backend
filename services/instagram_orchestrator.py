@@ -131,7 +131,12 @@ def handle_instagram_message(sender_id: str, message_text: str, message_id: str,
         if ai_response.ok:
             # 7. Record Tokens
             from services.client_service import record_tokens
-            record_tokens(client, ai_response.total_tokens)
+            record_tokens(
+                client=client, 
+                conversation=conversation, 
+                input_tokens=ai_response.input_tokens, 
+                output_tokens=ai_response.output_tokens
+            )
             logger.info("IG AI Usage | client=%s in=%s out=%s", sender_id, ai_response.input_tokens, ai_response.output_tokens)
 
             # 8. Save Outbound Message

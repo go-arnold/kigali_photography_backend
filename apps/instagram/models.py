@@ -14,11 +14,30 @@ class InstagramConversation(models.Model):
     last_message_at = models.DateTimeField(auto_now=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    # Token accounting
+    tokens_used = models.PositiveIntegerField(
+        default=0, help_text="Total tokens used in this conversation"
+    )
+    token_budget = models.PositiveIntegerField(
+        default=20000, help_text="Max tokens before forcing human takeover"
+    )
+
     class Meta:
         ordering = ["-last_message_at"]
 
     def __str__(self):
         return f"IG-Conv for {self.client.ig_user_id or self.client.pk}"
+
+    def touch(self):
+        self.last_message_at = timezone.now()
+        self.save(update_fields=["last_message_at"])
+
+    def add_tokens(self, count: int):
+        """Atomically increment token counter."""
+        InstagramConversation.objects.filter(pk=self.pk).update(
+            tokens_used=models.F("tokens_used") + count
+        )
+        self.tokens_used += count
 
 class InstagramMessage(models.Model):
     """Individual message within an Instagram conversation."""

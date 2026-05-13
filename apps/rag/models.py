@@ -116,5 +116,20 @@ class ConversationSummary(models.Model):
     last_updated = models.DateTimeField(default=timezone.now)
     created_at = models.DateTimeField(auto_now_add=True)
 
+class InstagramConversationSummary(models.Model):
+    """
+    Compressed summary of older messages in an Instagram conversation.
+    """
+    from apps.instagram.models import InstagramConversation
+
+    conversation = models.OneToOneField(
+        "instagram.InstagramConversation", on_delete=models.CASCADE, related_name="summary"
+    )
+    summary_text = models.TextField()
+    messages_summarized = models.PositiveSmallIntegerField()
+    tokens_saved = models.PositiveIntegerField(default=0)
+    last_updated = models.DateTimeField(default=timezone.now)
+    created_at = models.DateTimeField(auto_now_add=True)
+
     def __str__(self):
-        return f"Summary for {self.conversation} ({self.messages_summarized} msgs)"
+        return f"IG Summary for {self.conversation}"
