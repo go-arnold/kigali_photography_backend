@@ -63,27 +63,15 @@ DISCOVERY_QUESTIONS = {
         },
         {
             "key": "frames",
-            "question": (
-                "Would you like to add 2 beautiful A5 photo frames to your package? 🖼️ (+20,000 RWF)\n\n"
-                "For more details about the frames, feel free to contact us on WhatsApp: +250795820170 😊"
-            ),
+            "question": "Would you like to add 2 beautiful A5 photo frames to your package? 🖼️",
         },
         {
             "key": "cake",
-            "question": (
-                "How about adding a birthday cake? 🎂 (+30,000 RWF)\n\n"
-                "It is perfectly sized for a celebration!"
-            ),
+            "question": "How about adding a birthday cake? 🎂 ",
         },
         {
             "key": "video",
-            "question": (
-                "Would you like a short highlight video of the session? 🎬 "
-                "(15 to 30 seconds of your best moments — +29,000 RWF)\n\n"
-                "Or get the cake + video bundle together for only +50,000 RWF "
-                "instead of +59,000 RWF separately!\n\n"
-                "For more details: +250795820170 😊"
-            ),
+            "question": "Would you like a short highlight video of the session? 🎬 ",
         },
     ],
     "fr": [
@@ -97,23 +85,15 @@ DISCOVERY_QUESTIONS = {
         },
         {
             "key": "frames",
-            "question": (
-                "Souhaitez-vous ajouter 2 beaux cadres photo A5 à votre forfait? 🖼️ (+20,000 RWF)\n\n"
-                "Pour plus de détails sur les cadres, contactez-nous sur WhatsApp: +250795820170 😊"
-            ),
+            "question": "Souhaitez-vous ajouter 2 beaux cadres photo A5 à votre forfait? 🖼️ ",
         },
         {
             "key": "cake",
-            "question": "Et un gâteau d'anniversaire? 🎂 (+30,000 RWF — parfaitement dimensionné pour une célébration!)",
+            "question": "Et un gâteau d'anniversaire? 🎂",
         },
         {
             "key": "video",
-            "question": (
-                "Souhaitez-vous une courte vidéo souvenir? 🎬 "
-                "(15 à 30 secondes de vos meilleurs moments — +29,000 RWF)\n\n"
-                "Ou le bundle gâteau + vidéo pour seulement +50,000 RWF au lieu de +59,000 RWF!\n\n"
-                "Pour plus de détails: +250795820170 😊"
-            ),
+            "question":  "Souhaitez-vous une courte vidéo souvenir? 🎬 ",                
         },
     ],
     "rw": [
@@ -127,25 +107,17 @@ DISCOVERY_QUESTIONS = {
         },
         {
             "key": "frames",
-            "question": (
-                "Murifuza kongereramo ama cadre 2 ya A5 muri package yanyu? 🖼️ (+20,000 RWF)\n\n"
-                "Kugira amakuru arambuye yerekeye ama cadre, "
-                "mwaduhamagara kuri WhatsApp: +250795820170 😊"
-            ),
+            "question": "Murifuza kongereramo ama cadre 2 ya A5 muri package yanyu? 🖼️ (+20,000 RWF)",
+              
         },
         {
             "key": "cake",
-            "question": "Murifuza kongereramo cake ya aniverseri? 🎂 (+30,000 RWF — irashyitse kugira ngo irahire icyo gihe!)",
+            "question": "Murifuza kongereramo cake ya aniverseri? 🎂 ",
         },
         {
             "key": "video",
-            "question": (
-                "Murifuza video ngufi ya session yanyu? 🎬 "
-                "(Amasegonda 15 kugeza 30 — +29,000 RWF)\n\n"
-                "Cyangwa murifuza cake na video hamwe kuri +50,000 RWF "
-                "aho kuba +59,000 RWF uguze veru!\n\n"
-                "Kugira amakuru: +250795820170 😊"
-            ),
+            "question": "Murifuza video ngufi ya session yanyu? 🎬 ",
+
         },
     ],
 }
@@ -191,7 +163,7 @@ LOCATION_SIGNALS = [
     "où", "adresse", "localisation", "comment venir", "trouver",
     "emplacement",
     # Kinyarwanda
-    "aho muri", "aho muba", "aho", "murari he", "adresse",
+    "aho muri", "aho muba", "aho", "murari he", "adresse", "ehe", "murakora he", "aho",
 ]
 
 LOCATION_RESPONSES = {
@@ -218,17 +190,17 @@ LOCATION_RESPONSES = {
 
 PRICE_SIGNALS = [
     # English
-    "price", "cost", "how much", "package", "rates", "pricing",
-    "afford", "expensive", "cheap", "fees",
+    "price", "cost", "how much", "package", "rates", "pricing", "booking", "book",
+    "afford", "cheap", "fees",
     # French
-    "prix", "coût", "combien", "forfait", "tarif", "cher",
+    "prix", "coût", "combien", "forfait", "tarif", "cher", "reservation", "reserver", "reserve",
     # Kinyarwanda
-    "ibiciro", "ingahe", "package", "amafaranga", "agahe",
+    "ibiciro", "ingahe", "package", "amafaranga", "agahe", "gufatira igihe", "gufatira", "packages zanyu", "bookinga", "bukinga",
 ]
 
 PRICE_INVITE_MESSAGES = {
     "en": (
-        "Great question! 😊 Our prices depend on what you would like "
+        "Great! 😊 Well, Our prices depend on what you would like "
         "included in your session.\n\n"
         "To give you an exact price, I have a few quick questions — "
         "it only takes about 1 minute!\n\n"
@@ -452,7 +424,7 @@ def handle_instagram_message(sender_id: str, message_text: str, message_id: str,
                 "october", "november", "december",
                 "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi",
                 "demain", "semaine", "next week",
-                "ejo", "ku cyumweru", "wakati",
+                "ejo", "ku cyumweru", "wakati", "weekend"
             ] + [str(i) for i in range(1, 32)]
 
             if any(sig in text_lower for sig in DATE_SIGNALS) or any(
@@ -517,9 +489,9 @@ def handle_instagram_message(sender_id: str, message_text: str, message_id: str,
 
         # ── 16. DISCOUNT REFUSAL ──────────────────────────────────────────
         DISCOUNT_SIGNALS = [
-            "discount", "reduce", "cheaper", "lower price", "negotiate",
-            "réduction", "moins cher", "baisser", "négocier",
-            "gutanga igiciro gito", "gucunga",
+            "discount", "reduce", "cheaper", "lower price", "negotiate", "discounts", "expensive", "too much", "can't afford",
+            "réduction", "moins cher", "baisser", "négocier", "reduction", "cher", "birarenze",
+            "gutanga igiciro gito", "gucunga", "gito", "igiciro gito", "ibiciro bito", "meshi cyane", "menshi", "menshi","menshi cyane",
         ]
         if any(sig in text_lower for sig in DISCOUNT_SIGNALS):
             discount_count = journey.discovery_state.get("_discount_count", 0) + 1
@@ -974,7 +946,7 @@ def build_instagram_system_prompt(
         flow_instruction = (
             "The client has chosen a package. "
             "Wait for them to provide a preferred date and time for their session. "
-            "Remind them we are open Monday to Saturday, 9 AM to 6 PM."
+            "Remind them we are open Monday to Sunday, 9 AM to 6 PM."
         )
     elif flow_mode in ("await_confirm", "human_takeover"):
         flow_instruction = (
@@ -1008,7 +980,7 @@ Max 4 sentences per response unless presenting packages or answering discovery.
 ==== STUDIO INFO ====
 Name: KP Kids Studio (also known as Kigali Photography)
 Location: Kicukiro, BRGD Plaza, opposite IPRC, next to SAWA CITY Supermarket, Kigali
-Hours: Monday to Saturday, 9 AM to 6 PM
+Hours: Monday to Sunday, 9 AM to 6 PM
 WhatsApp for detailed questions: +250795820170
 Specialty: Children and family photoshoots — studio and home sessions
 
