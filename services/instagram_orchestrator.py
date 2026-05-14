@@ -678,7 +678,7 @@ def _build_package_presentation(discovery_state: dict, lang: str) -> str:
     for pkg in packages:
         total = pkg["base"] + extras_cost
         text += f"{pkg['emoji']} {pkg['name']} Package — {total:,} RWF\n"
-        text += f"{pkg['duration']} {{'en':'Studio Session','fr':'Séance Studio','rw':'Session ya Studio'}[lang]}\n"
+        text += f"{pkg['duration']} " + {"en": "Studio Session", "fr": "Séance Studio", "rw": "Session ya Studio"}[lang] + "\n"
         text += {"en": f"Delivery: {pkg['photos']} Edited Photos", "fr": f"Livraison: {pkg['photos']} Photos Éditées", "rw": f"Kubaboherereza: Amafoto {pkg['photos']} atunganijwe"}[lang] + "\n"
         if includes_str: text += {"en": "Includes: ", "fr": "Inclus: ", "rw": "Harimo: "}[lang] + includes_str + "\n"
         text += "\n"
