@@ -195,7 +195,7 @@ PRICE_SIGNALS = [
     # French
     "prix", "coût", "combien", "forfait", "tarif", "cher", "reservation", "reserver", "reserve",
     # Kinyarwanda
-    "ibiciro", "ingahe", "package", "amafaranga", "agahe", "gufatira igihe", "gufatira", "packages zanyu", "bookinga", "bukinga",
+    "ibiciro", "ingahe", "package", "amafaranga", "agahe", "gufatira igihe", "gufatira", "packages zanyu", "bookinga", "bukinga", "angae"
 ]
 
 PRICE_INVITE_MESSAGES = {
@@ -402,9 +402,9 @@ def handle_instagram_message(sender_id: str, message_text: str, message_id: str,
                 total = base.get(chosen, 0) + extras_cost
 
                 CHOICE_MESSAGES = {
-                    "en": f"Excellent choice! 🎉 You have selected the {chosen.title()} Package at {total:,} RWF.\n\nWhat date and time would you prefer for your session? 📅\n(We are open Monday to Saturday, 9 AM to 6 PM)",
-                    "fr": f"Excellent choix! 🎉 Vous avez sélectionné le forfait {chosen.title()} à {total:,} RWF.\n\nQuelle date et heure préférez-vous pour votre séance? 📅\n(Nous sommes ouverts lundi au samedi, 9h à 18h)",
-                    "rw": f"Amahitamo meza! 🎉 Mwahisemo {chosen.title()} Package kuri {total:,} RWF.\n\nNi ryari kandi isaha yingahe mushaka session yanyu? 📅\n(Turi hafi kuva ku wa Mbere kugeza ku wa Gatanu, 9AM-6PM)",
+                    "en": f"Excellent choice! 🎉 You have selected the {chosen.title()} Package at {total:,} RWF.\n\nWhat date and time would you prefer for your session? 📅\n(We are open Monday to Sunday, 9 AM to 6 PM)",
+                    "fr": f"Excellent choix! 🎉 Vous avez sélectionné le forfait {chosen.title()} à {total:,} RWF.\n\nQuelle date et heure préférez-vous pour votre séance? 📅\n(Nous sommes ouverts lundi au dimanche, 9h à 18h)",
+                    "rw": f"Amahitamo meza! 🎉 Mwahisemo {chosen.title()} Package kuri {total:,} RWF.\n\nNi ryari kandi isaha yingahe mushaka session yanyu? 📅\n(Turi hafi kuva ku wa Mbere kugeza ku cyumweru, 9AM-6PM)",
                 }
                 response_text = CHOICE_MESSAGES.get(lang, CHOICE_MESSAGES["en"])
                 send_text(sender_id, response_text)
