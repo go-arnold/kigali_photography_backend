@@ -188,6 +188,32 @@ def build_system_prompt(
             f"kuri MTN MoMo: *798741* — Kigali Photography Ltd. "
             f"Andi yishyurwa session irangiye. Mutubanize murangije!"
         )
+    elif language == "fr":
+        pkg_format = (
+            f"  Voici les 3 forfaits qui correspondent le mieux à votre demande :\n\n"
+            f"  🥉 *Starter Package* — [price] RWF\n"
+            f"  [session duration] Séance [Studio ou Domicile]\n"
+            f"  Livraison : [X] Photos retouchées\n"
+            f"  Toutes les autres photos non retouchées\n"
+            f"  [extras si présents]\n\n"
+            f"  🥈 *Silver Package* — [price] RWF\n"
+            f"  [session duration] Séance [Studio ou Domicile]\n"
+            f"  Livraison : [X] Photos retouchées\n"
+            f"  Toutes les autres photos non retouchées\n"
+            f"  [extras si présents]\n\n"
+            f"  🥇 *Gold Package* — [price] RWF\n"
+            f"  [session duration] Séance [Studio ou Domicile]\n"
+            f"  Livraison : [X] Photos retouchées\n"
+            f"  Toutes les autres photos non retouchées\n"
+            f"  [extras si présents]\n\n"
+            f"  Et au nom de Kigali Photography, j'ajouterai personnellement *un cadeau surprise pour l'enfant*.\n"
+            f"  Dites-moi quelle option vous convient le mieux avant de continuer. Merci\n"
+        )
+        booking_fee_msg = (
+            f"Excellent choix ! Pour réserver votre date, veuillez envoyer 20 000 RWF via MTN MoMo : "
+            f"*798741* — Kigali Photography Ltd. Le reste est à payer après la séance. "
+            f"Prévenez-moi dès que c'est fait !"
+        )
     else:
         pkg_format = (
             f"  Here are the 3 packages that best fit your request:\n\n"
@@ -453,7 +479,7 @@ def analyze_intent_and_heat(
         '{"intent":"greeting|inquiry|objection_price|objection_timing|objection_authority|commitment|feedback|opt_out|other",'
         '"heat_delta":<int -20 to 20>,'
         '"objection_type":"price|timing|authority|passive|competitor|none",'
-        '"language":"en|rw",'
+        '"language":"en|rw|fr",'
         '"urgency":"low|medium|high"}'
     )
 

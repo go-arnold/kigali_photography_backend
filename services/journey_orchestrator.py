@@ -459,7 +459,7 @@ def handle_inbound_message(
                 and all(w in SHORT_SAFE_WORDS for w in text_words)
             )
             if (
-                client.language not in ["en", "unknown"]
+                client.language not in ["en", "fr", "unknown"]
                 and not is_short_safe
                 and not journey.human_takeover
             ):
@@ -933,7 +933,7 @@ def _update_language(client, text: str):
     detected = detect_language(text)
 
     # Ne pas dégrader sur message court
-    if client.language == "rw" and detected == "en":
+    if client.language in ["rw", "fr"] and detected == "en":
         if len(text.strip().split()) < 5:
             return
 
