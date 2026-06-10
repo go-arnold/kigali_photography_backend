@@ -1,265 +1,102 @@
 """
-Instagram AI Orchestrator — v2 (CORRECTED)
-=========================================
+Instagram AI Orchestrator — v3 (COMPLETE REWRITE)
+==================================================
 Pure AI conversation system for Instagram DMs.
-Follows strict mandates from services/INSTAGRAM_AI.md and GEMINI.md.
-
 KP Kids Studio | Kigali, Rwanda
+
+KEY CHANGES FROM v2:
+- Multi-message buffering: waits 2s then processes all pending messages together
+- Simplified flow: NO session_type question (studio only)
+- Smarter discovery: ask all extras in ONE message, detect from reply
+- Better welcome: handles hello + location + price in one pass
+- Proactive responses: every message gets a complete answer
+- Language locked forever on first message
 """
 
 import logging
 import uuid
-from typing import Optional, Dict, Any, List
+from typing import Optional
 from django.utils import timezone
-from django.conf import settings
 
-from apps.clients.models import Client, JourneyState, JourneyPhase, JourneyStep
+from apps.clients.models import Client, JourneyState
 from apps.instagram.models import InstagramConversation, InstagramMessage, InstagramApprovalQueue
-from services.instagram_service import send_text, send_image, mark_as_seen
+from services.instagram_service import send_text, mark_as_seen
 from services.openai_service import call_openai, build_messages_context
 from services.rag_service import retrieve_context
 
 logger = logging.getLogger(__name__)
 
-# --- CONSTANTS ---
+# ─── LANGUAGE ────────────────────────────────────────────────────────────────
 
 RW_SIGNALS = [
-    "muraho", "mwaramutse", "mwiriwe", "yego", "oya", "hoya",
-    "ndi", "turi", "ubu", "muri", "kuki", "bite", "mbega",
-    "amakuru", "ni meza", "murakoze", "ndashaka", "ibiciro",
-    "kwifotoza", "amafoto", "gufotora", "umwana", "umuryango",
-    "nziza", "muragize", "barakaza", "murakaza"
+    "muraho", "mwaramutse", "mwiriwe", "yego", "oya", "hoya", "ndi", "turi",
+    "ubu", "muri", "kuki", "bite", "mbega", "amakuru", "ni meza", "murakoze",
+    "ndashaka", "ibiciro", "kwifotoza", "amafoto", "gufotora", "umwana",
+    "umuryango", "nziza", "muragize", "barakaza", "murakaza", "gufatira",
+    "session", "packages", "ibiciro",
 ]
 
 LANG_INSTRUCTIONS = {
-    "en": (
-        "You MUST respond ONLY in English. "
-        "Even if the client writes in French or Kinyarwanda, YOU respond in English. "
-        "Never switch languages."
-    ),
-    "fr": (
-        "Tu DOIS répondre UNIQUEMENT en français. "
-        "Même si le client écrit en anglais ou kinyarwanda, TU réponds en français. "
-        "Ne change JAMAIS de langue."
-    ),
-    "rw": (
-        "Ugomba gusubiza mu Kinyarwanda GUSA. "
-        "Niba umukiriya andika mu cyongereza cyangwa igifaransa, "
-        "WEWE subiza mu Kinyarwanda. "
-        "Ntuzahindure ururimi na rimwe mu kiganiro. "
-        "Niba umukiriya avanga ururimi, subiza mu Kinyarwanda."
-    ),
+    "en": "Respond ONLY in English. Never switch languages even if client mixes.",
+    "fr": "Réponds UNIQUEMENT en français. Ne change JAMAIS de langue.",
+    "rw": "Gusubiza mu Kinyarwanda GUSA. Niba umukiriya avanga ururimi, subiza mu Kinyarwanda.",
 }
 
-DISCOVERY_QUESTIONS = {
-    "en": [
-        {
-            "key": "photo_type",
-            "question": "First, is this session for a child photoshoot or a family photoshoot? 😊",
-        },
-        {
-            "key": "session_type",
-            "question": "Would you prefer the session at our studio in Kicukiro, or would you like us to come to your home? 📸",
-        },
-        {
-            "key": "frames",
-            "question": "Would you like to add 2 beautiful A5 photo frames to your package? 🖼️ ",
-                
-        },
-        {
-            "key": "cake",
-            "question": "How about adding a birthday cake? 🎂",
-              
-        },
-        {
-            "key": "video",
-            "question": "Would you like a short highlight video of the session? 🎬 ",
-                
-        },
-    ],
-    "fr": [
-        {
-            "key": "photo_type",
-            "question": "Tout d'abord, cette séance est-elle pour un enfant seul ou pour toute la famille? 😊",
-        },
-        {
-            "key": "session_type",
-            "question": "Préférez-vous la séance dans notre studio à Kicukiro, ou souhaitez-vous que nous venions à votre domicile? 📸",
-        },
-        {
-            "key": "frames",
-            "question": "Souhaitez-vous ajouter 2 beaux cadres photo A5 à votre forfait? 🖼️",
-               
-        },
-        {
-            "key": "cake",
-            "question": "Et un gâteau d'anniversaire, on l'inclut? ",
-        },
-        {
-            "key": "video",
-            "question": "Souhaitez-vous une courte vidéo souvenir? 🎬 ",
-        },
-    ],
-    "rw": [
-        {
-            "key": "photo_type",
-            "question": "Mbere na mbere, ni ubuhe bwoko bwa photoshoot mushaka? Umwana gusa cyangwa umuryango wose? 😊",
-        },
-        {
-            "key": "session_type",
-            "question": "Murifuza kwifotoza muri studio yacu i Kicukiro, cyangwa murifuza tuze mu rugo rwanyu? 📸",
-        },
-        {
-            "key": "frames",
-            "question": "Murifuza kongereramo ama cadre 2 ya A5 muri package yanyu? 🖼️ ",
-        },
-        {
-            "key": "cake",
-            "question": "Murifuza kongereramo cake ya aniverseri?",
-        },
-        {
-            "key": "video",
-            "question": "Murifuza video ngufi ya session yanyu? 🎬 ",
-        },
-    ],
-}
-
-WELCOME_MESSAGES = {
-    "en": (
-        "Hello! 😊 Welcome to KP Kids Studio — your children's photography "
-        "specialist in Kigali, Rwanda.\n\n"
-        "My name is Julie and I'm here to help you.\n\n"
-        "How can I assist you today? You can ask me about:\n"
-        "📸 Booking a photoshoot session\n"
-        "💰 Our packages and pricing\n"
-        "📍 Finding our studio\n"
-        "❓ Any other questions"
-    ),
-    "fr": (
-        "Bonjour! 😊 Bienvenue chez KP Kids Studio — votre spécialiste en "
-        "photographie pour enfants à Kigali, Rwanda.\n\n"
-        "Je m'appelle Julie et je suis là pour vous aider.\n\n"
-        "Comment puis-je vous aider? Vous pouvez me demander:\n"
-        "📸 Réserver une séance photo\n"
-        "💰 Nos forfaits et tarifs\n"
-        "📍 Trouver notre studio\n"
-        "❓ Toute autre question"
-    ),
-    "rw": (
-        "Muraho! 😊 Murakaza neza kuri KP Kids Studio — inzobere mu gufotora "
-        "abana i Kigali, Rwanda.\n\n"
-        "Nitwa Julie kandi ndi hano kubafasha.\n\n"
-        "Ni gute nabafasha uyu munsi? Mwambaza ibi:\n"
-        "📸 Gufatira igihe cyo kwifotoza\n"
-        "💰 Packages zacu n'ibiciro\n"
-        "📍 Ahantu turi\n"
-        "❓ Ibibazo ibindi"
-    ),
-}
+# ─── STATIC RESPONSES ────────────────────────────────────────────────────────
 
 LOCATION_SIGNALS = [
-    "where", "location", "address", "find you", "how to get",
-    "directions", "map", "located", "où", "adresse", "localisation",
-    "comment venir", "trouver", "emplacement", "aho muri", "aho muba",
-    "aho", "murari he", "adresse", "ehe", "murakora he",
+    "where", "location", "address", "find you", "how to get", "directions",
+    "map", "located", "where are you", "where r u", "where r you",
+    "où", "adresse", "localisation", "comment venir", "trouver", "emplacement",
+    "aho muri", "aho muba", "aho", "murari he", "murakora he", "ehe muri",
 ]
-
-LOCATION_RESPONSES = {
-    "en": (
-        "We are located in Kicukiro, BRGD Plaza, opposite IPRC, "
-        "next to SAWA CITY Supermarket, Kigali. 📍\n\n"
-        "We are open Monday to Sunday, 9 AM to 6 PM."
-    ),
-    "fr": (
-        "Nous sommes situés à Kicukiro, BRGD Plaza, en face de l'IPRC, "
-        "à côté du Supermarché SAWA CITY, Kigali. 📍\n\n"
-        "Nous sommes ouverts du lundi au dimanche, de 9h à 18h."
-    ),
-    "rw": (
-        "Turi i Kicukiro, BRGD Plaza, imbere y'IPRC, "
-        "hafi ya Supermarché SAWA CITY, Kigali. 📍\n\n"
-        "Turi hafi kuva ku wa Mbere kugeza ku Ku cyumweru, "
-        "saa tatu z'igitondo kugeza saa cyenda nijoro."
-    ),
-}
 
 PRICE_SIGNALS = [
-    "price", "cost", "how much", "package", "rates", "pricing", "booking", "book",
-    "afford", "expensive", "cheap", "fees", "prix", "coût", "combien", "reservation", "reserver", "reserve",
-    "forfait", "tarif", "cher", "ibiciro", "ingahe", "amafaranga", "agahe", "gufatira igihe", "gufatira", "packages zanyu", "bookinga", "bukinga", "angae",
+    "price", "cost", "how much", "package", "packages", "rates", "pricing",
+    "book", "booking", "reserve", "session", "photoshoot", "photo", "pictures",
+    "how much is", "what does it cost", "fees", "charge",
+    "prix", "coût", "combien", "forfait", "tarif", "réserver", "séance",
+    "ibiciro", "ingahe", "amafaranga", "gufatira", "kwifotoza", "amafoto angahe",
 ]
 
-PRICE_INVITE_MESSAGES = {
-    "en": (
-        "Great !😊 Well, prices depend on what you would like "
-        "included in your session.\n\n"
-        "To give you an exact price, I have a few quick questions — "
-        "it only takes about 1 minute!\n\n"
-        "Shall we start? 😊"
-    ),
-    "fr": (
-        "Bonne question! 😊 Nos tarifs dépendent de ce que vous souhaitez "
-        "inclure dans votre séance.\n\n"
-        "Pour vous donner un prix exact, j'ai quelques questions rapides — "
-        "cela prend environ 1 minute!\n\n"
-        "On commence? 😊"
-    ),
-    "rw": (
-        "Ni ikibazo cyiza! 😊 Ibiciro byacu biterwa n'ibyo mushaka "
-        "no guterwa muri session yanyu.\n\n"
-        "Kugira ngo mbabwire igiciro nyacyo, mfite ibibazo bike byihuse — "
-        "birengera nka minuto imwe!\n\n"
-        "Twatangira? 😊"
-    ),
+DISCOUNT_SIGNALS = [
+    "discount", "cheaper", "lower", "reduce", "negotiate", "less", "too much",
+    "too expensive", "can't afford", "can i get", "any deal", "offer",
+    "réduction", "moins cher", "baisser", "trop cher", "négocier",
+    "igiciro gito", "gucunga", "menshi cyane", "ibiciro biringanye",
+]
+
+HUMAN_SIGNALS = [
+    "agent", "human", "real person", "speak to", "talk to someone",
+    "manager", "owner", "staff", "person",
+    "umuntu", "umukozi", "vugana", "quelqu'un", "agent réel",
+]
+
+OTHER_PACKAGES_SIGNALS = [
+    "other package", "more package", "another option", "anything else",
+    "other option", "d'autres forfaits", "autre option", "ibindi",
+]
+
+EXTRAS_LABELS = {
+    "en": {"frames": "2 A5 Photo Frames (+20,000 RWF)", "cake": "Birthday Cake (+30,000 RWF)", "video": "Highlight Video 15-30sec (+29,000 RWF)"},
+    "fr": {"frames": "2 Cadres Photo A5 (+20,000 RWF)", "cake": "Gâteau d'Anniversaire (+30,000 RWF)", "video": "Vidéo Souvenir 15-30sec (+29,000 RWF)"},
+    "rw": {"frames": "Ama cadre 2 ya A5 (+20,000 RWF)", "cake": "Cake ya Aniverseri (+30,000 RWF)", "video": "Video Ngufi 15-30sec (+29,000 RWF)"},
 }
 
-BASE_PACKAGES_NO_EXTRAS = {
-    "en": (
-        "No problem! Here are our packages 😊\n\n"
-        "Studio Session:\n"
-        "Starter — 50,000 RWF | 1h | 8 edited photos + all unedited\n"
-        "Silver — 70,000 RWF | 1h | 12 edited photos + all unedited\n"
-        "Gold — 100,000 RWF | 1.5h | 18 edited photos + all unedited\n\n"
-        "Home Session:\n"
-        "Premium — 200,000 RWF | 2h | 30 edited photos + all unedited\n\n"
-        "You can add extras: 2 A5 frames (+20k), cake (+30k), "
-        "video (+29k), or cake+video bundle (+50k).\n\n"
-        "Which one interests you? 😊"
-    ),
-    "fr": (
-        "Pas de problème! Voici nos forfaits 😊\n\n"
-        "Séance Studio:\n"
-        "Starter — 50,000 RWF | 1h | 8 photos éditées + toutes non éditées\n"
-        "Silver — 70,000 RWF | 1h | 12 photos éditées + toutes non éditées\n"
-        "Gold — 100,000 RWF | 1.5h | 18 photos éditées + toutes non éditées\n\n"
-        "Séance à Domicile:\n"
-        "Premium — 200,000 RWF | 2h | 30 photos éditées + toutes non éditées\n\n"
-        "Vous pouvez ajouter: 2 cadres A5 (+20k), gâteau (+30k), "
-        "vidéo (+29k), ou bundle gâteau+vidéo (+50k).\n\n"
-        "Lequel vous intéresse? 😊"
-    ),
-    "rw": (
-        "Ntakibazo! Dore packages zacu 😊\n\n"
-        "Session ya Studio:\n"
-        "Starter — 50,000 RWF | Isaha 1 | Amafoto 8 atunganijwe + yose adatunganijwe\n"
-        "Silver — 70,000 RWF | Isaha 1 | Amafoto 12 atunganijwe + yose adatunganijwe\n"
-        "Gold — 100,000 RWF | Isaha 1.5 | Amafoto 18 atunganijwe + yose adatunganijwe\n\n"
-        "Session mu Rugo:\n"
-        "Premium — 200,000 RWF | Amasaha 2 | Amafoto 30 atunganijwe + yose adatunganijwe\n\n"
-        "Mwongera: ama cadre 2 ya A5 (+20k), cake (+30k), "
-        "video (+29k), cyangwa cake+video hamwe (+50k).\n\n"
-        "Ni izihe mushaka? 😊"
-    ),
-}
+# ─── MAIN ENTRY POINT ────────────────────────────────────────────────────────
 
-# --- MAIN ORCHESTRATOR ---
-
-def handle_instagram_message(sender_id: str, message_text: str, message_id: str, timestamp_ms: int):
+def handle_instagram_message(
+    sender_id: str,
+    message_text: str,
+    message_id: str,
+    timestamp_ms: int,
+):
     """
-    COMPLETE ORCHESTRATOR — v2.1 with informational question fix.
+    Main orchestrator. Handles one message at a time but reads full
+    recent history to understand multi-message context.
     """
     try:
-        # ── 1. Onboard ────────────────────────────────────────────────────
+        # 1. Onboard
         from services.client_service import onboard_client
         client, journey, _, is_new = onboard_client(
             wa_number=f"ig_{sender_id}"[:20],
@@ -267,7 +104,7 @@ def handle_instagram_message(sender_id: str, message_text: str, message_id: str,
             ig_user_id=sender_id,
         )
 
-        # ── 2. Fetch real name if placeholder ─────────────────────────────
+        # 2. Fetch real IG name if placeholder
         if client.name.startswith("IG_"):
             try:
                 from services.instagram_service import get_user_profile
@@ -278,451 +115,825 @@ def handle_instagram_message(sender_id: str, message_text: str, message_id: str,
             except Exception:
                 pass
 
-        # ── 3. Language detection and locking ─────────────────────────────
+        # 3. Language — detect and lock on first message only
         lang = _detect_and_lock_language(client, message_text or "")
 
-        # ── 4. Get or create Instagram conversation ───────────────────────
+        # 4. Get/create conversation
         conversation = _get_or_create_conversation(client)
 
-        # ── 5. Save inbound message ───────────────────────────────────────
+        # 5. Save inbound
         _save_inbound(client, conversation, message_id, message_text)
 
-        # ── 6. Human takeover check ───────────────────────────────────────
+        # 6. Human takeover — AI completely silent
         if journey.human_takeover:
             logger.info("Human takeover active for IG %s — AI silent", sender_id)
             conversation.touch()
             return
 
-        # ── 7. Mark as seen ───────────────────────────────────────────────
+        # 7. Mark as seen
         try:
             mark_as_seen(sender_id)
         except Exception:
             pass
 
-        # ── 8. Initialize flow_mode if new ────────────────────────────────
+        # 8. Init state
         if not journey.flow_mode or is_new:
             journey.flow_mode = "new"
-
-        # Initialize discovery state if empty
         if not journey.discovery_state:
-            journey.discovery_state = {
-                "photo_type": None,
-                "session_type": None,
-                "frames": None,
-                "cake": None,
-                "video": None,
-            }
+            journey.discovery_state = {"frames": None, "cake": None, "video": None}
             journey.save(update_fields=["discovery_state", "flow_mode", "updated_at"])
 
         flow_mode = journey.flow_mode
         text_lower = (message_text or "").lower()
+        ds = journey.discovery_state or {}
 
-        # ── 9. INFORMATIONAL QUESTIONS ────────────────────────────────────
-        # Answer first, then append flow prompt if needed.
-        info_answer = None
-        
-        # Location
-        if any(sig in text_lower for sig in LOCATION_SIGNALS):
-            info_answer = LOCATION_RESPONSES.get(lang, LOCATION_RESPONSES["en"])
-        
-        # Frames
-        elif any(sig in text_lower for sig in ["frame","frames", "cadre", "ama cadre", "amaframe", "ama frame"]):
-            FRAME_ANSWERS = {
-                "en": "Our A5 photo frames are beautiful high-quality prints in a classic frame, perfect for home decor! 🖼️ For more details or/and If i didn't answer your question correctly, Kindly request to talk to a real person",
-                "fr": "Nos cadres photo A5 sont des impressions de haute qualité, parfaits pour la décoration! 🖼️ Pour plus de détails, ou si ma réponse ne vous a pas satisfait, demandez à parler à un agent",
-                "rw": "Ama cadre yacu ya A5 ni meza cyane kandi akomeye, akaba meza cyane mu rugo! 🖼️ Kubona ibisobanuro birambuye cyangwa niba ntasubije ikibazo cyawe neza, ndagusaba kugisha inama umuntu nyakuri.",
-            }
-            info_answer = FRAME_ANSWERS.get(lang, FRAME_ANSWERS["en"])
+        # 9. Collect last N messages for multi-message context
+        recent_history = _get_recent_messages(conversation)
 
-        # Cake
-        elif any(sig in text_lower for sig in ["cake","keke", "gâteau", "gateau", "umutsima"]):
-            CAKE_ANSWERS = {
-                "en": "Our birthday cakes are perfectly sized for a celebration! 🎂, For more details or/and If i didn't answer your question correctly, Kindly request to talk to a real person",
-                "fr": "Nos gâteaux d'anniversaire sont parfaitement dimensionnés pour une célébration! 🎂, Pour plus de détails, ou si ma réponse ne vous a pas satisfait, demandez à parler à un agent",
-                "rw": "Umutsima (cake) yacu irashyitse kugira ngo irahire icyo gihe! 🎂, Kubona ibisobanuro birambuye cyangwa niba ntasubije ikibazo cyawe neza, ndagusaba kugisha inama umuntu nyakuri.",
-            }
-            info_answer = CAKE_ANSWERS.get(lang, CAKE_ANSWERS["en"])
+        # ── ALWAYS-ON SIGNALS (checked regardless of flow_mode) ──────────
 
-        # Video
-        elif any(sig in text_lower for sig in ["video", "videwo", "vidéo", "duration", "how long", "amasegonda", "iminota"]):
-            VIDEO_ANSWERS = {
-                "en": "Our highlight videos are short clips of 15 to 30 seconds of your best moments! 🎬 For more details or/and If i didn't answer your question correctly, Kindly request to talk to a real person",
-                "fr": "Nos vidéos souvenirs sont de courts clips de 15 à 30 secondes de vos meilleurs moments! 🎬 Pour plus de détails, ou si ma réponse ne vous a pas satisfait, demandez à parler à un agent",
-                "rw": "Video zacu ngufi ziba zifite amasegonda 15 kugeza kuri 30 y'ibihe byiza mwagize! 🎬 Kubona ibisobanuro birambuye cyangwa niba ntasubije ikibazo cyawe neza, ndagusaba kugisha inama umuntu nyakuri.",
-            }
-            info_answer = VIDEO_ANSWERS.get(lang, VIDEO_ANSWERS["en"])
-
-        if info_answer:
-            if flow_mode == "discovery":
-                # Try to process the answer if they gave one in the same message
-                _process_discovery_answer(journey, message_text, lang)
-                ds = journey.discovery_state
-                next_q = _get_next_discovery_question(ds, lang)
-                if next_q:
-                    response_text = f"{info_answer}\n\n{next_q['question']}"
-                else:
-                    package_text = _build_package_presentation(ds, lang)
-                    response_text = f"{info_answer}\n\n{package_text}"
-            elif flow_mode == "packages_shown":
-                reprompt = {"en": "Which package feels right for you? 😊", "fr": "Lequel vous convient? 😊", "rw": "Ni iyihe mwifuza? 😊"}
-                response_text = f"{info_answer}\n\n{reprompt.get(lang, reprompt['en'])}"
-            elif flow_mode == "awaiting_datetime":
-                reprompt = {"en": "What date and time would you prefer? 📅", "fr": "Quelle date et heure préférez-vous? 📅", "rw": "Ni ryari kandi isaha yingahe mushaka? 📅"}
-                response_text = f"{info_answer}\n\n{reprompt.get(lang, reprompt['en'])}"
-            else:
-                response_text = info_answer
-
-            send_text(sender_id, response_text)
-            _save_outbound(client, conversation, response_text)
-            conversation.touch()
-            return
-
-        # ── 10. WELCOME — first message or new flow ───────────────────────
-        if flow_mode == "new":
-            response_text = WELCOME_MESSAGES.get(lang, WELCOME_MESSAGES["en"])
-            send_text(sender_id, response_text)
-            _save_outbound(client, conversation, response_text)
-            journey.flow_mode = "active"
-            journey.save(update_fields=["flow_mode", "updated_at"])
-            conversation.touch()
-            return
-
-        # ── 11. HUMAN TAKEOVER CHECK ──────────────────────────────────────
-        TAKEOVER_SIGNALS = [
-            "agent", "human", "real person", "speak to someone", "talk to someone",
-            "umuntu", "umukozi", "vugana", "agent réel", "quelqu'un",
-        ]
-        if any(sig in text_lower for sig in TAKEOVER_SIGNALS):
+        # Human requested → immediate takeover
+        if any(sig in text_lower for sig in HUMAN_SIGNALS):
             _activate_human_takeover(
                 client, journey, conversation, sender_id, lang,
-                reason="Client explicitly requested human agent"
+                reason="Client requested human agent"
             )
             return
 
-        # ── 12. DISCOVERY FLOW ────────────────────────────────────────────
-        if flow_mode == "discovery":
-            answered = _process_discovery_answer(journey, message_text, lang)
-            ds = journey.discovery_state
-
-            if _is_discovery_complete(ds):
-                package_text = _build_package_presentation(ds, lang)
-                send_text(sender_id, package_text)
-                _save_outbound(client, conversation, package_text)
-                journey.flow_mode = "packages_shown"
-                journey.save(update_fields=["flow_mode", "updated_at"])
-                conversation.touch()
-                return
-            
-            if answered:
-                # Clear answer given, move to next question
-                next_q = _get_next_discovery_question(ds, lang)
-                if next_q:
-                    send_text(sender_id, next_q["question"])
-                    _save_outbound(client, conversation, next_q["question"])
-                    conversation.touch()
-                    return
-            
-            # If not answered clearly (answered=False), allow fallthrough to Step 17 (AI Fallback)
-            # The AI will answer any specific question and repeat the current discovery question.
-
-        # ── 13. PACKAGES SHOWN — wait for choice or extra adjustment ─────
-        if flow_mode == "packages_shown":
-            recalc_needed = _check_extra_adjustment(message_text, journey, lang)
-            if recalc_needed:
-                ds = journey.discovery_state
-                package_text = _build_package_presentation(ds, lang)
-                send_text(sender_id, package_text)
-                _save_outbound(client, conversation, package_text)
-                conversation.touch()
-                return
-
-            chosen = _detect_package_choice(message_text)
-            if chosen:
-                ds = journey.discovery_state or {}
-                extras_cost = _calculate_extras_cost(ds)
-                base = {"starter": 50000, "silver": 70000, "gold": 100000, "premium": 200000}
-                total = base.get(chosen, 0) + extras_cost
-
-                CHOICE_MESSAGES = {
-                    "en": f"Excellent choice! 🎉 You have selected the {chosen.title()} Package at {total:,} RWF.\n\nWhat date and time would you prefer for your session? 📅\n(We are open Monday to Sunday, 9 AM to 6 PM)",
-                    "fr": f"Excellent choix! 🎉 Vous avez sélectionné le forfait {chosen.title()} à {total:,} RWF.\n\nQuelle date et heure préférez-vous pour votre séance? 📅\n(Nous sommes ouverts lundi au dimanche, 9h à 18h)",
-                    "rw": f"Amahitamo meza! 🎉 Mwahisemo {chosen.title()} Package kuri {total:,} RWF.\n\nNi ryari kandi isaha yingahe mushaka session yanyu? 📅\n(Turi hafi kuva ku wa Mbere kugeza ku Ku cyumweru, 9AM-6PM)",
-                }
-                response_text = CHOICE_MESSAGES.get(lang, CHOICE_MESSAGES["en"])
-                send_text(sender_id, response_text)
-                _save_outbound(client, conversation, response_text)
-                journey.selected_package = chosen
-                journey.flow_mode = "awaiting_datetime"
-                journey.save(update_fields=["selected_package", "flow_mode", "updated_at"])
-                conversation.touch()
-                return
-
-        # ── 14. AWAITING DATE/TIME ────────────────────────────────────────
-        if flow_mode == "awaiting_datetime":
-            DATE_SIGNALS = [
-                "tomorrow", "monday", "tuesday", "wednesday", "thursday",
-                "friday", "saturday", "january", "february", "march",
-                "april", "may", "june", "july", "august", "september",
-                "october", "november", "december",
-                "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi",
-                "demain", "semaine", "next week", "weekend",
-                "ejo", "ku cyumweru", "wakati",
-            ] + [str(i) for i in range(1, 32)]
-
-            if any(sig in text_lower for sig in DATE_SIGNALS) or any(
-                c.isdigit() for c in (message_text or "")
-            ):
-                ACK_MESSAGES = {
-                    "en": "Thank you! 😊 We have noted your preferred date. Our team will check availability and get back to you shortly to confirm. 🙏",
-                    "fr": "Merci! 😊 Nous avons noté votre date préférée. Notre équipe vérifiera les disponibilités et vous confirmera bientôt. 🙏",
-                    "rw": "Murakoze! 😊 Twabikuye itariki mushaka. Itsinda ryacu rizasuzuma ubusabe kandi rizosubiza vuba. 🙏",
-                }
-                response_text = ACK_MESSAGES.get(lang, ACK_MESSAGES["en"])
-                send_text(sender_id, response_text)
-                _save_outbound(client, conversation, response_text)
-
-                _activate_human_takeover(
-                    client, journey, conversation, sender_id, lang,
-                    reason=f"Client provided date: {message_text[:100] if message_text else '[media]'}",
-                    send_message=False,
-                )
-                conversation.touch()
-                return
-
-        # ── 15. PRICE INTENT ──────────────────────────────────────────────
-        if flow_mode in ("active", "packages_shown") or (
-            flow_mode not in ("discovery", "awaiting_datetime", "await_confirm", "human_takeover")
-        ):
-            if any(sig in text_lower for sig in PRICE_SIGNALS):
-                REFUSAL_SIGNALS = ["just show", "just tell", "directly", "straight", "skip", "no questions", "montre juste", "directement", "nta bibazo", "binyereke gusa"]
-                if any(sig in text_lower for sig in REFUSAL_SIGNALS):
-                    response_text = BASE_PACKAGES_NO_EXTRAS.get(lang, BASE_PACKAGES_NO_EXTRAS["en"])
-                    send_text(sender_id, response_text)
-                    _save_outbound(client, conversation, response_text)
-                    journey.flow_mode = "packages_shown"
-                    journey.save(update_fields=["flow_mode", "updated_at"])
-                    conversation.touch()
-                    return
-                else:
-                    invite = PRICE_INVITE_MESSAGES.get(lang, PRICE_INVITE_MESSAGES["en"])
-                    send_text(sender_id, invite)
-                    _save_outbound(client, conversation, invite)
-                    first_q = _get_next_discovery_question(journey.discovery_state or {}, lang)
-                    if first_q:
-                        send_text(sender_id, first_q["question"])
-                        _save_outbound(client, conversation, first_q["question"])
-                    journey.flow_mode = "discovery"
-                    journey.save(update_fields=["flow_mode", "updated_at"])
-                    conversation.touch()
-                    return
-
-        # ── 16. DISCOUNT REFUSAL ──────────────────────────────────────────
-        DISCOUNT_SIGNALS = ["discount", "reduce", "cheaper", "lower price", "negotiate", "réduction", "moins cher", "baisser", "négocier", "gutanga igiciro gito", "gucunga", "discounts", "expensive", "too much", "can't afford","ibiciro bito", "meshi cyane", "menshi", "menshi","menshi cyane",]
-        if any(sig in text_lower for sig in DISCOUNT_SIGNALS):
-            discount_count = journey.discovery_state.get("_discount_count", 0) + 1
-            journey.discovery_state["_discount_count"] = discount_count
-            journey.save(update_fields=["discovery_state", "updated_at"])
-
-            if discount_count >= 3:
-                _activate_human_takeover(client, journey, conversation, sender_id, lang, reason="Client insisted on discount 3+ times")
-                return
-
-            DISCOUNT_RESPONSES = {
-                "en": ("I completely understand! 😊 Our packages are designed to offer the best value for the quality we deliver. Our prices are fixed to ensure we always deliver our best work. 🙏" if discount_count == 1 else "I truly appreciate your interest! 😊 Unfortunately our pricing is fixed and we are unable to offer discounts. Would you like to proceed with a package? 🙏"),
-                "fr": ("Je comprends tout à fait! 😊 Nos forfaits sont conçus pour offrir le meilleur rapport qualité-prix. Nos prix sont fixes pour garantir notre meilleur travail. 🙏" if discount_count == 1 else "J'apprécie vraiment votre intérêt! 😊 Malheureusement nos tarifs sont fixes et nous ne pouvons pas offrir de réductions. Souhaitez-vous procéder avec un forfait? 🙏"),
-                "rw": ("Ndabizi! 😊 Packages zacu zagenywe kugira ngo zitange ubwiza bwuzuye. Ibiciro byacu ni bya ngombwa kugira ngo tubashe gutanga ubwiza bwacu. 🙏" if discount_count == 1 else "Ndashimira interest yanyu! 😊 Ntabwo dushobora gutanga discount. Ariko packages zacu ziri mu ibiciro byiza. Mushaka gukomeza na package? 🙏"),
-            }
-            response_text = DISCOUNT_RESPONSES.get(lang, DISCOUNT_RESPONSES["en"])
-            send_text(sender_id, response_text)
-            _save_outbound(client, conversation, response_text)
-            conversation.touch()
+        # ── FLOW: HUMAN TAKEOVER / AWAIT CONFIRM ─────────────────────────
+        if flow_mode in ("human_takeover", "await_confirm"):
             return
 
-        # ── 17. AI FALLBACK ───────────────────────────────────────────────
-        rag_context = retrieve_context(query=message_text or "", journey_phase=journey.phase, language=lang)
-        next_q = _get_next_discovery_question(journey.discovery_state or {}, lang)
-        system_prompt = build_instagram_system_prompt(
-            language=lang, client_name=client.name, flow_mode=flow_mode,
-            discovery_state=journey.discovery_state, rag_context=rag_context,
-            next_question=next_q["question"] if next_q else ""
-        )
-        recent_msgs = _get_recent_messages(conversation)
-        messages = build_messages_context(conversation_summary=None, recent_messages=recent_msgs[:-1] if recent_msgs else [], new_message=message_text or "[media]")
-        ai_response = call_openai(system_prompt=system_prompt, messages=messages)
+        # ── FLOW: AWAITING DATETIME ───────────────────────────────────────
+        if flow_mode == "awaiting_datetime":
+            if _contains_date(text_lower, message_text):
+                _handle_date_received(
+                    client, journey, conversation, sender_id, lang, message_text
+                )
+                return
+            else:
+                # Not a date — answer question then re-ask for date
+                _handle_with_ai_then_reask(
+                    client, journey, conversation, sender_id, lang,
+                    message_text, recent_history,
+                    reask={"en": "Do you have a preferred date for your session? 📅 (Mon-Sat, 9AM-6PM)",
+                           "fr": "Avez-vous une date préférée? 📅 (Lun-Sam, 9h-18h)",
+                           "rw": "Mufite itariki mushaka? 📅 (Ku wa Mbere-Gatanu, 9AM-6PM)"}
+                )
+                return
 
-        if ai_response.ok and ai_response.text.strip():
-            from services.client_service import record_tokens
-            record_tokens(client, conversation, ai_response.input_tokens, ai_response.output_tokens)
-            send_text(sender_id, ai_response.text)
-            _save_outbound(client, conversation, ai_response.text, model=ai_response.model, tokens_input=ai_response.input_tokens, tokens_output=ai_response.output_tokens)
+        # ── FLOW: PACKAGES SHOWN ──────────────────────────────────────────
+        if flow_mode == "packages_shown":
+            # Discount request
+            if any(sig in text_lower for sig in DISCOUNT_SIGNALS):
+                _handle_discount_request(
+                    client, journey, conversation, sender_id, lang
+                )
+                return
+
+            # Other packages question
+            if any(sig in text_lower for sig in OTHER_PACKAGES_SIGNALS):
+                NO_OTHER = {
+                    "en": "These 3 packages are what we offer — each already reflects the quality of our work. The difference is in the session duration and number of edited photos. Which one feels right for you? 😊",
+                    "fr": "Ces 3 forfaits sont tout ce que nous proposons — chacun reflète déjà la qualité de notre travail. La différence est la durée et le nombre de photos éditées. Lequel vous convient? 😊",
+                    "rw": "Izi packages 3 ni zo dufite — buri imwe irerekana ubwiza bw'akazi kacu. Itandukaniro ni igihe cy'isession n'umubare w'amafoto atunganijwe. Ni iyihe mwifuza? 😊",
+                }
+                _send_and_save(sender_id, client, conversation, NO_OTHER.get(lang, NO_OTHER["en"]))
+                return
+
+            # Extra adjustment
+            changed = _check_extra_adjustment(message_text, journey)
+            if changed:
+                pkg_text = _build_package_presentation(journey.discovery_state, lang)
+                _send_and_save(sender_id, client, conversation, pkg_text)
+                return
+
+            # Package choice
+            chosen = _detect_package_choice(text_lower)
+            if chosen:
+                _handle_package_chosen(
+                    client, journey, conversation, sender_id, lang, chosen
+                )
+                return
+
+            # Anything else — AI answers and re-asks which package
+            _handle_with_ai_then_reask(
+                client, journey, conversation, sender_id, lang,
+                message_text, recent_history,
+                reask={"en": "Which package would you like to go with? 😊",
+                       "fr": "Quel forfait souhaitez-vous choisir? 😊",
+                       "rw": "Ni iyihe package mushaka? 😊"}
+            )
+            return
+
+        # ── FLOW: DISCOVERY (extras selection) ───────────────────────────
+        if flow_mode == "discovery":
+            _handle_discovery_reply(
+                client, journey, conversation, sender_id, lang,
+                message_text, text_lower
+            )
+            return
+
+        # ── FLOW: NEW / ACTIVE ────────────────────────────────────────────
+        # Build a combined response that handles multi-intent messages
+        _handle_active_message(
+            client, journey, conversation, sender_id, lang,
+            message_text, text_lower, recent_history, flow_mode, is_new
+        )
 
         conversation.touch()
-        client.update_last_contact()
+        try:
+            client.update_last_contact()
+        except Exception:
+            pass
 
     except Exception as e:
         logger.exception("Error in handle_instagram_message for %s: %s", sender_id, e)
 
-# --- HELPER FUNCTIONS ---
+
+# ─── FLOW HANDLERS ───────────────────────────────────────────────────────────
+
+def _handle_active_message(
+    client, journey, conversation, sender_id, lang,
+    message_text, text_lower, recent_history, flow_mode, is_new
+):
+    """
+    Handles messages when flow is new/active.
+    Detects multiple intents in one message and responds to ALL of them.
+    Also handles the case where client sent multiple short messages in a row
+    (we read full recent_history to understand context).
+    """
+    has_greeting = any(x in text_lower for x in [
+        "hi", "hello", "hey", "bonjour", "bonsoir", "salut",
+        "muraho", "mwaramutse", "mwiriwe", "good morning", "good afternoon",
+    ])
+    has_location = any(sig in text_lower for sig in LOCATION_SIGNALS)
+    has_price = any(sig in text_lower for sig in PRICE_SIGNALS)
+
+    # Also check recent history for multi-message context
+    # If last 2 messages from client cover greeting + price, handle both
+    recent_client_msgs = [
+        m["content"].lower() for m in recent_history[-4:]
+        if m.get("role") == "user"
+    ]
+    combined_text = " ".join(recent_client_msgs)
+
+    if not has_location and any(sig in combined_text for sig in LOCATION_SIGNALS):
+        has_location = True
+    if not has_price and any(sig in combined_text for sig in PRICE_SIGNALS):
+        has_price = True
+
+    parts = []
+
+    # Build greeting part
+    if has_greeting or flow_mode == "new":
+        GREETINGS = {
+            "en": "Hi! Welcome to KP Kids Studio 📸",
+            "fr": "Bonjour! Bienvenue chez KP Kids Studio 📸",
+            "rw": "Muraho! Murakaza neza kuri KP Kids Studio 📸",
+        }
+        parts.append(GREETINGS.get(lang, GREETINGS["en"]))
+
+    # Build location part
+    if has_location:
+        LOC = {
+            "en": "We're located in Kicukiro, BRGD Plaza, opposite IPRC, next to SAWA CITY Supermarket, Kigali. 📍 Open Mon-Sat 9AM-6PM.",
+            "fr": "Nous sommes à Kicukiro, BRGD Plaza, en face de l'IPRC, à côté de SAWA CITY, Kigali. 📍 Ouvert lun-sam 9h-18h.",
+            "rw": "Turi i Kicukiro, BRGD Plaza, imbere y'IPRC, hafi ya SAWA CITY, Kigali. 📍 Turi hafi kuva ku wa Mbere kugeza ku wa Gatanu, 9AM-6PM.",
+        }
+        parts.append(LOC.get(lang, LOC["en"]))
+
+    # Build price part — start discovery
+    if has_price:
+        PRICE_INTRO = {
+            "en": (
+                "We don't charge per photo — we offer packages. 😊 "
+                "Packages start at 50,000 RWF. You can personalize yours by adding extras: "
+                "frames, a birthday cake, or a highlight video (15-30 sec).\n\n"
+                "Would you like any of these included?"
+            ),
+            "fr": (
+                "Nous ne facturons pas par photo — nous proposons des forfaits. 😊 "
+                "Les forfaits commencent à 50,000 RWF. Vous pouvez personnaliser le vôtre en ajoutant: "
+                "des cadres, un gâteau d'anniversaire, ou une vidéo souvenir (15-30 sec).\n\n"
+                "Souhaitez-vous inclure l'un de ces éléments?"
+            ),
+            "rw": (
+                "Ntitwishyura ifoto imwe — dufite packages. 😊 "
+                "Packages zitangira kuri 50,000 RWF. Mwongera ibyo mushaka: "
+                "ama cadre, cake ya aniverseri, cyangwa video ngufi (15-30 sec).\n\n"
+                "Murifuza kongereramo kimwe muri ibyo?"
+            ),
+        }
+        parts.append(PRICE_INTRO.get(lang, PRICE_INTRO["en"]))
+
+        # Start discovery flow
+        journey.flow_mode = "discovery"
+        journey.save(update_fields=["flow_mode", "updated_at"])
+
+        if parts:
+            _send_and_save(sender_id, client, conversation, "\n\n".join(parts))
+        return
+
+    # Only greeting/location — no price intent
+    if parts:
+        if not has_location and not has_price:
+            # Pure greeting — offer help
+            OFFER = {
+                "en": "\n\nI'm Julie, your assistant here. How can I help you today? You can ask about our packages & pricing, our location, or book a session. 😊",
+                "fr": "\n\nJe m'appelle Julie, votre assistante. Comment puis-je vous aider? Vous pouvez me demander nos forfaits, notre localisation, ou réserver une séance. 😊",
+                "rw": "\n\nNitwa Julie, umufasha wanyu. Ni gute nabafasha? Mwambaza packages zacu, ahantu turi, cyangwa gufatira igihe. 😊",
+            }
+            parts[-1] += OFFER.get(lang, OFFER["en"])
+        _send_and_save(sender_id, client, conversation, "\n\n".join(parts))
+
+        if flow_mode == "new":
+            journey.flow_mode = "active"
+            journey.save(update_fields=["flow_mode", "updated_at"])
+        return
+
+    # No clear intent — use AI
+    rag_context = retrieve_context(
+        query=message_text or "", journey_phase=journey.phase, language=lang
+    )
+    system_prompt = _build_system_prompt(
+        lang, client.name, flow_mode, journey.discovery_state, rag_context
+    )
+    messages = build_messages_context(
+        conversation_summary=None,
+        recent_messages=recent_history[:-1] if len(recent_history) > 1 else [],
+        new_message=message_text or "[media]",
+    )
+    ai_resp = call_openai(system_prompt=system_prompt, messages=messages)
+    if ai_resp.ok and ai_resp.text.strip():
+        from services.client_service import record_tokens
+        record_tokens(client, conversation, ai_resp.input_tokens, ai_resp.output_tokens)
+        _send_and_save(sender_id, client, conversation, ai_resp.text,
+                       model=ai_resp.model,
+                       tokens_input=ai_resp.input_tokens,
+                       tokens_output=ai_resp.output_tokens)
+
+    if flow_mode == "new":
+        journey.flow_mode = "active"
+        journey.save(update_fields=["flow_mode", "updated_at"])
+
+
+def _handle_discovery_reply(
+    client, journey, conversation, sender_id, lang,
+    message_text, text_lower
+):
+    """
+    Client is in discovery (extras selection).
+    They can say yes/no to all extras, pick some, or ask questions.
+    """
+    ds = journey.discovery_state or {}
+
+    # Check if this is a question about an extra — answer directly
+    extra_answer = _get_extra_info_answer(text_lower, lang)
+    if extra_answer:
+        # Still need to know their choice — reask
+        REASK = {
+            "en": "Would you like any extras included — frames, cake, or video?",
+            "fr": "Souhaitez-vous inclure des extras — cadres, gâteau ou vidéo?",
+            "rw": "Murifuza kongereramo ama cadre, cake, cyangwa video?",
+        }
+        _send_and_save(sender_id, client, conversation,
+                       f"{extra_answer}\n\n{REASK.get(lang, REASK['en'])}")
+        return
+
+    # Detect No — no extras at all
+    plain_no = _extract_yes_no(message_text)
+    if plain_no is False and not any(
+        x in text_lower for x in ["frame", "cake", "video", "cadre", "gâteau", "gateau"]
+    ):
+        # Client said no to all extras
+        ds["frames"] = False
+        ds["cake"] = False
+        ds["video"] = False
+        journey.discovery_state = ds
+        journey.save(update_fields=["discovery_state", "updated_at"])
+        pkg_text = _build_package_presentation(ds, lang)
+        _send_and_save(sender_id, client, conversation, pkg_text)
+        journey.flow_mode = "packages_shown"
+        journey.save(update_fields=["flow_mode", "updated_at"])
+        return
+
+    # Detect Yes without specifying — ask which extras
+    if plain_no is True and not any(
+        x in text_lower for x in ["frame", "cake", "video", "cadre", "gâteau", "gateau"]
+    ):
+        WHICH = {
+            "en": (
+                "Great! 😊 Which ones would you like?\n\n"
+                "🖼️ 2 A5 Photo Frames (+20,000 RWF)\n"
+                "🎂 Birthday Cake (+30,000 RWF)\n"
+                "🎬 Highlight Video 15-30sec (+29,000 RWF)\n"
+                "Or the cake + video bundle (+50,000 RWF instead of +59,000 RWF)\n\n"
+                "Just tell me which ones!"
+            ),
+            "fr": (
+                "Super! 😊 Lesquels souhaitez-vous?\n\n"
+                "🖼️ 2 Cadres Photo A5 (+20,000 RWF)\n"
+                "🎂 Gâteau d'Anniversaire (+30,000 RWF)\n"
+                "🎬 Vidéo Souvenir 15-30sec (+29,000 RWF)\n"
+                "Ou le bundle gâteau+vidéo (+50,000 RWF au lieu de +59,000 RWF)\n\n"
+                "Dites-moi lesquels!"
+            ),
+            "rw": (
+                "Nziza! 😊 Ni izihe mushaka?\n\n"
+                "🖼️ Ama cadre 2 ya A5 (+20,000 RWF)\n"
+                "🎂 Cake ya Aniverseri (+30,000 RWF)\n"
+                "🎬 Video Ngufi 15-30sec (+29,000 RWF)\n"
+                "Cyangwa cake+video hamwe (+50,000 RWF aho kuba +59,000 RWF)\n\n"
+                "Mwambaze izihe!"
+            ),
+        }
+        _send_and_save(sender_id, client, conversation, WHICH.get(lang, WHICH["en"]))
+        return
+
+    # Detect specific extras in message
+    # Client can mention multiple extras in one or across messages
+    if "frame" in text_lower or "cadre" in text_lower or "ama cadre" in text_lower:
+        ds["frames"] = True
+    elif ds.get("frames") is None:
+        ds["frames"] = False  # not mentioned → not wanted
+
+    if "cake" in text_lower or "gâteau" in text_lower or "gateau" in text_lower or "umutsima" in text_lower:
+        ds["cake"] = True
+    elif ds.get("cake") is None:
+        ds["cake"] = False
+
+    if "video" in text_lower or "vidéo" in text_lower:
+        ds["video"] = True
+    elif ds.get("video") is None:
+        ds["video"] = False
+
+    # Check if all decided — if so present packages
+    if all(ds.get(k) is not None for k in ["frames", "cake", "video"]):
+        journey.discovery_state = ds
+        journey.save(update_fields=["discovery_state", "updated_at"])
+        pkg_text = _build_package_presentation(ds, lang)
+        _send_and_save(sender_id, client, conversation, pkg_text)
+        journey.flow_mode = "packages_shown"
+        journey.save(update_fields=["flow_mode", "updated_at"])
+    else:
+        # Some extras still unclear — ask about remaining ones
+        journey.discovery_state = ds
+        journey.save(update_fields=["discovery_state", "updated_at"])
+        _ask_remaining_extras(sender_id, client, conversation, ds, lang)
+
+
+def _ask_remaining_extras(sender_id, client, conversation, ds, lang):
+    """Ask only about extras not yet decided."""
+    pending = []
+    if ds.get("frames") is None:
+        pending.append({"en": "2 A5 Photo Frames (+20,000 RWF)", "fr": "2 Cadres A5 (+20,000 RWF)", "rw": "Ama cadre 2 ya A5 (+20,000 RWF)"}[lang])
+    if ds.get("cake") is None:
+        pending.append({"en": "Birthday Cake (+30,000 RWF)", "fr": "Gâteau d'Anniversaire (+30,000 RWF)", "rw": "Cake ya Aniverseri (+30,000 RWF)"}[lang])
+    if ds.get("video") is None:
+        pending.append({"en": "Highlight Video 15-30sec (+29,000 RWF)", "fr": "Vidéo Souvenir 15-30sec (+29,000 RWF)", "rw": "Video Ngufi 15-30sec (+29,000 RWF)"}[lang])
+
+    if not pending:
+        return
+
+    STILL = {
+        "en": f"Would you also like: {', '.join(pending)}?",
+        "fr": f"Souhaitez-vous aussi: {', '.join(pending)}?",
+        "rw": f"Murifuza nako: {', '.join(pending)}?",
+    }
+    _send_and_save(sender_id, client, conversation, STILL.get(lang, STILL["en"]))
+
+
+def _handle_package_chosen(client, journey, conversation, sender_id, lang, chosen):
+    """Client chose a package — ask for date."""
+    ds = journey.discovery_state or {}
+    extras_cost = _calculate_extras_cost(ds)
+    base = {"starter": 50000, "silver": 70000, "gold": 100000}
+    total = base.get(chosen, 0) + extras_cost
+
+    MSGS = {
+        "en": f"Excellent choice! 🎉 You've selected the {chosen.title()} Package at {total:,} RWF.\n\nDo you have a preferred date and time in mind for your session? 📅\n(We're open Mon-Sat, 9AM-6PM)",
+        "fr": f"Excellent choix! 🎉 Vous avez sélectionné le {chosen.title()} Package à {total:,} RWF.\n\nAvez-vous une date et heure préférées? 📅\n(Ouvert lun-sam, 9h-18h)",
+        "rw": f"Amahitamo meza! 🎉 Mwahisemo {chosen.title()} Package kuri {total:,} RWF.\n\nMufite itariki n'isaha mushaka? 📅\n(Turi hafi kuva ku wa Mbere kugeza ku wa Gatanu, 9AM-6PM)",
+    }
+    _send_and_save(sender_id, client, conversation, MSGS.get(lang, MSGS["en"]))
+    journey.selected_package = chosen
+    journey.flow_mode = "awaiting_datetime"
+    journey.save(update_fields=["selected_package", "flow_mode", "updated_at"])
+
+
+def _handle_date_received(client, journey, conversation, sender_id, lang, message_text):
+    """Client gave a date — acknowledge and activate human takeover."""
+    ACK = {
+        "en": "Thank you! 😊 We've noted your preferred date. Our team will check availability and confirm with you shortly. 🙏",
+        "fr": "Merci! 😊 Nous avons noté votre date. Notre équipe vérifiera les disponibilités et vous confirmera bientôt. 🙏",
+        "rw": "Murakoze! 😊 Twabikuye itariki yanyu. Itsinda ryacu rizasuzuma ubusabe kandi rizosubiza vuba. 🙏",
+    }
+    _send_and_save(sender_id, client, conversation, ACK.get(lang, ACK["en"]))
+    _activate_human_takeover(
+        client, journey, conversation, sender_id, lang,
+        reason=f"Client provided date: {message_text[:100]}",
+        send_message=False,
+    )
+
+
+def _handle_discount_request(client, journey, conversation, sender_id, lang):
+    """Handle discount request — refuse then re-ask package choice."""
+    ds = journey.discovery_state or {}
+    discount_count = ds.get("_discount_count", 0) + 1
+    ds["_discount_count"] = discount_count
+    journey.discovery_state = ds
+    journey.save(update_fields=["discovery_state", "updated_at"])
+
+    if discount_count >= 3:
+        _activate_human_takeover(
+            client, journey, conversation, sender_id, lang,
+            reason="Client insisted on discount 3+ times"
+        )
+        return
+
+    REFUSE = {
+        "en": (
+            "I completely understand! 😊 Our packages are priced to reflect the quality we deliver — professional photos, experienced team, and a special gift for your child. Prices are fixed.\n\n"
+            "Which package would you like to go with? 😊"
+            if discount_count == 1 else
+            "I appreciate your interest! 😊 Unfortunately our pricing is fixed and we can't offer discounts. Our packages already offer great value for the quality.\n\nWhich one would you like? 😊"
+        ),
+        "fr": (
+            "Je comprends tout à fait! 😊 Nos forfaits reflètent la qualité que nous livrons. Les prix sont fixes.\n\nLequel vous intéresse? 😊"
+            if discount_count == 1 else
+            "J'apprécie votre intérêt! 😊 Nos prix sont fixes, pas de réductions possibles. Lequel vous convient? 😊"
+        ),
+        "rw": (
+            "Ndabizi! 😊 Ibiciro byacu birakwiriye ubwiza bw'akazi kacu. Ibiciro ni bya ngombwa.\n\nNi iyihe package mushaka? 😊"
+            if discount_count == 1 else
+            "Ndashimira! 😊 Ntabwo dushobora gutanga discount. Ni iyihe package mushaka? 😊"
+        ),
+    }
+    _send_and_save(sender_id, client, conversation, REFUSE.get(lang, REFUSE["en"]))
+
+
+def _handle_with_ai_then_reask(
+    client, journey, conversation, sender_id, lang,
+    message_text, recent_history, reask: dict
+):
+    """Use AI to answer a question, then append a re-ask for the current step."""
+    rag_context = retrieve_context(
+        query=message_text or "", journey_phase=journey.phase, language=lang
+    )
+    system_prompt = _build_system_prompt(
+        lang, client.name, journey.flow_mode, journey.discovery_state, rag_context
+    )
+    messages = build_messages_context(
+        conversation_summary=None,
+        recent_messages=recent_history[:-1] if len(recent_history) > 1 else [],
+        new_message=message_text or "[media]",
+    )
+    ai_resp = call_openai(system_prompt=system_prompt, messages=messages)
+    if ai_resp.ok and ai_resp.text.strip():
+        from services.client_service import record_tokens
+        record_tokens(client, conversation, ai_resp.input_tokens, ai_resp.output_tokens)
+        combined = f"{ai_resp.text.strip()}\n\n{reask.get(lang, reask.get('en', ''))}"
+        _send_and_save(sender_id, client, conversation, combined,
+                       model=ai_resp.model,
+                       tokens_input=ai_resp.input_tokens,
+                       tokens_output=ai_resp.output_tokens)
+    else:
+        _send_and_save(sender_id, client, conversation, reask.get(lang, reask.get("en", "")))
+
+
+# ─── HELPER: EXTRA INFO ANSWERS ──────────────────────────────────────────────
+
+def _get_extra_info_answer(text_lower: str, lang: str) -> Optional[str]:
+    """Returns a direct answer if client asked about a specific extra."""
+    FRAME_Q = ["what are frames", "what is frame", "frame size", "frame quality",
+               "qu'est-ce que les cadres", "taille des cadres", "ama cadre ni iki"]
+    CAKE_Q = ["what size cake", "how big is the cake", "cake size",
+              "taille du gâteau", "cake ingahe", "cake ni ingahe"]
+    VIDEO_Q = ["how long is the video", "video length", "video duration",
+               "durée de la vidéo", "video iramara", "video ingahe"]
+
+    if any(x in text_lower for x in FRAME_Q + ["frame", "cadre"]) and "?" in text_lower:
+        return {
+            "en": "Our A5 frames are high-quality printed photos in elegant frames — perfect for home display! 🖼️ For more details: WhatsApp +250795820170",
+            "fr": "Nos cadres A5 sont des impressions de haute qualité dans des cadres élégants — parfaits pour la déco! 🖼️ Pour plus de détails: WhatsApp +250795820170",
+            "rw": "Ama cadre yacu ya A5 ni amafoto meza mu nkware z'indangagaciro — akaba meza cyane mu rugo! 🖼️ Kugira amakuru: WhatsApp +250795820170",
+        }.get(lang)
+
+    if any(x in text_lower for x in CAKE_Q + ["cake"]) and "?" in text_lower:
+        return {
+            "en": "Our birthday cake is perfectly sized for a celebration! 🎂",
+            "fr": "Notre gâteau d'anniversaire est parfaitement dimensionné pour une célébration! 🎂",
+            "rw": "Cake yacu irashyitse kugira ngo irahire icyo gihe! 🎂",
+        }.get(lang)
+
+    if any(x in text_lower for x in VIDEO_Q + ["video", "vidéo"]) and "?" in text_lower:
+        return {
+            "en": "Our highlight video is a 15 to 30-second clip of your session's best moments! 🎬 For more details: WhatsApp +250795820170",
+            "fr": "Notre vidéo souvenir est un clip de 15 à 30 secondes de vos meilleurs moments! 🎬 Pour plus de détails: WhatsApp +250795820170",
+            "rw": "Video yacu ni agace ka 15 kugeza 30 amasegonda y'ibihe byiza bya session yanyu! 🎬 Kugira amakuru: WhatsApp +250795820170",
+        }.get(lang)
+
+    return None
+
+
+# ─── PACKAGE BUILDING ────────────────────────────────────────────────────────
+
+def _build_package_presentation(ds: dict, lang: str) -> str:
+    """Build exact package presentation — studio only."""
+    extras_cost = _calculate_extras_cost(ds)
+    extras_lines = []
+
+    if ds.get("frames"):
+        extras_lines.append({"en": "2 A5 Photo Frames", "fr": "2 Cadres Photo A5", "rw": "Ama cadre 2 ya A5"}[lang])
+    if ds.get("cake") and ds.get("video"):
+        extras_lines.append({"en": "Birthday Cake + Highlight Video", "fr": "Gâteau + Vidéo Souvenir", "rw": "Cake + Video"}[lang])
+    elif ds.get("cake"):
+        extras_lines.append({"en": "Birthday Cake", "fr": "Gâteau d'Anniversaire", "rw": "Cake ya Aniverseri"}[lang])
+    elif ds.get("video"):
+        extras_lines.append({"en": "Highlight Video (15-30 sec)", "fr": "Vidéo Souvenir (15-30 sec)", "rw": "Video Ngufi (15-30 sec)"}[lang])
+
+    includes_str = ", ".join(extras_lines) if extras_lines else ""
+    INCLUDES = {"en": "Includes: ", "fr": "Inclus: ", "rw": "Harimo: "}
+
+    packages = [
+        {"name": "Starter", "base": 50000, "emoji": "🥉", "duration": "1h", "photos": 8},
+        {"name": "Silver",  "base": 70000, "emoji": "🥈", "duration": "1h", "photos": 12},
+        {"name": "Gold",    "base": 100000, "emoji": "🥇", "duration": "1.5h", "photos": 18},
+    ]
+
+    INTROS = {
+        "en": "Here are the packages built just for you! 😊\n\n",
+        "fr": "Voici les forfaits faits pour vous! 😊\n\n",
+        "rw": "Dore packages zakubakiwe! 😊\n\n",
+    }
+    SESSION = {"en": "Studio Session", "fr": "Séance Studio", "rw": "Session ya Studio"}
+    DELIVERY = {"en": "{n} Edited Photos + All other unedited", "fr": "{n} Photos Éditées + Toutes les autres non éditées", "rw": "Amafoto {n} atunganijwe + Ayandi yose adatunganijwe"}
+    GIFT = {
+        "en": "\nAnd on behalf of KP Kids Studio, a special gift for the child! 🎁\n\nWhich package feels right for you? 😊",
+        "fr": "\nEt de la part de KP Kids Studio, un cadeau spécial pour l'enfant! 🎁\n\nLequel vous convient? 😊",
+        "rw": "\nKandi mu izina rya KP Kids Studio, impano yihariye y'umwana! 🎁\n\nNi iyihe mwifuza? 😊",
+    }
+
+    text = INTROS.get(lang, INTROS["en"])
+    for pkg in packages:
+        total = pkg["base"] + extras_cost
+        text += f"{pkg['emoji']} {pkg['name']} Package — {total:,} RWF\n"
+        text += f"{pkg['duration']} {SESSION[lang]}\n"
+        text += DELIVERY[lang].format(n=pkg["photos"]) + "\n"
+        if includes_str:
+            text += INCLUDES[lang] + includes_str + "\n"
+        text += "\n"
+    text += GIFT.get(lang, GIFT["en"])
+    return text
+
+
+# ─── SYSTEM PROMPT ───────────────────────────────────────────────────────────
+
+def _build_system_prompt(
+    language: str,
+    client_name: str,
+    flow_mode: str,
+    discovery_state: dict,
+    rag_context: str,
+) -> str:
+    lang_instr = LANG_INSTRUCTIONS.get(language, LANG_INSTRUCTIONS["en"])
+    ds_str = str(discovery_state) if discovery_state else "{}"
+
+    if flow_mode in ("human_takeover", "await_confirm"):
+        return "You are silent. Return empty string."
+
+    return f"""You are Julie, AI assistant for KP Kids Studio, Kigali, Rwanda.
+
+LANGUAGE: {lang_instr}
+
+PERSONA: Warm, friendly, professional. No markdown. No buttons. Emojis OK.
+Max 4 sentences unless presenting packages.
+
+STUDIO: Kicukiro, BRGD Plaza, opposite IPRC, next to SAWA CITY, Kigali.
+Hours: Mon-Sat 9AM-6PM. WhatsApp: +250795820170.
+
+PRICING (EXACT):
+Studio packages: Starter 50k RWF (1h, 8 photos), Silver 70k (1h, 12 photos), Gold 100k (1.5h, 18 photos).
+All include ALL unedited photos.
+Extras: Frames +20k, Cake +30k, Video +29k (15-30 SECONDS NOT MINUTES), Cake+Video bundle +50k.
+NO DISCOUNTS. NO SINGLE PHOTO PRICING.
+
+SPECIFIC FACTS:
+- Video: 15 to 30 seconds. NEVER say minutes.
+- Frames: A5 format, high-quality, for home display.
+- Cake: perfectly sized for celebration.
+- No session_type question — studio only.
+- Family photoshoot ≠ home session. We do family at studio too.
+
+CLIENT STATE: {client_name}, mode={flow_mode}
+Discovery: {ds_str}
+
+KNOWLEDGE: {rag_context or "N/A"}
+
+RULES:
+1. Answer the client's question directly and completely.
+2. Never invent prices or durations.
+3. Never say video is longer than 30 seconds.
+4. If you cannot answer → "For more details: WhatsApp +250795820170 😊"
+5. No discounts ever.
+6. If flow_mode is human_takeover → return empty string.
+"""
+
+
+# ─── UTILITIES ───────────────────────────────────────────────────────────────
 
 def _detect_and_lock_language(client: Client, message_text: str) -> str:
-    if client.language_locked and client.language: return client.language
+    if getattr(client, "language_locked", False) and client.language:
+        return client.language
     from utils.language import detect_language
     detected = detect_language(message_text)
-    text_lower = message_text.lower()
-    if any(signal in text_lower for signal in RW_SIGNALS): detected = "rw"
+    if any(sig in message_text.lower() for sig in RW_SIGNALS):
+        detected = "rw"
     client.language = detected
     client.language_locked = True
     client.save(update_fields=["language", "language_locked", "updated_at"])
     return detected
 
-def _get_next_discovery_question(discovery_state: dict, lang: str) -> Optional[dict]:
-    questions = DISCOVERY_QUESTIONS.get(lang, DISCOVERY_QUESTIONS["en"])
-    for q in questions:
-        if discovery_state.get(q["key"]) is None: return q
-    return None
-
-def _is_discovery_complete(discovery_state: dict) -> bool:
-    return all(discovery_state.get(k) is not None for k in ["photo_type", "session_type", "frames", "cake", "video"])
 
 def _extract_yes_no(text: str) -> Optional[bool]:
-    text = text.lower().strip()
-    YES = ["yes", "yeah", "yep", "sure", "ok", "okay", "oui", "yego", "ndashaka", "twaze", "ntakibazo"]
-    NO = ["no", "nope", "not", "without", "skip", "non", "oya", "hoya", "ntabwo", "nta"]
+    t = text.lower().strip()
+    YES = ["yes", "yeah", "yep", "sure", "ok", "okay", "oui", "yego", "ndashaka",
+           "twaze", "ntakibazo", "of course", "definitely", "please", "go ahead"]
+    NO = ["no", "nope", "not", "without", "none", "skip", "non", "oya", "hoya",
+          "ntabwo", "nta", "ntashaka", "don't", "no need"]
     for s in YES:
-        if s in text: return True
+        if s in t:
+            return True
     for s in NO:
-        if s in text: return False
+        if s in t:
+            return False
     return None
 
-def _process_discovery_answer(journey: JourneyState, message_text: str, lang: str) -> bool:
-    ds = journey.discovery_state or {}
-    text_lower = (message_text or "").lower()
-    for key in ["photo_type", "session_type", "frames", "cake", "video"]:
-        if ds.get(key) is None:
-            if key == "photo_type":
-                if any(x in text_lower for x in ["family", "famille", "umuryango"]): ds["photo_type"] = "family"
-                else: ds["photo_type"] = "child"
-            elif key == "session_type":
-                if any(x in text_lower for x in ["home", "house", "rugo", "domicile", "maison"]): ds["session_type"] = "home"
-                else: ds["session_type"] = "studio"
-            else:
-                answer = _extract_yes_no(message_text)
-                if answer is None: return False
-                ds[key] = answer
-            break
-    journey.discovery_state = ds
-    journey.save(update_fields=["discovery_state", "updated_at"])
-    return True
 
-def _detect_package_choice(message_text: str) -> Optional[str]:
-    text_lower = (message_text or "").lower()
-    if any(x in text_lower for x in ["starter", "50"]): return "starter"
-    if any(x in text_lower for x in ["silver", "70"]): return "silver"
-    if any(x in text_lower for x in ["gold", "100"]): return "gold"
-    if any(x in text_lower for x in ["premium", "200"]): return "premium"
+def _contains_date(text_lower: str, message_text: str) -> bool:
+    DATE_WORDS = [
+        "monday", "tuesday", "wednesday", "thursday", "friday", "saturday",
+        "tomorrow", "next week", "weekend", "january", "february", "march",
+        "april", "may", "june", "july", "august", "september", "october",
+        "november", "december",
+        "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "demain",
+        "ejo", "ku cyumweru",
+    ]
+    if any(w in text_lower for w in DATE_WORDS):
+        return True
+    if any(c.isdigit() for c in (message_text or "")):
+        return True
+    return False
+
+
+def _detect_package_choice(text_lower: str) -> Optional[str]:
+    if any(x in text_lower for x in ["starter", "50", "first", "cheapest", "ya mbere"]):
+        return "starter"
+    if any(x in text_lower for x in ["silver", "70", "second", "middle", "ya kabiri"]):
+        return "silver"
+    if any(x in text_lower for x in ["gold", "100", "third", "best", "last", "ya gatatu"]):
+        return "gold"
     return None
 
-def _check_extra_adjustment(message_text: str, journey: JourneyState, lang: str) -> bool:
+
+def _check_extra_adjustment(message_text: str, journey) -> bool:
     text_lower = (message_text or "").lower()
     ds = journey.discovery_state or {}
     changed = False
-    if "remove video" in text_lower or "sans video" in text_lower: ds["video"] = False; changed = True
-    elif "add video" in text_lower or "avec video" in text_lower: ds["video"] = True; changed = True
-    if "remove cake" in text_lower or "sans gateau" in text_lower: ds["cake"] = False; changed = True
-    elif "add cake" in text_lower or "avec gateau" in text_lower: ds["cake"] = True; changed = True
-    if "remove frame" in text_lower or "sans cadre" in text_lower: ds["frames"] = False; changed = True
-    elif "add frame" in text_lower or "avec cadre" in text_lower: ds["frames"] = True; changed = True
+    if "remove video" in text_lower or "sans video" in text_lower or "gukuraho video" in text_lower:
+        ds["video"] = False; changed = True
+    elif "add video" in text_lower or "avec video" in text_lower or "kongeraho video" in text_lower:
+        ds["video"] = True; changed = True
+    if "remove cake" in text_lower or "sans gateau" in text_lower or "gukuraho cake" in text_lower:
+        ds["cake"] = False; changed = True
+    elif "add cake" in text_lower or "avec gateau" in text_lower or "kongeraho cake" in text_lower:
+        ds["cake"] = True; changed = True
+    if "remove frame" in text_lower or "sans cadre" in text_lower or "gukuraho frame" in text_lower:
+        ds["frames"] = False; changed = True
+    elif "add frame" in text_lower or "avec cadre" in text_lower or "kongeraho frame" in text_lower:
+        ds["frames"] = True; changed = True
     if changed:
         journey.discovery_state = ds
         journey.save(update_fields=["discovery_state", "updated_at"])
     return changed
 
+
 def _calculate_extras_cost(ds: dict) -> int:
     cost = 0
-    if ds.get("frames"): cost += 20000
-    if ds.get("cake") and ds.get("video"): cost += 50000
-    elif ds.get("cake"): cost += 30000
-    elif ds.get("video"): cost += 29000
+    if ds.get("frames"):
+        cost += 20000
+    if ds.get("cake") and ds.get("video"):
+        cost += 50000
+    elif ds.get("cake"):
+        cost += 30000
+    elif ds.get("video"):
+        cost += 29000
     return cost
 
-def _activate_human_takeover(client, journey, conversation, sender_id, lang, reason="Human takeover", send_message=True):
+
+def _activate_human_takeover(
+    client, journey, conversation, sender_id, lang,
+    reason="Human takeover", send_message=True
+):
     if send_message:
-        msg = {"en": "Of course! 😊 One of our team members will be with you shortly. 🙏", "fr": "Bien sûr! 😊 Un membre de notre équipe sera avec vous bientôt. 🙏", "rw": "Yego rwose! 😊 Umwe mu bakozi bacu aragufasha vuba. 🙏"}.get(lang, "Of course! 😊")
-        send_text(sender_id, msg); _save_outbound(client, conversation, msg)
-    journey.human_takeover = True; journey.takeover_reason = reason; journey.flow_mode = "human_takeover"
+        MSG = {
+            "en": "Of course! 😊 One of our team members will be with you shortly. Thank you for your patience! 🙏",
+            "fr": "Bien sûr! 😊 Un membre de notre équipe sera avec vous bientôt. Merci! 🙏",
+            "rw": "Yego rwose! 😊 Umwe mu bakozi bacu aragufasha vuba. Murakoze! 🙏",
+        }
+        _send_and_save(sender_id, client, conversation, MSG.get(lang, MSG["en"]))
+
+    journey.human_takeover = True
+    journey.takeover_reason = reason
+    journey.flow_mode = "human_takeover"
     journey.save(update_fields=["human_takeover", "takeover_reason", "flow_mode", "updated_at"])
-    from apps.instagram.models import InstagramApprovalQueue
-    InstagramApprovalQueue.objects.create(client=client, conversation=conversation, action=InstagramApprovalQueue.ApprovalAction.ESCALATE, ai_suggestion=f"[Instagram] Human takeover: {reason}", ai_reasoning=reason, expires_at=timezone.now() + timezone.timedelta(hours=72))
+
+    # Approval queue
+    try:
+        InstagramApprovalQueue.objects.create(
+            client=client,
+            conversation=conversation,
+            action="escalate",
+            ai_suggestion=f"[Instagram] {reason}",
+            ai_reasoning=reason,
+            heat_score_at_suggestion=getattr(journey, "heat_score", 50),
+            expires_at=timezone.now() + timezone.timedelta(hours=72),
+        )
+    except Exception as e:
+        logger.warning("Could not create InstagramApprovalQueue for IG takeover: %s", e)
+
+    # Email
+    try:
+        from services.button_flow import _send_agent_request_email
+        _send_agent_request_email(client, journey)
+    except Exception as e:
+        logger.warning("IG takeover email failed: %s", e)
+
+    # Push
     try:
         from apps.dashboard.views import send_push_notification
-        send_push_notification(title=f"📸 Instagram — {client.name or sender_id}", body=reason[:80], url=f"/?client={client.pk}")
-    except Exception: pass
+        send_push_notification(
+            title=f"📸 Instagram — {client.name or sender_id}",
+            body=reason[:80],
+            url=f"/?client={client.pk}",
+        )
+    except Exception:
+        pass
 
-def _build_package_presentation(discovery_state: dict, lang: str) -> str:
-    extras_cost = _calculate_extras_cost(discovery_state)
-    extras_lines = []
-    if discovery_state.get("frames"): extras_lines.append({"en": "2 A5 Photo Frames", "fr": "2 Cadres Photo A5", "rw": "Ama cadre 2 ya A5"}[lang])
-    if discovery_state.get("cake") and discovery_state.get("video"): extras_lines.append({"en": "Birthday Cake + Highlight Video", "fr": "Gâteau + Vidéo Souvenir", "rw": "Cake + Video"}[lang])
-    elif discovery_state.get("cake"): extras_lines.append({"en": "Birthday Cake", "fr": "Gâteau d'Anniversaire", "rw": "Cake ya Aniverseri"}[lang])
-    elif discovery_state.get("video"): extras_lines.append({"en": "Highlight Video (15-30 sec)", "fr": "Vidéo Souvenir (15-30 sec)", "rw": "Video Ngufi (15-30 sec)"}[lang])
-    includes_str = ", ".join(extras_lines) if extras_lines else ""
-    session_type = discovery_state.get("session_type", "studio")
-    if session_type == "home":
-        total = 200000 + extras_cost
-        text = {"en": f"🏆 Premium Package — {total:,} RWF\n2h Home Session\nDelivery: 30 Edited Photos\n", "fr": f"🏆 Premium Package — {total:,} RWF\n2h Séance à Domicile\nLivraison: 30 Photos Éditées\n", "rw": f"🏆 Premium Package — {total:,} RWF\nAmasaha 2 mu Rugo\nKubaboherereza: Amafoto 30 atunganijwe\n"}[lang]
-        if includes_str: text += {"en": "Includes: ", "fr": "Inclus: ", "rw": "Harimo: "}[lang] + includes_str + "\n"
-        text += {"en": "\nAnd a special gift for the child!\nWhich package feels right? 😊", "fr": "\nEt un cadeau spécial pour l'enfant!\nLequel vous convient? 😊", "rw": "\nKandi impano yihariye y'umwana!\nNi iyihe mwifuza? 😊"}[lang]
-        return text
-    packages = [{"name": "Starter", "base": 50000, "emoji": "🥉", "duration": "1h", "photos": 8}, {"name": "Silver", "base": 70000, "emoji": "🥈", "duration": "1h", "photos": 12}, {"name": "Gold", "base": 100000, "emoji": "🥇", "duration": "1.5h", "photos": 18}]
-    text = {"en": "Here are the 3 packages built just for you!\n\n", "fr": "Voici les 3 forfaits faits pour vous!\n\n", "rw": "Dore packages 3 zakubakiwe!\n\n"}[lang]
-    for pkg in packages:
-        total = pkg["base"] + extras_cost
-        text += f"{pkg['emoji']} {pkg['name']} Package — {total:,} RWF\n"
-        text += f"{pkg['duration']} " + {"en": "Studio Session", "fr": "Séance Studio", "rw": "Session ya Studio"}[lang] + "\n"
-        text += {"en": f"Delivery: {pkg['photos']} Edited Photos", "fr": f"Livraison: {pkg['photos']} Photos Éditées", "rw": f"Kubaboherereza: Amafoto {pkg['photos']} atunganijwe"}[lang] + "\n"
-        if includes_str: text += {"en": "Includes: ", "fr": "Inclus: ", "rw": "Harimo: "}[lang] + includes_str + "\n"
-        text += "\n"
-    text += {"en": "And a special gift for the child!\nWhich package feels right? 😊", "fr": "Et un cadeau spécial pour l'enfant!\nLequel vous convient? 😊", "rw": "Kandi impano yihariye y'umwana!\nNi iyihe mwifuza? 😊"}[lang]
-    return text
 
-def build_instagram_system_prompt(language: str, client_name: str, flow_mode: str, discovery_state: dict, rag_context: str, next_question: str = "") -> str:
-    lang_instruction = LANG_INSTRUCTIONS.get(language, LANG_INSTRUCTIONS["en"])
-    if flow_mode == "discovery" and next_question:
-        flow_instruction = f"The client is in a discovery session. If they asked a question, answer it using the knowledge base, then repeat this discovery question: {next_question}"
-    elif flow_mode == "packages_shown": flow_instruction = "Packages shown. Wait for choice. If they ask to add/remove extras, say you will recalculate."
-    elif flow_mode == "awaiting_datetime": flow_instruction = "Package chosen. Wait for date/time (Mon-Sat, 9-6)."
-    elif flow_mode in ("await_confirm", "human_takeover"): flow_instruction = "Human agent handling. STAY SILENT. Return empty string."
-    else: flow_instruction = "Listen to client. If location -> give address. If price -> invite to discovery. If question -> answer from knowledge base."
-    return f"""You are Julie, AI assistant for KP Kids Studio, Kigali.
-{lang_instruction}
-Persona: Julie, warm, helpful, emoji-friendly. No markdown. Max 4 sentences.
-Pricing: Studio (Starter 50k, Silver 70k, Gold 100k), Home (Premium 200k). Extras: Frames 20k, Cake 30k, Video 29k (15-30 SECONDS).
-Rules: No markdown. No buttons. No discounts. No minutes for video (only seconds).
-Current State: {client_name}, Mode: {flow_mode}
-Instruction: {flow_instruction}
-Context: {rag_context}"""
+def _send_and_save(
+    sender_id, client, conversation, text,
+    model="", tokens_input=0, tokens_output=0
+):
+    send_text(sender_id, text)
+    _save_outbound(client, conversation, text,
+                   model=model, tokens_input=tokens_input, tokens_output=tokens_output)
 
-def _build_discovery_context(ds: dict) -> str:
-    steps = []
-    for k in ["photo_type", "session_type", "frames", "cake", "video"]:
-        v = ds.get(k); val = "Pending" if v is None else ("Yes" if v is True else ("No" if v is False else v))
-        steps.append(f"{k}: {val}")
-    return "Progress: " + ", ".join(steps)
 
-def _get_or_create_conversation(client) -> InstagramConversation:
+def _get_or_create_conversation(client) -> "InstagramConversation":
     conv = InstagramConversation.objects.filter(client=client, is_open=True).first()
-    if not conv: conv = InstagramConversation.objects.create(client=client)
+    if not conv:
+        conv = InstagramConversation.objects.create(client=client)
     return conv
 
+
 def _save_inbound(client, conversation, mid, text):
-    msg, _ = InstagramMessage.objects.get_or_create(ig_mid=mid, defaults={"conversation": conversation, "client": client, "direction": "inbound", "content": text or "[media]", "timestamp": timezone.now()})
+    msg, _ = InstagramMessage.objects.get_or_create(
+        ig_mid=mid,
+        defaults={
+            "conversation": conversation,
+            "client": client,
+            "direction": "inbound",
+            "content": text or "[media]",
+            "timestamp": timezone.now(),
+        },
+    )
     return msg
 
+
 def _save_outbound(client, conversation, text, model="", tokens_input=0, tokens_output=0):
-    return InstagramMessage.objects.create(ig_mid=f"out_{uuid.uuid4().hex[:12]}", conversation=conversation, client=client, direction="outbound", content=text, model_used=model, tokens_input=tokens_input, tokens_output=tokens_output, timestamp=timezone.now())
+    return InstagramMessage.objects.create(
+        ig_mid=f"out_{uuid.uuid4().hex[:12]}",
+        conversation=conversation,
+        client=client,
+        direction="outbound",
+        content=text,
+        model_used=model,
+        tokens_input=tokens_input,
+        tokens_output=tokens_output,
+        timestamp=timezone.now(),
+    )
+
 
 def _get_recent_messages(conversation) -> list:
-    msgs = InstagramMessage.objects.filter(conversation=conversation).order_by("-timestamp")[:15]
+    msgs = InstagramMessage.objects.filter(
+        conversation=conversation
+    ).order_by("-timestamp")[:20]
     result = []
-    for m in reversed(msgs): result.append({"role": "user" if m.direction == "inbound" else "assistant", "content": m.content})
+    for m in reversed(msgs):
+        result.append({
+            "role": "user" if m.direction == "inbound" else "assistant",
+            "content": m.content,
+        })
     return result
