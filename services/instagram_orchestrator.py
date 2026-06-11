@@ -78,9 +78,9 @@ OTHER_PACKAGES_SIGNALS = [
 ]
 
 EXTRAS_LABELS = {
-    "en": {"frames": "2 A5 Photo Frames (+20,000 RWF)", "cake": "Birthday Cake (+30,000 RWF)", "video": "Highlight Video 15-30sec (+29,000 RWF)"},
-    "fr": {"frames": "2 Cadres Photo A5 (+20,000 RWF)", "cake": "Gâteau d'Anniversaire (+30,000 RWF)", "video": "Vidéo Souvenir 15-30sec (+29,000 RWF)"},
-    "rw": {"frames": "Ama cadre 2 ya A5 (+20,000 RWF)", "cake": "Cake ya Aniverseri (+30,000 RWF)", "video": "Video Ngufi 15-30sec (+29,000 RWF)"},
+    "en": {"frames": "2 A5 Photo Frames (+20,000 RWF)", "cake": "Birthday Cake (+30,000 RWF)", "video": "Highlight Video takes up to a minute (+29,000 RWF)"},
+    "fr": {"frames": "2 Cadres Photo A5 (+20,000 RWF)", "cake": "Gâteau d'Anniversaire (+30,000 RWF)", "video": "Vidéo Souvenir (peut aller jusqu'a une minute) (+29,000 RWF)"},
+    "rw": {"frames": "Ama cadre 2 ya A5 (+20,000 RWF)", "cake": "Cake ya Aniverseri (+30,000 RWF)", "video": "Video Ngufi  (+29,000 RWF)"},
 }
 
 # ─── MAIN ENTRY POINT ────────────────────────────────────────────────────────
@@ -176,9 +176,9 @@ def handle_instagram_message(
                 _handle_with_ai_then_reask(
                     client, journey, conversation, sender_id, lang,
                     message_text, recent_history,
-                    reask={"en": "Do you have a preferred date for your session? 📅 (Mon-Sat, 9AM-6PM)",
-                           "fr": "Avez-vous une date préférée? 📅 (Lun-Sam, 9h-18h)",
-                           "rw": "Mufite itariki mushaka? 📅 (Ku wa Mbere-Gatanu, 9AM-6PM)"}
+                    reask={"en": "Do you have a preferred date for your session? 📅 (Mon-Sun, 9AM-6PM)",
+                           "fr": "Avez-vous une date préférée? 📅 (Lun-Sun, 9h-18h)",
+                           "rw": "Mufite itariki mushaka? 📅 (Ku wa Mbere-Cyumweru, 9AM-6PM)"}
                 )
                 return
 
@@ -283,9 +283,9 @@ def _handle_active_message(
     # Build location part
     if has_location:
         LOC = {
-            "en": "We're located in Kicukiro, BRGD Plaza, opposite IPRC, next to SAWA CITY Supermarket, Kigali. 📍 Open Mon-Sat 9AM-6PM.",
-            "fr": "Nous sommes à Kicukiro, BRGD Plaza, en face de l'IPRC, à côté de SAWA CITY, Kigali. 📍 Ouvert lun-sam 9h-18h.",
-            "rw": "Turi i Kicukiro, BRGD Plaza, imbere y'IPRC, hafi ya SAWA CITY, Kigali. 📍 Turi hafi kuva ku wa Mbere kugeza ku wa Gatanu, 9AM-6PM.",
+            "en": "We're located in Kicukiro, BRGD Plaza, opposite IPRC, next to SAWA CITY Supermarket, Kigali. 📍 Open Mon-Sun 9AM-6PM.",
+            "fr": "Nous sommes à Kicukiro, BRGD Plaza, en face de l'IPRC, à côté de SAWA CITY, Kigali. 📍 Ouvert lun-sun 9h-18h.",
+            "rw": "Turi i Kicukiro, BRGD Plaza, imbere y'IPRC, hafi ya SAWA CITY, Kigali. 📍 Turi hafi kuva ku wa Mbere kugeza ku Cyumweru, 9AM-6PM.",
         }
         parts.append(LOC.get(lang, LOC["en"]))
 
@@ -294,20 +294,20 @@ def _handle_active_message(
         PRICE_INTRO = {
             "en": (
                 "We don't charge per photo — we offer packages. 😊 "
-                "Packages start at 50,000 RWF. You can personalize yours by adding extras: "
-                "frames, a birthday cake, or a highlight video (15-30 sec).\n\n"
+                "Packages start at as lower as 50,000 RWF. You can personalize yours by adding extras: "
+                "2 A5 frames, a birthday cake, or a highlight video.\n\n"
                 "Would you like any of these included?"
             ),
             "fr": (
                 "Nous ne facturons pas par photo — nous proposons des forfaits. 😊 "
                 "Les forfaits commencent à 50,000 RWF. Vous pouvez personnaliser le vôtre en ajoutant: "
-                "des cadres, un gâteau d'anniversaire, ou une vidéo souvenir (15-30 sec).\n\n"
+                "des cadres, un gâteau d'anniversaire, ou une vidéo souvenir.\n\n"
                 "Souhaitez-vous inclure l'un de ces éléments?"
             ),
             "rw": (
                 "Ntitwishyura ifoto imwe — dufite packages. 😊 "
                 "Packages zitangira kuri 50,000 RWF. Mwongera ibyo mushaka: "
-                "ama cadre, cake ya aniverseri, cyangwa video ngufi (15-30 sec).\n\n"
+                "ama cadre, cake ya aniverseri, cyangwa video ngufi.\n\n"
                 "Murifuza kongereramo kimwe muri ibyo?"
             ),
         }
@@ -424,7 +424,7 @@ def _handle_discovery_reply(
                 "Great! 😊 Which ones would you like?\n\n"
                 "🖼️ 2 A5 Photo Frames (+20,000 RWF)\n"
                 "🎂 Birthday Cake (+30,000 RWF)\n"
-                "🎬 Highlight Video 15-30sec (+29,000 RWF)\n"
+                "🎬 Highlight Video ~1min (+29,000 RWF)\n"
                 "Or the cake + video bundle (+50,000 RWF instead of +59,000 RWF)\n\n"
                 "Just tell me which ones!"
             ),
@@ -432,7 +432,7 @@ def _handle_discovery_reply(
                 "Super! 😊 Lesquels souhaitez-vous?\n\n"
                 "🖼️ 2 Cadres Photo A5 (+20,000 RWF)\n"
                 "🎂 Gâteau d'Anniversaire (+30,000 RWF)\n"
-                "🎬 Vidéo Souvenir 15-30sec (+29,000 RWF)\n"
+                "🎬 Vidéo Souvenir ~1min (+29,000 RWF)\n"
                 "Ou le bundle gâteau+vidéo (+50,000 RWF au lieu de +59,000 RWF)\n\n"
                 "Dites-moi lesquels!"
             ),
@@ -440,7 +440,7 @@ def _handle_discovery_reply(
                 "Nziza! 😊 Ni izihe mushaka?\n\n"
                 "🖼️ Ama cadre 2 ya A5 (+20,000 RWF)\n"
                 "🎂 Cake ya Aniverseri (+30,000 RWF)\n"
-                "🎬 Video Ngufi 15-30sec (+29,000 RWF)\n"
+                "🎬 Video Ngufi ~1min (+29,000 RWF)\n"
                 "Cyangwa cake+video hamwe (+50,000 RWF aho kuba +59,000 RWF)\n\n"
                 "Mwambaze izihe!"
             ),
@@ -549,10 +549,10 @@ def _handle_discount_request(client, journey, conversation, sender_id, lang):
 
     REFUSE = {
         "en": (
-            "I completely understand! 😊 Our packages are priced to reflect the quality we deliver — professional photos, experienced team, and a special gift for your child. Prices are fixed.\n\n"
+            "I appreciate your interest! 😊 Our packages are priced to reflect the quality we deliver — professional photos, experienced team, and a special gift for your child. Prices are fixed.\n\n"
             "Which package would you like to go with? 😊"
             if discount_count == 1 else
-            "I appreciate your interest! 😊 Unfortunately our pricing is fixed and we can't offer discounts. Our packages already offer great value for the quality.\n\nWhich one would you like? 😊"
+            "I completely understand! 😊 Unfortunately our pricing is fixed and we can't offer discounts. Our packages already offer great value for the quality.\n\nWhich one would you like? 😊"
         ),
         "fr": (
             "Je comprends tout à fait! 😊 Nos forfaits reflètent la qualité que nous livrons. Les prix sont fixes.\n\nLequel vous intéresse? 😊"
@@ -610,7 +610,7 @@ def _get_extra_info_answer(text_lower: str, lang: str) -> Optional[str]:
     """Returns a direct answer if client asked about a specific extra."""
     FRAME_Q = ["what are frames", "what is frame", "frame size", "frame quality",
                "qu'est-ce que les cadres", "taille des cadres", "ama cadre ni iki", "quality of frame"]
-    CAKE_Q = ["what size cake", "how big is the cake", "cake size", "quality of cake",
+    CAKE_Q = ["what size cake", "how big is the cake", "cake size", "quality of cake"
               "taille du gâteau", "cake ingahe", "cake ni ingahe", "gâteau de qualité"]
     VIDEO_Q = ["how long is the video", "video length", "video duration",
                "durée de la vidéo", "video iramara", "video ingahe", "vidéo de qualité"]
@@ -620,9 +620,9 @@ def _get_extra_info_answer(text_lower: str, lang: str) -> Optional[str]:
 
     if any(x in text_lower for x in FRAME_Q) or ("frame" in text_lower and is_question):
         return {
-            "en": "Our A5 frames are high-quality printed photos in elegant frames — perfect for home display! 🖼️ For more details: WhatsApp +250795820170",
-            "fr": "Nos cadres A5 sont des impressions de haute qualité dans des cadres élégants — parfaits pour la déco! 🖼️ Pour plus de détails: WhatsApp +250795820170",
-            "rw": "Ama cadre yacu ya A5 ni amafoto meza mu nkware z'indangagaciro — akaba meza cyane mu rugo! 🖼️ Kugira amakuru: WhatsApp +250795820170",
+            "en": "Our A5 frames are high-quality printed photos in elegant frames — perfect for home display! 🖼️ But for other sizes, their prices and details, feel free to request to talk to a real agent by writing here down: 'talk to an agent'.",
+            "fr": "Nos cadres A5 sont des impressions de haute qualité dans des cadres élégants — parfaits pour la déco! 🖼️ Pour plus de détails, autres dimensions et prix: WhatsApp +250795820170 ou dites directement: 'parler a un agent' ",
+            "rw": "Ama cadre yacu ya A5 ni amafoto meza mu nkware z'indangagaciro — akaba meza cyane mu rugo! 🖼️ Kugira amakuru, Ma types andi (A3, A4,...): WhatsApp +250795820170 cyangwa, andika 'kuvugana na agent' ",
         }.get(lang)
 
     if any(x in text_lower for x in CAKE_Q) or ("cake" in text_lower and is_question):
@@ -721,11 +721,11 @@ Hours: Mon-Sat 9AM-6PM. WhatsApp: +250795820170.
 PRICING (EXACT):
 Studio packages: Starter 50k RWF (1h, 8 photos), Silver 70k (1h, 12 photos), Gold 100k (1.5h, 18 photos).
 All include ALL unedited photos.
-Extras: Frames +20k, Cake +30k, Video +29k (15-30 SECONDS NOT MINUTES), Cake+Video bundle +50k.
+Extras: Frames +20k, Cake +30k, Video +29k (~ 1min NOT MORE MINUTES), Cake+Video bundle +50k.
 NO DISCOUNTS. NO SINGLE PHOTO PRICING.
 
 SPECIFIC FACTS:
-- Video: 15 to 30 seconds. NEVER say minutes.
+- Video: 30 to 1 Minute. NEVER say minutes.
 - Frames: A5 format, high-quality, for home display.
 - Cake: perfectly sized for celebration.
 - No session_type question — studio only.
