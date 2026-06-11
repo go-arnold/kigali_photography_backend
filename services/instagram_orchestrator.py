@@ -260,28 +260,14 @@ def _handle_active_message(
     """
     Handles messages when flow is new/active.
     Detects multiple intents in one message and responds to ALL of them.
-    Also handles the case where client sent multiple short messages in a row
-    (we read full recent_history to understand context).
     """
     has_greeting = any(x in text_lower for x in [
         "hi", "hello", "hey", "bonjour", "bonsoir", "salut",
         "muraho", "mwaramutse", "mwiriwe", "good morning", "good afternoon",
     ])
+    # ONLY check current message for location/price to avoid repetition from history
     has_location = any(sig in text_lower for sig in LOCATION_SIGNALS)
     has_price = any(sig in text_lower for sig in PRICE_SIGNALS)
-
-    # Also check recent history for multi-message context
-    # If last 2 messages from client cover greeting + price, handle both
-    recent_client_msgs = [
-        m["content"].lower() for m in recent_history[-4:]
-        if m.get("role") == "user"
-    ]
-    combined_text = " ".join(recent_client_msgs)
-
-    if not has_location and any(sig in combined_text for sig in LOCATION_SIGNALS):
-        has_location = True
-    if not has_price and any(sig in combined_text for sig in PRICE_SIGNALS):
-        has_price = True
 
     parts = []
 
@@ -388,7 +374,8 @@ def _handle_discovery_reply(
     """
     ds = journey.discovery_state or {}
 
-    # Check if this is a question about an extra — answer directly
+    # 1. Check if this is a question about an extra — answer directly
+    # PRIORITIZE questions over marking extras as wanted
     extra_answer = _get_extra_info_answer(text_lower, lang)
     if extra_answer:
         # Still need to know their choice — reask
@@ -401,11 +388,23 @@ def _handle_discovery_reply(
                        f"{extra_answer}\n\n{REASK.get(lang, REASK['en'])}")
         return
 
-    # Detect No — no extras at all
+    # 2. Check for general questions using AI if no direct yes/no/extra detected
+    is_extra_intent = any(x in text_lower for x in ["frame", "cake", "video", "cadre", "gâteau", "gateau", "umutsima"])
+    is_yes_no = _extract_yes_no(message_text) is not None
+
+    if not is_extra_intent and not is_yes_no:
+        _handle_with_ai_then_reask(
+            client, journey, conversation, sender_id, lang,
+            message_text, _get_recent_messages(conversation),
+            reask={"en": "Would you like to include any of those extras (frames, cake, or video)? 😊",
+                   "fr": "Souhaitez-vous inclure ces extras (cadres, gâteau, ou vidéo)? 😊",
+                   "rw": "Murifuza kongereramo ama cadre, cake, cyangwa video? 😊"}
+        )
+        return
+
+    # 3. Detect No — no extras at all
     plain_no = _extract_yes_no(message_text)
-    if plain_no is False and not any(
-        x in text_lower for x in ["frame", "cake", "video", "cadre", "gâteau", "gateau"]
-    ):
+    if plain_no is False and not is_extra_intent:
         # Client said no to all extras
         ds["frames"] = False
         ds["cake"] = False
@@ -418,10 +417,8 @@ def _handle_discovery_reply(
         journey.save(update_fields=["flow_mode", "updated_at"])
         return
 
-    # Detect Yes without specifying — ask which extras
-    if plain_no is True and not any(
-        x in text_lower for x in ["frame", "cake", "video", "cadre", "gâteau", "gateau"]
-    ):
+    # 4. Detect Yes without specifying — ask which extras
+    if plain_no is True and not is_extra_intent:
         WHICH = {
             "en": (
                 "Great! 😊 Which ones would you like?\n\n"
@@ -451,12 +448,11 @@ def _handle_discovery_reply(
         _send_and_save(sender_id, client, conversation, WHICH.get(lang, WHICH["en"]))
         return
 
-    # Detect specific extras in message
-    # Client can mention multiple extras in one or across messages
+    # 5. Detect specific extras in message
     if "frame" in text_lower or "cadre" in text_lower or "ama cadre" in text_lower:
         ds["frames"] = True
     elif ds.get("frames") is None:
-        ds["frames"] = False  # not mentioned → not wanted
+        ds["frames"] = False
 
     if "cake" in text_lower or "gâteau" in text_lower or "gateau" in text_lower or "umutsima" in text_lower:
         ds["cake"] = True
@@ -468,7 +464,7 @@ def _handle_discovery_reply(
     elif ds.get("video") is None:
         ds["video"] = False
 
-    # Check if all decided — if so present packages
+    # Check if all decided
     if all(ds.get(k) is not None for k in ["frames", "cake", "video"]):
         journey.discovery_state = ds
         journey.save(update_fields=["discovery_state", "updated_at"])
@@ -477,7 +473,6 @@ def _handle_discovery_reply(
         journey.flow_mode = "packages_shown"
         journey.save(update_fields=["flow_mode", "updated_at"])
     else:
-        # Some extras still unclear — ask about remaining ones
         journey.discovery_state = ds
         journey.save(update_fields=["discovery_state", "updated_at"])
         _ask_remaining_extras(sender_id, client, conversation, ds, lang)
@@ -578,6 +573,13 @@ def _handle_with_ai_then_reask(
     message_text, recent_history, reask: dict
 ):
     """Use AI to answer a question, then append a re-ask for the current step."""
+    # First check if it's a direct info request for extras
+    extra_answer = _get_extra_info_answer((message_text or "").lower(), lang)
+    if extra_answer:
+        combined = f"{extra_answer}\n\n{reask.get(lang, reask.get('en', ''))}"
+        _send_and_save(sender_id, client, conversation, combined)
+        return
+
     rag_context = retrieve_context(
         query=message_text or "", journey_phase=journey.phase, language=lang
     )
@@ -607,31 +609,34 @@ def _handle_with_ai_then_reask(
 def _get_extra_info_answer(text_lower: str, lang: str) -> Optional[str]:
     """Returns a direct answer if client asked about a specific extra."""
     FRAME_Q = ["what are frames", "what is frame", "frame size", "frame quality",
-               "qu'est-ce que les cadres", "taille des cadres", "ama cadre ni iki"]
-    CAKE_Q = ["what size cake", "how big is the cake", "cake size",
-              "taille du gâteau", "cake ingahe", "cake ni ingahe"]
+               "qu'est-ce que les cadres", "taille des cadres", "ama cadre ni iki", "quality of frame"]
+    CAKE_Q = ["what size cake", "how big is the cake", "cake size", "quality of cake",
+              "taille du gâteau", "cake ingahe", "cake ni ingahe", "gâteau de qualité"]
     VIDEO_Q = ["how long is the video", "video length", "video duration",
-               "durée de la vidéo", "video iramara", "video ingahe"]
+               "durée de la vidéo", "video iramara", "video ingahe", "vidéo de qualité"]
 
-    if any(x in text_lower for x in FRAME_Q + ["frame", "cadre"]) and "?" in text_lower:
+    # Check for keywords + question intent (doesn't require '?' strictly if question words used)
+    is_question = "?" in text_lower or any(x in text_lower for x in ["how", "what", "tell me", "can you", "comment", "quel", "ni iki", "kuki"])
+
+    if any(x in text_lower for x in FRAME_Q) or ("frame" in text_lower and is_question):
         return {
             "en": "Our A5 frames are high-quality printed photos in elegant frames — perfect for home display! 🖼️ For more details: WhatsApp +250795820170",
             "fr": "Nos cadres A5 sont des impressions de haute qualité dans des cadres élégants — parfaits pour la déco! 🖼️ Pour plus de détails: WhatsApp +250795820170",
             "rw": "Ama cadre yacu ya A5 ni amafoto meza mu nkware z'indangagaciro — akaba meza cyane mu rugo! 🖼️ Kugira amakuru: WhatsApp +250795820170",
         }.get(lang)
 
-    if any(x in text_lower for x in CAKE_Q + ["cake"]) and "?" in text_lower:
+    if any(x in text_lower for x in CAKE_Q) or ("cake" in text_lower and is_question):
         return {
-            "en": "Our birthday cake is perfectly sized for a celebration! 🎂",
-            "fr": "Notre gâteau d'anniversaire est parfaitement dimensionné pour une célébration! 🎂",
-            "rw": "Cake yacu irashyitse kugira ngo irahire icyo gihe! 🎂",
+            "en": "Our birthday cake is perfectly sized for a celebration and of high quality! 🎂 For specific flavor questions: WhatsApp +250795820170",
+            "fr": "Notre gâteau d'anniversaire est de haute qualité et parfaitement dimensionné! 🎂 Pour plus de détails: WhatsApp +250795820170",
+            "rw": "Cake yacu ni nziza cyane kandi irashyitse kugira ngo irahire icyo gihe! 🎂 Kugira amakuru: WhatsApp +250795820170",
         }.get(lang)
 
-    if any(x in text_lower for x in VIDEO_Q + ["video", "vidéo"]) and "?" in text_lower:
+    if any(x in text_lower for x in VIDEO_Q) or ("video" in text_lower and is_question):
         return {
-            "en": "Our highlight video is a 15 to 30-second clip of your session's best moments! 🎬 For more details: WhatsApp +250795820170",
-            "fr": "Notre vidéo souvenir est un clip de 15 à 30 secondes de vos meilleurs moments! 🎬 Pour plus de détails: WhatsApp +250795820170",
-            "rw": "Video yacu ni agace ka 15 kugeza 30 amasegonda y'ibihe byiza bya session yanyu! 🎬 Kugira amakuru: WhatsApp +250795820170",
+            "en": "Our highlight video is a professional 15 to 30-second clip of your session's best moments! 🎬 For more details: WhatsApp +250795820170",
+            "fr": "Notre vidéo souvenir est un clip professionnel de 15 à 30 secondes! 🎬 Pour plus de détails: WhatsApp +250795820170",
+            "rw": "Video yacu ni amashusho meza cyane y'amasegonda 15 kugeza 30 y'ibihe byiza! 🎬 Kugira amakuru: WhatsApp +250795820170",
         }.get(lang)
 
     return None
