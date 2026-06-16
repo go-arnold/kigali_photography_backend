@@ -293,20 +293,20 @@ def _handle_active_message(
     if has_price:
         PRICE_INTRO = {
             "en": (
-                "We don't charge per photo — we offer packages. 😊 "
-                "Packages start at as lower as 50,000 RWF. You can personalize yours by adding extras: "
+                "We don't charge per photo — we instead offer professional packages. 😊  "
+                "You can personalize yours by adding extras: "
                 "2 A5 frames, a birthday cake, or a highlight video.\n\n"
                 "Would you like any of these included?"
             ),
             "fr": (
                 "Nous ne facturons pas par photo — nous proposons des forfaits. 😊 "
-                "Les forfaits commencent à 50,000 RWF. Vous pouvez personnaliser le vôtre en ajoutant: "
+                "Vous pouvez personnaliser le vôtre en ajoutant: "
                 "des cadres, un gâteau d'anniversaire, ou une vidéo souvenir.\n\n"
                 "Souhaitez-vous inclure l'un de ces éléments?"
             ),
             "rw": (
                 "Ntitwishyura ifoto imwe — dufite packages. 😊 "
-                "Packages zitangira kuri 50,000 RWF. Mwongera ibyo mushaka: "
+                "Mwongera ibyo mushaka: "
                 "ama cadre, cake ya aniverseri, cyangwa video ngufi.\n\n"
                 "Murifuza kongereramo kimwe muri ibyo?"
             ),
@@ -620,14 +620,14 @@ def _get_extra_info_answer(text_lower: str, lang: str) -> Optional[str]:
 
     if any(x in text_lower for x in FRAME_Q) or ("frame" in text_lower and is_question):
         return {
-            "en": "Our A5 frames are high-quality printed photos in elegant frames — perfect for home display! 🖼️ But for other sizes, their prices and details, feel free to request to talk to a real agent by writing here down: 'talk to an agent'.",
+            "en": "Our A5 frames are high-quality printed photos in elegant frames — perfect for home display! 🖼️ But for other sizes(2 A5 frames cost 20,000 frw, 1 A4 frame cost 15,000 frw,1 A3 frame cost 20,000 frw, 1 A2 frame cost 40,000 frw), their prices and details, feel free to request to talk to a real agent by writing here down: 'talk to an agent'.",
             "fr": "Nos cadres A5 sont des impressions de haute qualité dans des cadres élégants — parfaits pour la déco! 🖼️ Pour plus de détails, autres dimensions et prix: WhatsApp +250795820170 ou dites directement: 'parler a un agent' ",
             "rw": "Ama cadre yacu ya A5 ni amafoto meza mu nkware z'indangagaciro — akaba meza cyane mu rugo! 🖼️ Kugira amakuru, Ma types andi (A3, A4,...): WhatsApp +250795820170 cyangwa, andika 'kuvugana na agent' ",
         }.get(lang)
 
     if any(x in text_lower for x in CAKE_Q) or ("cake" in text_lower and is_question):
         return {
-            "en": "Our birthday cake is perfectly sized for a celebration and of high quality! 🎂 For specific flavor questions: WhatsApp +250795820170",
+            "en": "Our birthday cake is perfectly sized for a celebration and of high quality! 🎂 It costs 29000RwF",
             "fr": "Notre gâteau d'anniversaire est de haute qualité et parfaitement dimensionné! 🎂 Pour plus de détails: WhatsApp +250795820170",
             "rw": "Cake yacu ni nziza cyane kandi irashyitse kugira ngo irahire icyo gihe! 🎂 Kugira amakuru: WhatsApp +250795820170",
         }.get(lang)
