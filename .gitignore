@@ -4,8 +4,9 @@ env/
 venv/
 
 
-chats/
 
+chats/
+node_modules/
 
 __pycache__/
 *.pyc
