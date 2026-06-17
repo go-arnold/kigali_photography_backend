@@ -124,6 +124,22 @@ def handle_instagram_message(
         # 5. Save inbound
         _save_inbound(client, conversation, message_id, message_text)
 
+        # 5b. Media handling — ONLY on Instagram
+        if not message_text:
+            logger.info("Media received on Instagram from %s — triggering takeover", sender_id)
+            MEDIA_MSG = {
+                "en": "I'm not able to process media yet but one of our team members will shortly talk to you, thank you for your patience. 😊",
+                "fr": "Je ne peux pas encore traiter les médias, mais l'un des membres de notre équipe vous parlera bientôt, merci de votre patience. 😊",
+                "rw": "Ntabwo nshobora gucurunganya amafoto cyangwa amashusho ubu, ariko umwe mu bagize itsinda ryacu aragusubiza vuba, murakoze kwihangana. 😊",
+            }
+            _send_and_save(sender_id, client, conversation, MEDIA_MSG.get(lang, MEDIA_MSG["en"]))
+            _activate_human_takeover(
+                client, journey, conversation, sender_id, lang,
+                reason="Client sent media (image/video)",
+                send_message=False
+            )
+            return
+
         # 6. Human takeover — AI completely silent
         if journey.human_takeover:
             logger.info("Human takeover active for IG %s — AI silent", sender_id)
@@ -504,9 +520,9 @@ def _handle_package_chosen(client, journey, conversation, sender_id, lang, chose
     total = base.get(chosen, 0) + extras_cost
 
     MSGS = {
-        "en": f"Excellent choice! 🎉 You've selected the {chosen.title()} Package at {total:,} RWF.\n\nDo you have a preferred date and time in mind for your session? 📅\n(We're open Mon-Sat, 9AM-6PM)",
-        "fr": f"Excellent choix! 🎉 Vous avez sélectionné le {chosen.title()} Package à {total:,} RWF.\n\nAvez-vous une date et heure préférées? 📅\n(Ouvert lun-sam, 9h-18h)",
-        "rw": f"Amahitamo meza! 🎉 Mwahisemo {chosen.title()} Package kuri {total:,} RWF.\n\nMufite itariki n'isaha mushaka? 📅\n(Turi hafi kuva ku wa Mbere kugeza ku wa Gatanu, 9AM-6PM)",
+        "en": f"Excellent choice! 🎉 You've selected the {chosen.title()} Package at {total:,} RWF.\n\nDo you have a preferred date and time in mind for your session? 📅\n(We're open Mon-Sun, 9AM-6PM)",
+        "fr": f"Excellent choix! 🎉 Vous avez sélectionné le {chosen.title()} Package à {total:,} RWF.\n\nAvez-vous une date et heure préférées? 📅\n(Ouvert lun-dim, 9h-18h)",
+        "rw": f"Amahitamo meza! 🎉 Mwahisemo {chosen.title()} Package kuri {total:,} RWF.\n\nMufite itariki n'isaha mushaka? 📅\n(Turi hafi kuva ku wa Mbere kugeza ku Cyumeru, 9AM-6PM)",
     }
     _send_and_save(sender_id, client, conversation, MSGS.get(lang, MSGS["en"]))
     journey.selected_package = chosen
@@ -617,16 +633,45 @@ def _get_extra_info_answer(text_lower: str, lang: str) -> Optional[str]:
 
     if any(x in text_lower for x in FRAME_Q) or ("frame" in text_lower and is_question):
         return {
-            "en": "Our A5 frames are high-quality printed photos in elegant frames — perfect for home display! 🖼️ But for other sizes(2 A5 frames cost 20,000 frw, 1 A4 frame cost 15,000 frw,1 A3 frame cost 20,000 frw, 1 A2 frame cost 40,000 frw), their prices and details, feel free to request to talk to a real agent by writing here down: 'talk to an agent'.",
-            "fr": "Nos cadres A5 sont des impressions de haute qualité dans des cadres élégants — parfaits pour la déco! 🖼️ Pour plus de détails, autres dimensions et prix: WhatsApp +250795820170 ou dites directement: 'parler a un agent' ",
-            "rw": "Ama cadre yacu ya A5 ni amafoto meza mu nkware z'indangagaciro — akaba meza cyane mu rugo! 🖼️ Kugira amakuru, Ma types andi (A3, A4,...): WhatsApp +250795820170 cyangwa, andika 'kuvugana na agent' ",
+            "en": (
+                "We offer multiple frame sizes to display your memories! 🖼️\n\n"
+                "• 2 A5 frames: 20,000 RWF (Our standard offer)\n"
+                "• 1 A4 frame: 15,000 RWF\n"
+                "• 1 A3 frame: 20,000 RWF\n"
+                "• 1 A2 frame: 40,000 RWF\n\n"
+                "For more details or custom orders, feel free to ask to 'talk to an agent' here! 😊"
+            ),
+            "fr": (
+                "Nous proposons plusieurs tailles de cadres pour vos souvenirs ! 🖼️\n\n"
+                "• 2 cadres A5 : 20 000 RWF (Notre offre standard)\n"
+                "• 1 cadre A4 : 15 000 RWF\n"
+                "• 1 cadre A3 : 20 000 RWF\n"
+                "• 1 cadre A2 : 40 000 RWF\n\n"
+                "Pour plus de détails, n'hésitez pas à demander à 'parler à un agent' ! 😊"
+            ),
+            "rw": (
+                "Dufite ama cadre mu ngano zitandukanye! 🖼️\n\n"
+                "• Ama cadre 2 ya A5: 20,000 RWF (Standard yacu)\n"
+                "• I cadre 1 rya A4: 15,000 RWF\n"
+                "• I cadre 1 rya A3: 20,000 RWF\n"
+                "• I cadre 1 rya A2: 40,000 RWF\n\n"
+                "Kugira amakuru arambuye, andika 'kuvugana na agent' hano! 😊"
+            ),
         }.get(lang)
 
     if any(x in text_lower for x in CAKE_Q) or ("cake" in text_lower and is_question):
+        # Check if they asked about bringing their own cake
+        if any(x in text_lower for x in ["own", "bring", "amener", "icyanjye", "nizaniye"]):
+            return {
+                "en": "Yes, you are absolutely welcome to bring your own cake for the session! 🎂😊",
+                "fr": "Oui, vous êtes tout à fait bienvenu d'apporter votre propre gâteau pour la séance ! 🎂😊",
+                "rw": "Yego rwose, muremewe kwizanira umutsima (cake) wanyu bwite! 🎂😊",
+            }.get(lang)
+
         return {
-            "en": "Our birthday cake is perfectly sized for a celebration and of high quality! 🎂 It costs 30,000 RWF",
-            "fr": "Notre gâteau d'anniversaire est de haute qualité et parfaitement dimensionné! 🎂 Il coûte 30 000 RWF",
-            "rw": "Cake yacu ni nziza cyane kandi irashyitse kugira ngo irahire icyo gihe! 🎂 Igura 30,000 RWF",
+            "en": "Our birthday cake is perfectly sized for a celebration and of high quality! 🎂 It costs 30,000 RWF. You can also bring your own if you prefer! 😊",
+            "fr": "Notre gâteau d'anniversaire est de haute qualité et parfaitement dimensionné! 🎂 Il coûte 30 000 RWF. Vous pouvez aussi apporter le vôtre si vous préférez ! 😊",
+            "rw": "Cake yacu ni nziza cyane kandi irashyitse kugira ngo irahire icyo gihe! 🎂 Igura 30,000 RWF. Mwajya munahera yanyu niba mubyifuza ! 😊",
         }.get(lang)
 
     if any(x in text_lower for x in VIDEO_Q) or ("video" in text_lower and is_question):
