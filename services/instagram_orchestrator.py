@@ -311,17 +311,17 @@ def _handle_active_message(
             "en": (
                 "We don't charge per photo — we instead offer professional packages. 😊 "
                 "You can personalize yours by adding extras: "
-                "2 A5 frames, a birthday cake, or a highlight video."
+                "2 A5 frames, a birthday cake, or a highlight video. Would u want any of them?"
             ),
             "fr": (
                 "Nous ne facturons pas par photo — nous proposons des forfaits. 😊 "
                 "Vous pouvez personnaliser le vôtre en ajoutant: "
-                "des cadres, un gâteau d'anniversaire, ou une vidéo souvenir."
+                "des cadres, un gâteau d'anniversaire, ou une vidéo souvenir. Lesquels voulez-vous?"
             ),
             "rw": (
                 "Ntitwishyura ifoto imwe — dufite packages. 😊 "
                 "Mwongera ibyo mushaka: "
-                "ama cadre, cake ya aniverseri, cyangwa video ngufi."
+                "ama cadre, cake ya aniverseri, cyangwa video ngufi. Murifuza kongereramo kimwe muri ibyo?"
             ),
         }
         parts.append(PRICE_INTRO.get(lang, PRICE_INTRO["en"]))
